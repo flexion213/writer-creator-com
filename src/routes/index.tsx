@@ -101,7 +101,7 @@ function Dashboard() {
 
   const submitPost = () => {
     const text = draft.trim();
-    if ((!text && !draftImage) || text.length > 500) return;
+    if (!text && !draftImage) return;
     setPosts((p) => [{ id: Date.now(), author: "You", verified: false, text, image: draftImage }, ...p]);
     setDraft("");
     setDraftImage(undefined);
