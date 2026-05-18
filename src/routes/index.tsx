@@ -91,11 +91,14 @@ function Dashboard() {
                 </div>
               </Button>
             </SheetTrigger>
-            <SheetContent side="left" className="w-72">
-              <SheetHeader>
-                <SheetTitle style={{ color: "#FFFFD7" }}>Dev Dashboard</SheetTitle>
+            <SheetContent side="left" className="w-80 border-r-0 bg-gradient-to-b from-background to-background/95">
+              <SheetHeader className="text-left">
+                <SheetTitle style={{ color: "#FFFFD7" }} className="text-2xl font-bold tracking-tight">
+                  Dev Dashboard
+                </SheetTitle>
+                <p className="text-xs text-muted-foreground">Jump to a section</p>
               </SheetHeader>
-              <nav className="mt-4 space-y-1">
+              <nav className="mt-6 space-y-2">
                 {NAV.map((n) => {
                   const Icon = n.icon;
                   const active = section === n.id;
@@ -103,12 +106,20 @@ function Dashboard() {
                     <button
                       key={n.id}
                       onClick={() => go(n.id)}
-                      className={`flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm transition-colors ${
-                        active ? "bg-accent text-accent-foreground" : "hover:bg-accent/50"
+                      className={`group flex w-full items-center gap-4 rounded-xl px-4 py-3.5 text-left transition-all ${
+                        active
+                          ? "bg-accent text-accent-foreground shadow-sm"
+                          : "hover:bg-accent/40 hover:translate-x-0.5"
                       }`}
                     >
-                      <Icon className="h-4 w-4" />
-                      <span>{n.label}</span>
+                      <span
+                        className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
+                          active ? "bg-background/60" : "bg-accent/40 group-hover:bg-accent/70"
+                        }`}
+                      >
+                        <Icon className="h-5 w-5" />
+                      </span>
+                      <span className="text-base font-medium tracking-tight">{n.label}</span>
                     </button>
                   );
                 })}
