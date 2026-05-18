@@ -35,6 +35,7 @@ export const Route = createFileRoute("/")({
 
 type Post = { id: number; author: string; verified: boolean; text: string; image?: string };
 type Section = "feed" | "notebooks" | "suggestions" | "drawing";
+type Notebook = { id: number; title: string; body: string; updated: number };
 
 const initialPosts: Post[] = [
   { id: 1, author: "Ada Lovelace", verified: true, text: "Shipped a new diff renderer today — feels fast and crisp." },
@@ -58,6 +59,10 @@ function Dashboard() {
   const [navOpen, setNavOpen] = useState(false);
   const [draftFixing, setDraftFixing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [notebooks, setNotebooks] = useState<Notebook[]>([
+    { id: 1, title: "Ideas", body: "Refactor auth into a single middleware.", updated: Date.now() - 1000 * 60 * 60 },
+    { id: 2, title: "Todo", body: "Review PR #842, draft changelog.", updated: Date.now() - 1000 * 60 * 30 },
+  ]);
   const fix = useServerFn(fixGrammar);
 
   const runFix = async (text: string): Promise<string | null> => {
