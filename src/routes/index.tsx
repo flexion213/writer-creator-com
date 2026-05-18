@@ -234,6 +234,20 @@ function Dashboard() {
                   <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()}>
                     <ImagePlus className="h-3.5 w-3.5 mr-1" /> Photo
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!draft.trim() || draftFixing}
+                    onClick={async () => {
+                      setDraftFixing(true);
+                      const fixed = await runFix(draft);
+                      if (fixed) setDraft(fixed.slice(0, 500));
+                      setDraftFixing(false);
+                    }}
+                  >
+                    {draftFixing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
+                    Fix
+                  </Button>
                   <Button size="sm" onClick={submitPost} disabled={!draft.trim() && !draftImage}>
                     <Send className="h-3.5 w-3.5 mr-1" /> Post
                   </Button>
