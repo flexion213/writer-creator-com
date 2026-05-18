@@ -56,7 +56,26 @@ function Dashboard() {
   const [draftImage, setDraftImage] = useState<string | undefined>(undefined);
   const [section, setSection] = useState<Section>("feed");
   const [navOpen, setNavOpen] = useState(false);
+  const [draftFixing, setDraftFixing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const fix = useServerFn(fixGrammar);
+
+  const runFix = async (text: string): Promise<string | null> => {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      toast.error("Nothing to fix yet — write something first.");
+      return null;
+    }
+    try {
+      const r = await fix({ data: { text: trimmed } });
+      if (!r.ok) { toast.error(r.error); return null; }
+      toast.success(`Fixed (${r.language})`);
+      return r.corrected;
+    } catch (e) {
+      toast.error("Couldn't reach the grammar assistant.");
+      return null;
+    }
+  };
 
   const handleTitleTap = () => {
     const next = tapCount + 1;
