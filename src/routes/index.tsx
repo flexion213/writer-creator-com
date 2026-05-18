@@ -281,7 +281,13 @@ function Dashboard() {
           </>
         )}
 
-        {section === "notebooks" && <Notebooks />}
+        {section === "notebooks" && (
+          <Notebooks
+            notebooks={notebooks}
+            setNotebooks={setNotebooks}
+            runFix={runFix}
+          />
+        )}
         {section === "suggestions" && <Suggestions />}
         {section === "drawing" && <DrawingStudio />}
       </main>
