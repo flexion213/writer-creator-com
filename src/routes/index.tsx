@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from "react";
+import { useRef, useState, useEffect, useCallback } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,12 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/co
 import {
   BadgeCheck, Bug, Lightbulb, Video, Upload, ShieldAlert, Send,
   NotebookPen, Globe, MessageSquare, Pencil, ImagePlus, X, Eraser, Megaphone,
+  Brush, PenTool, Highlighter, SprayCan, Sparkles, Droplet, Undo2, Redo2, Download, Trash2,
 } from "lucide-react";
+import Wheel from "@uiw/react-color-wheel";
+import ShadeSlider from "@uiw/react-color-shade-slider";
+import Alpha from "@uiw/react-color-alpha";
+import { hsvaToHex, hsvaToRgba, hexToHsva, type HsvaColor } from "@uiw/color-convert";
 
 export const Route = createFileRoute("/")({
   component: Dashboard,
@@ -308,20 +313,76 @@ function Suggestions() {
   );
 }
 
+type BrushId = "pencil" | "pen" | "marker" | "ink" | "highlighter" | "airbrush" | "spray" | "neon" | "calligraphy" | "eraser";
+
+const BRUSHES: { id: BrushId; label: string; icon: React.ComponentType<{ className?: string }>; defaultSize: number; defaultOpacity: number }[] = [
+  { id: "pencil",      label: "Pencil",      icon: Pencil,      defaultSize: 2,  defaultOpacity: 0.85 },
+  { id: "pen",         label: "Pen",         icon: PenTool,     defaultSize: 4,  defaultOpacity: 1 },
+  { id: "marker",      label: "Marker",      icon: Brush,       defaultSize: 10, defaultOpacity: 0.9 },
+  { id: "ink",         label: "Ink",         icon: Droplet,     defaultSize: 6,  defaultOpacity: 1 },
+  { id: "highlighter", label: "Highlighter", icon: Highlighter, defaultSize: 18, defaultOpacity: 0.35 },
+  { id: "airbrush",    label: "Airbrush",    icon: SprayCan,    defaultSize: 24, defaultOpacity: 0.15 },
+  { id: "spray",       label: "Spray",       icon: SprayCan,    defaultSize: 22, defaultOpacity: 0.6 },
+  { id: "neon",        label: "Neon",        icon: Sparkles,    defaultSize: 6,  defaultOpacity: 1 },
+  { id: "calligraphy", label: "Calligraphy", icon: PenTool,     defaultSize: 14, defaultOpacity: 1 },
+  { id: "eraser",      label: "Eraser",      icon: Eraser,      defaultSize: 18, defaultOpacity: 1 },
+];
+
 function DrawingStudio() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [color, setColor] = useState("#FFFFD7");
+  const [hsva, setHsva] = useState<HsvaColor>(hexToHsva("#FFFFD7"));
+  const [brush, setBrush] = useState<BrushId>("pen");
   const [size, setSize] = useState(4);
-  const drawing = useRef(false);
+  const [opacity, setOpacity] = useState(1);
+  const [showColor, setShowColor] = useState(false);
 
-  useEffect(() => {
-    const c = canvasRef.current;
-    if (!c) return;
-    const ctx = c.getContext("2d");
-    if (!ctx) return;
+  const drawing = useRef(false);
+  const lastPt = useRef<{ x: number; y: number } | null>(null);
+  const history = useRef<ImageData[]>([]);
+  const future = useRef<ImageData[]>([]);
+  const sprayTimer = useRef<number | null>(null);
+
+  const fillBg = useCallback(() => {
+    const c = canvasRef.current; if (!c) return;
+    const ctx = c.getContext("2d"); if (!ctx) return;
     ctx.fillStyle = "#0a0a0a";
     ctx.fillRect(0, 0, c.width, c.height);
   }, []);
+
+  useEffect(() => { fillBg(); }, [fillBg]);
+
+  // Sync brush defaults
+  const selectBrush = (id: BrushId) => {
+    setBrush(id);
+    const b = BRUSHES.find((x) => x.id === id)!;
+    setSize(b.defaultSize);
+    setOpacity(b.defaultOpacity);
+  };
+
+  const snapshot = () => {
+    const c = canvasRef.current!;
+    const ctx = c.getContext("2d")!;
+    history.current.push(ctx.getImageData(0, 0, c.width, c.height));
+    if (history.current.length > 25) history.current.shift();
+    future.current = [];
+  };
+
+  const undo = () => {
+    const c = canvasRef.current!;
+    const ctx = c.getContext("2d")!;
+    const last = history.current.pop();
+    if (!last) return;
+    future.current.push(ctx.getImageData(0, 0, c.width, c.height));
+    ctx.putImageData(last, 0, 0);
+  };
+  const redo = () => {
+    const c = canvasRef.current!;
+    const ctx = c.getContext("2d")!;
+    const next = future.current.pop();
+    if (!next) return;
+    history.current.push(ctx.getImageData(0, 0, c.width, c.height));
+    ctx.putImageData(next, 0, 0);
+  };
 
   const pos = (e: React.PointerEvent<HTMLCanvasElement>) => {
     const c = canvasRef.current!;
@@ -329,55 +390,236 @@ function DrawingStudio() {
     return { x: (e.clientX - r.left) * (c.width / r.width), y: (e.clientY - r.top) * (c.height / r.height) };
   };
 
-  const start = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    drawing.current = true;
-    const ctx = canvasRef.current!.getContext("2d")!;
-    const { x, y } = pos(e);
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-  };
-  const move = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!drawing.current) return;
-    const ctx = canvasRef.current!.getContext("2d")!;
-    const { x, y } = pos(e);
-    ctx.strokeStyle = color;
-    ctx.lineWidth = size;
+  const applyStroke = (ctx: CanvasRenderingContext2D) => {
+    const hex = hsvaToHex(hsva);
+    const rgba = hsvaToRgba(hsva);
     ctx.lineCap = "round";
-    ctx.lineTo(x, y);
+    ctx.lineJoin = "round";
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = "transparent";
+    ctx.globalCompositeOperation = "source-over";
+    ctx.globalAlpha = opacity;
+    ctx.strokeStyle = hex;
+    ctx.fillStyle = `rgba(${rgba.r},${rgba.g},${rgba.b},${opacity})`;
+    ctx.lineWidth = size;
+
+    switch (brush) {
+      case "pencil":
+        ctx.globalAlpha = opacity * 0.9;
+        ctx.lineWidth = Math.max(1, size * 0.6);
+        break;
+      case "marker":
+        ctx.lineWidth = size;
+        break;
+      case "ink":
+        ctx.lineWidth = size;
+        break;
+      case "highlighter":
+        ctx.lineCap = "butt";
+        ctx.lineWidth = size * 1.2;
+        break;
+      case "neon":
+        ctx.shadowBlur = size * 2.5;
+        ctx.shadowColor = hex;
+        break;
+      case "calligraphy":
+        ctx.lineCap = "butt";
+        break;
+      case "eraser":
+        ctx.globalCompositeOperation = "source-over";
+        ctx.strokeStyle = "#0a0a0a";
+        ctx.fillStyle = "#0a0a0a";
+        ctx.globalAlpha = 1;
+        break;
+    }
+  };
+
+  const drawSegment = (ctx: CanvasRenderingContext2D, from: {x:number;y:number}, to: {x:number;y:number}) => {
+    if (brush === "calligraphy") {
+      const dx = to.x - from.x, dy = to.y - from.y;
+      const len = Math.hypot(dx, dy) || 1;
+      const nx = -dy / len, ny = dx / len;
+      const w = size / 2;
+      ctx.beginPath();
+      ctx.moveTo(from.x + nx * w, from.y + ny * w);
+      ctx.lineTo(to.x + nx * w, to.y + ny * w);
+      ctx.lineTo(to.x - nx * w * 0.3, to.y - ny * w * 0.3);
+      ctx.lineTo(from.x - nx * w * 0.3, from.y - ny * w * 0.3);
+      ctx.closePath();
+      ctx.fill();
+      return;
+    }
+    if (brush === "spray") {
+      const dist = Math.hypot(to.x - from.x, to.y - from.y);
+      const steps = Math.max(1, Math.floor(dist / 2));
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const cx = from.x + (to.x - from.x) * t;
+        const cy = from.y + (to.y - from.y) * t;
+        for (let j = 0; j < 8; j++) {
+          const a = Math.random() * Math.PI * 2;
+          const r = Math.random() * size;
+          ctx.fillRect(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 1, 1);
+        }
+      }
+      return;
+    }
+    if (brush === "airbrush") {
+      // soft radial dab along the path
+      const dist = Math.hypot(to.x - from.x, to.y - from.y);
+      const steps = Math.max(1, Math.floor(dist / 3));
+      const rgba = hsvaToRgba(hsva);
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const cx = from.x + (to.x - from.x) * t;
+        const cy = from.y + (to.y - from.y) * t;
+        const grad = ctx.createRadialGradient(cx, cy, 0, cx, cy, size);
+        grad.addColorStop(0, `rgba(${rgba.r},${rgba.g},${rgba.b},${opacity})`);
+        grad.addColorStop(1, `rgba(${rgba.r},${rgba.g},${rgba.b},0)`);
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.arc(cx, cy, size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      return;
+    }
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    ctx.lineTo(to.x, to.y);
     ctx.stroke();
   };
-  const end = () => { drawing.current = false; };
 
-  const clear = () => {
-    const c = canvasRef.current!;
-    const ctx = c.getContext("2d")!;
-    ctx.fillStyle = "#0a0a0a";
-    ctx.fillRect(0, 0, c.width, c.height);
+  const start = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+    drawing.current = true;
+    snapshot();
+    const ctx = canvasRef.current!.getContext("2d")!;
+    applyStroke(ctx);
+    const p = pos(e);
+    lastPt.current = p;
+    // initial dot
+    drawSegment(ctx, p, { x: p.x + 0.01, y: p.y + 0.01 });
+  };
+  const move = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (!drawing.current || !lastPt.current) return;
+    const ctx = canvasRef.current!.getContext("2d")!;
+    applyStroke(ctx);
+    const p = pos(e);
+    drawSegment(ctx, lastPt.current, p);
+    lastPt.current = p;
+  };
+  const end = () => {
+    drawing.current = false;
+    lastPt.current = null;
+    if (sprayTimer.current) { window.clearInterval(sprayTimer.current); sprayTimer.current = null; }
   };
 
+  const clear = () => { snapshot(); fillBg(); };
+
+  const save = () => {
+    const c = canvasRef.current!;
+    const link = document.createElement("a");
+    link.download = `drawing-${Date.now()}.png`;
+    link.href = c.toDataURL("image/png");
+    link.click();
+  };
+
+  const swatches = ["#FFFFD7","#FFFFFF","#000000","#EF4444","#F97316","#EAB308","#22C55E","#06B6D4","#3B82F6","#A855F7","#EC4899","#78350F"];
+  const currentHex = hsvaToHex(hsva);
+
   return (
-    <Card className="p-3 space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <input type="color" value={color} onChange={(e) => setColor(e.target.value)} className="h-8 w-8 rounded cursor-pointer bg-transparent" />
-          <input type="range" min={1} max={20} value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-24" />
-          <span className="text-[11px] text-muted-foreground">{size}px</span>
-        </div>
-        <Button size="sm" variant="outline" onClick={clear}>
-          <Eraser className="h-3.5 w-3.5 mr-1" /> Clear
-        </Button>
+    <Card className="p-3 space-y-3">
+      {/* Brush palette */}
+      <div className="grid grid-cols-5 gap-1.5">
+        {BRUSHES.map((b) => {
+          const Icon = b.icon;
+          const active = brush === b.id;
+          return (
+            <button
+              key={b.id}
+              onClick={() => selectBrush(b.id)}
+              title={b.label}
+              className={`flex flex-col items-center gap-0.5 rounded-lg p-2 text-[10px] transition-colors ${
+                active ? "bg-accent text-accent-foreground ring-1 ring-primary/60" : "bg-accent/30 hover:bg-accent/60"
+              }`}
+            >
+              <Icon className="h-4 w-4" />
+              <span className="leading-none">{b.label}</span>
+            </button>
+          );
+        })}
       </div>
+
+      {/* Color + sliders */}
+      <div className="flex items-start gap-3">
+        <button
+          onClick={() => setShowColor((s) => !s)}
+          className="h-12 w-12 shrink-0 rounded-full border-2 border-border shadow-inner"
+          style={{ background: currentHex }}
+          aria-label="Toggle color wheel"
+        />
+        <div className="flex-1 space-y-2">
+          <div>
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+              <span>Size</span><span>{size}px</span>
+            </div>
+            <input type="range" min={1} max={80} value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-full accent-primary" />
+          </div>
+          <div>
+            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
+              <span>Opacity</span><span>{Math.round(opacity * 100)}%</span>
+            </div>
+            <input type="range" min={5} max={100} value={Math.round(opacity * 100)} onChange={(e) => setOpacity(Number(e.target.value) / 100)} className="w-full accent-primary" />
+          </div>
+        </div>
+      </div>
+
+      {/* Color wheel panel */}
+      {showColor && (
+        <div className="rounded-lg border bg-card/60 p-3 space-y-2">
+          <div className="flex justify-center">
+            <Wheel color={hsva} onChange={(c) => setHsva({ ...hsva, ...c.hsva })} width={180} height={180} />
+          </div>
+          <ShadeSlider hsva={hsva} onChange={(s) => setHsva({ ...hsva, ...s })} style={{ width: "100%" }} />
+          <Alpha hsva={hsva} onChange={(a) => setHsva({ ...hsva, ...a })} style={{ width: "100%", height: 14 }} />
+          <div className="grid grid-cols-6 gap-1.5 pt-1">
+            {swatches.map((s) => (
+              <button
+                key={s}
+                onClick={() => setHsva(hexToHsva(s))}
+                className="h-7 rounded-md border border-border"
+                style={{ background: s }}
+                aria-label={s}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Action bar */}
+      <div className="flex items-center justify-between gap-1">
+        <div className="flex gap-1">
+          <Button size="sm" variant="outline" onClick={undo}><Undo2 className="h-3.5 w-3.5" /></Button>
+          <Button size="sm" variant="outline" onClick={redo}><Redo2 className="h-3.5 w-3.5" /></Button>
+        </div>
+        <div className="flex gap-1">
+          <Button size="sm" variant="outline" onClick={save}><Download className="h-3.5 w-3.5 mr-1" /> Save</Button>
+          <Button size="sm" variant="outline" onClick={clear}><Trash2 className="h-3.5 w-3.5 mr-1" /> Clear</Button>
+        </div>
+      </div>
+
       <canvas
         ref={canvasRef}
-        width={600}
-        height={600}
+        width={800}
+        height={800}
         onPointerDown={start}
         onPointerMove={move}
         onPointerUp={end}
         onPointerLeave={end}
-        className="w-full aspect-square rounded-md border touch-none"
+        onPointerCancel={end}
+        className="w-full aspect-square rounded-md border border-border touch-none bg-[#0a0a0a]"
       />
-      <p className="text-[10px] text-muted-foreground">Drag to draw. Drawings are local to this session.</p>
+      <p className="text-[10px] text-muted-foreground text-center">Drag to draw · drawings are local to this session</p>
     </Card>
   );
 }
