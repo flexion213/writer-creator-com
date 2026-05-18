@@ -1,5 +1,9 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
+import { fixGrammar } from "@/lib/grammar.functions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +16,7 @@ import {
   BadgeCheck, Bug, Lightbulb, Video, Upload, ShieldAlert, Send,
   NotebookPen, Globe, MessageSquare, Pencil, ImagePlus, X, Eraser, Megaphone,
   Brush, PenTool, Highlighter, SprayCan, Sparkles, Droplet, Undo2, Redo2, Download, Trash2,
+  Plus, Wand2, Loader2,
 } from "lucide-react";
 import Wheel from "@uiw/react-color-wheel";
 import ShadeSlider from "@uiw/react-color-shade-slider";
@@ -30,6 +35,7 @@ export const Route = createFileRoute("/")({
 
 type Post = { id: number; author: string; verified: boolean; text: string; image?: string };
 type Section = "feed" | "notebooks" | "suggestions" | "drawing";
+type Notebook = { id: number; title: string; body: string; updated: number };
 
 const initialPosts: Post[] = [
   { id: 1, author: "Ada Lovelace", verified: true, text: "Shipped a new diff renderer today — feels fast and crisp." },
@@ -51,7 +57,30 @@ function Dashboard() {
   const [draftImage, setDraftImage] = useState<string | undefined>(undefined);
   const [section, setSection] = useState<Section>("feed");
   const [navOpen, setNavOpen] = useState(false);
+  const [draftFixing, setDraftFixing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const [notebooks, setNotebooks] = useState<Notebook[]>([
+    { id: 1, title: "Ideas", body: "Refactor auth into a single middleware.", updated: Date.now() - 1000 * 60 * 60 },
+    { id: 2, title: "Todo", body: "Review PR #842, draft changelog.", updated: Date.now() - 1000 * 60 * 30 },
+  ]);
+  const fix = useServerFn(fixGrammar);
+
+  const runFix = async (text: string): Promise<string | null> => {
+    const trimmed = text.trim();
+    if (!trimmed) {
+      toast.error("Nothing to fix yet — write something first.");
+      return null;
+    }
+    try {
+      const r = await fix({ data: { text: trimmed } });
+      if (!r.ok) { toast.error(r.error); return null; }
+      toast.success(`Fixed (${r.language})`);
+      return r.corrected;
+    } catch (e) {
+      toast.error("Couldn't reach the grammar assistant.");
+      return null;
+    }
+  };
 
   const handleTitleTap = () => {
     const next = tapCount + 1;
@@ -84,6 +113,7 @@ function Dashboard() {
 
   return (
     <div className="dark min-h-screen bg-background text-foreground">
+      <Toaster />
       <main className="mx-auto max-w-md px-4 py-4 space-y-4">
         <div className="flex items-center gap-2">
           <Sheet open={navOpen} onOpenChange={setNavOpen}>
@@ -209,6 +239,20 @@ function Dashboard() {
                   <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()}>
                     <ImagePlus className="h-3.5 w-3.5 mr-1" /> Photo
                   </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!draft.trim() || draftFixing}
+                    onClick={async () => {
+                      setDraftFixing(true);
+                      const fixed = await runFix(draft);
+                      if (fixed) setDraft(fixed.slice(0, 500));
+                      setDraftFixing(false);
+                    }}
+                  >
+                    {draftFixing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
+                    Fix
+                  </Button>
                   <Button size="sm" onClick={submitPost} disabled={!draft.trim() && !draftImage}>
                     <Send className="h-3.5 w-3.5 mr-1" /> Post
                   </Button>
@@ -237,7 +281,13 @@ function Dashboard() {
           </>
         )}
 
-        {section === "notebooks" && <Notebooks />}
+        {section === "notebooks" && (
+          <Notebooks
+            notebooks={notebooks}
+            setNotebooks={setNotebooks}
+            runFix={runFix}
+          />
+        )}
         {section === "suggestions" && <Suggestions />}
         {section === "drawing" && <DrawingStudio />}
       </main>
@@ -245,21 +295,114 @@ function Dashboard() {
   );
 }
 
-function Notebooks() {
+function Notebooks({
+  notebooks,
+  setNotebooks,
+  runFix,
+}: {
+  notebooks: Notebook[];
+  setNotebooks: React.Dispatch<React.SetStateAction<Notebook[]>>;
+  runFix: (text: string) => Promise<string | null>;
+}) {
+  const [fixingId, setFixingId] = useState<number | null>(null);
+
+  const addNotebook = () => {
+    const id = Date.now();
+    setNotebooks((n) => [{ id, title: "Untitled", body: "", updated: id }, ...n]);
+  };
+  const update = (id: number, patch: Partial<Notebook>) =>
+    setNotebooks((n) => n.map((nb) => (nb.id === id ? { ...nb, ...patch, updated: Date.now() } : nb)));
+  const remove = (id: number) => setNotebooks((n) => n.filter((nb) => nb.id !== id));
+
+  const fmt = (t: number) => {
+    const d = Math.max(1, Math.floor((Date.now() - t) / 60000));
+    if (d < 60) return `${d}m ago`;
+    if (d < 60 * 24) return `${Math.floor(d / 60)}h ago`;
+    return `${Math.floor(d / 60 / 24)}d ago`;
+  };
+
   return (
-    <div className="space-y-2">
-      <Card className="p-3">
-        <p className="text-xs text-muted-foreground">Ideas</p>
-        <p className="text-sm mt-1">Refactor auth into a single middleware.</p>
-      </Card>
-      <Card className="p-3">
-        <p className="text-xs text-muted-foreground">Todo</p>
-        <p className="text-sm mt-1">Review PR #842, draft changelog.</p>
-      </Card>
-      <Card className="p-3">
-        <p className="text-xs text-muted-foreground">Notes</p>
-        <p className="text-sm mt-1">Postgres index on (user_id, created_at) helped a lot.</p>
-      </Card>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent/50 ring-1 ring-border">
+            <NotebookPen className="h-5 w-5" />
+          </span>
+          <div>
+            <h2 className="text-lg font-semibold tracking-tight">Notebooks</h2>
+            <p className="text-xs text-muted-foreground">Private scratchpad with AI grammar fix.</p>
+          </div>
+        </div>
+        <Button size="sm" onClick={addNotebook} className="rounded-full">
+          <Plus className="h-4 w-4 mr-1" /> New
+        </Button>
+      </div>
+
+      {notebooks.length === 0 && (
+        <Card className="p-8 text-center border-dashed">
+          <NotebookPen className="h-8 w-8 mx-auto text-muted-foreground/60" />
+          <p className="mt-2 text-sm font-medium">No notebooks yet</p>
+          <p className="text-xs text-muted-foreground">Tap “New” to start one.</p>
+        </Card>
+      )}
+
+      <div className="space-y-3">
+        {notebooks.map((nb) => {
+          const fixing = fixingId === nb.id;
+          return (
+            <Card
+              key={nb.id}
+              className="overflow-hidden border-border/60 bg-gradient-to-b from-card to-card/70 shadow-sm rounded-2xl"
+            >
+              <div className="p-3 space-y-2">
+                <div className="flex items-center gap-2">
+                  <Input
+                    value={nb.title}
+                    onChange={(e) => update(nb.id, { title: e.target.value.slice(0, 60) })}
+                    placeholder="Title"
+                    className="h-8 border-0 bg-transparent px-0 text-base font-semibold focus-visible:ring-0"
+                  />
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={() => remove(nb.id)}
+                    aria-label="Delete notebook"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Textarea
+                  value={nb.body}
+                  onChange={(e) => update(nb.id, { body: e.target.value.slice(0, 4000) })}
+                  placeholder="Start writing…"
+                  className="min-h-24 resize-none border-0 bg-muted/30 rounded-lg focus-visible:ring-1"
+                />
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
+                    {fmt(nb.updated)} · {nb.body.length}/4000
+                  </span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={!nb.body.trim() || fixing}
+                    onClick={async () => {
+                      setFixingId(nb.id);
+                      const fixed = await runFix(nb.body);
+                      if (fixed) update(nb.id, { body: fixed.slice(0, 4000) });
+                      setFixingId(null);
+                    }}
+                    className="rounded-full"
+                  >
+                    {fixing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
+                    Fix grammar
+                  </Button>
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }
