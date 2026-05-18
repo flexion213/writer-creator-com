@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 const InputSchema = z.object({
-  text: z.string().min(1).max(4000),
+  text: z.string().min(1).max(200000),
 });
 
 export const fixGrammar = createServerFn({ method: "POST" })

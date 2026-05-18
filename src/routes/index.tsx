@@ -101,7 +101,7 @@ function Dashboard() {
 
   const submitPost = () => {
     const text = draft.trim();
-    if ((!text && !draftImage) || text.length > 500) return;
+    if (!text && !draftImage) return;
     setPosts((p) => [{ id: Date.now(), author: "You", verified: false, text, image: draftImage }, ...p]);
     setDraft("");
     setDraftImage(undefined);
@@ -206,7 +206,7 @@ function Dashboard() {
               <Textarea
                 id="post"
                 value={draft}
-                onChange={(e) => setDraft(e.target.value.slice(0, 500))}
+                onChange={(e) => setDraft(e.target.value)}
                 placeholder="Write a post…"
                 className="mt-1 min-h-20 resize-none"
               />
@@ -233,7 +233,7 @@ function Dashboard() {
               />
               <div className="flex items-center justify-between mt-2 gap-2">
                 <span className="text-[11px] text-muted-foreground">
-                  {wordCount} w · {charCount}/500
+                  {wordCount} w · {charCount} ch
                 </span>
                 <div className="flex gap-2">
                   <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()}>
@@ -246,7 +246,7 @@ function Dashboard() {
                     onClick={async () => {
                       setDraftFixing(true);
                       const fixed = await runFix(draft);
-                      if (fixed) setDraft(fixed.slice(0, 500));
+                      if (fixed) setDraft(fixed);
                       setDraftFixing(false);
                     }}
                   >
@@ -358,7 +358,7 @@ function Notebooks({
                 <div className="flex items-center gap-2">
                   <Input
                     value={nb.title}
-                    onChange={(e) => update(nb.id, { title: e.target.value.slice(0, 60) })}
+                    onChange={(e) => update(nb.id, { title: e.target.value })}
                     placeholder="Title"
                     className="h-8 border-0 bg-transparent px-0 text-base font-semibold focus-visible:ring-0"
                   />
@@ -374,13 +374,13 @@ function Notebooks({
                 </div>
                 <Textarea
                   value={nb.body}
-                  onChange={(e) => update(nb.id, { body: e.target.value.slice(0, 4000) })}
+                  onChange={(e) => update(nb.id, { body: e.target.value })}
                   placeholder="Start writing…"
                   className="min-h-24 resize-none border-0 bg-muted/30 rounded-lg focus-visible:ring-1"
                 />
                 <div className="flex items-center justify-between pt-1">
                   <span className="text-[10px] uppercase tracking-wide text-muted-foreground">
-                    {fmt(nb.updated)} · {nb.body.length}/4000
+                    {fmt(nb.updated)} · {nb.body.length} ch
                   </span>
                   <Button
                     size="sm"
@@ -389,7 +389,7 @@ function Notebooks({
                     onClick={async () => {
                       setFixingId(nb.id);
                       const fixed = await runFix(nb.body);
-                      if (fixed) update(nb.id, { body: fixed.slice(0, 4000) });
+                      if (fixed) update(nb.id, { body: fixed });
                       setFixingId(null);
                     }}
                     className="rounded-full"
