@@ -1,5 +1,9 @@
 import { useRef, useState, useEffect, useCallback } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { toast } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
+import { fixGrammar } from "@/lib/grammar.functions";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,6 +16,7 @@ import {
   BadgeCheck, Bug, Lightbulb, Video, Upload, ShieldAlert, Send,
   NotebookPen, Globe, MessageSquare, Pencil, ImagePlus, X, Eraser, Megaphone,
   Brush, PenTool, Highlighter, SprayCan, Sparkles, Droplet, Undo2, Redo2, Download, Trash2,
+  Plus, Wand2, Loader2,
 } from "lucide-react";
 import Wheel from "@uiw/react-color-wheel";
 import ShadeSlider from "@uiw/react-color-shade-slider";
