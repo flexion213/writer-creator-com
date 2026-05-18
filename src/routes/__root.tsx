@@ -82,8 +82,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Writer creator" },
       { name: "twitter:description", content: "An app where writer can write their story draw their characters and can even upload the story for feedback" },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/0a197fab-3493-4154-9bba-e57fa0e9b04c" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/attachments/og-images/0a197fab-3493-4154-9bba-e57fa0e9b04c" },
+      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/qH7iZz1uUvgdzYlqvkDmrPY2axQ2/social-images/social-1779119034067-1000027642.webp" },
+      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/qH7iZz1uUvgdzYlqvkDmrPY2axQ2/social-images/social-1779119034067-1000027642.webp" },
     ],
     links: [
       {
