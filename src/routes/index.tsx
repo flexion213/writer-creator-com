@@ -108,6 +108,7 @@ function Dashboard() {
 
   return (
     <div className="dark min-h-screen bg-background text-foreground">
+      <Toaster />
       <main className="mx-auto max-w-md px-4 py-4 space-y-4">
         <div className="flex items-center gap-2">
           <Sheet open={navOpen} onOpenChange={setNavOpen}>
