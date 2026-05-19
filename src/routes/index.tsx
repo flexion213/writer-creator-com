@@ -16,6 +16,7 @@ import {
   BadgeCheck, Bug, Lightbulb, Video, Upload, Send,
   NotebookPen, Globe, MessageSquare, Pencil, ImagePlus, X, Eraser, Megaphone,
   Brush, PenTool, Highlighter, SprayCan, Sparkles, Droplet, Undo2, Redo2, Download, Trash2,
+  ShieldAlert,
   Plus, Wand2, Loader2,
 } from "lucide-react";
 import Wheel from "@uiw/react-color-wheel";
@@ -36,6 +37,23 @@ export const Route = createFileRoute("/")({
 type Post = { id: number; author: string; verified: boolean; text: string; image?: string };
 type Section = "feed" | "notebooks" | "suggestions" | "drawing";
 type Notebook = { id: number; title: string; body: string; updated: number };
+type SuggestionDrafts = {
+  bugTitle: string;
+  bugBody: string;
+  featureTitle: string;
+  featureBody: string;
+  videoTitle: string;
+  videoBody: string;
+};
+
+const emptySuggestionDrafts: SuggestionDrafts = {
+  bugTitle: "",
+  bugBody: "",
+  featureTitle: "",
+  featureBody: "",
+  videoTitle: "",
+  videoBody: "",
+};
 
 const initialPosts: Post[] = [
   { id: 1, author: "Ada Lovelace", verified: true, text: "Shipped a new diff renderer today — feels fast and crisp." },
@@ -57,12 +75,39 @@ function Dashboard() {
       return raw ? (JSON.parse(raw) as Post[]) : initialPosts;
     } catch { return initialPosts; }
   });
-  const [draft, setDraft] = useState("");
-  const [draftImage, setDraftImage] = useState<string | undefined>(undefined);
-  const [section, setSection] = useState<Section>("feed");
+  const [draft, setDraft] = useState(() => {
+    if (typeof window === "undefined") return "";
+    return window.localStorage.getItem("dd:post-draft") ?? "";
+  });
+  const [draftImage, setDraftImage] = useState<string | undefined>(() => {
+    if (typeof window === "undefined") return undefined;
+    return window.localStorage.getItem("dd:post-draft-image") ?? undefined;
+  });
+  const [section, setSection] = useState<Section>(() => {
+    if (typeof window === "undefined") return "feed";
+    const saved = window.localStorage.getItem("dd:section");
+    return saved === "feed" || saved === "notebooks" || saved === "suggestions" || saved === "drawing"
+      ? saved
+      : "feed";
+  });
   const [navOpen, setNavOpen] = useState(false);
   const [draftFixing, setDraftFixing] = useState(false);
+  const [adminMode, setAdminMode] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("dd:admin-mode") === "true";
+  });
+  const [suggestions, setSuggestions] = useState<SuggestionDrafts>(() => {
+    if (typeof window === "undefined") return emptySuggestionDrafts;
+    try {
+      const raw = window.localStorage.getItem("dd:suggestions");
+      return raw ? { ...emptySuggestionDrafts, ...(JSON.parse(raw) as Partial<SuggestionDrafts>) } : emptySuggestionDrafts;
+    } catch {
+      return emptySuggestionDrafts;
+    }
+  });
   const fileRef = useRef<HTMLInputElement>(null);
+  const titleTapCount = useRef(0);
+  const titleTapTimer = useRef<number | null>(null);
   const [notebooks, setNotebooks] = useState<Notebook[]>(() => {
     if (typeof window === "undefined") return [];
     try {
@@ -82,6 +127,24 @@ function Dashboard() {
   useEffect(() => {
     try { window.localStorage.setItem("dd:notebooks", JSON.stringify(notebooks)); } catch {}
   }, [notebooks]);
+  useEffect(() => {
+    try { window.localStorage.setItem("dd:post-draft", draft); } catch {}
+  }, [draft]);
+  useEffect(() => {
+    try {
+      if (draftImage) window.localStorage.setItem("dd:post-draft-image", draftImage);
+      else window.localStorage.removeItem("dd:post-draft-image");
+    } catch {}
+  }, [draftImage]);
+  useEffect(() => {
+    try { window.localStorage.setItem("dd:section", section); } catch {}
+  }, [section]);
+  useEffect(() => {
+    try { window.localStorage.setItem("dd:admin-mode", String(adminMode)); } catch {}
+  }, [adminMode]);
+  useEffect(() => {
+    try { window.localStorage.setItem("dd:suggestions", JSON.stringify(suggestions)); } catch {}
+  }, [suggestions]);
 
   const runFix = async (text: string): Promise<string | null> => {
     const trimmed = text.trim();
@@ -114,7 +177,13 @@ function Dashboard() {
   const submitPost = () => {
     const text = draft.trim();
     if (!text && !draftImage) return;
-    setPosts((p) => [{ id: Date.now(), author: "You", verified: false, text, image: draftImage }, ...p]);
+    setPosts((p) => [{
+      id: Date.now(),
+      author: adminMode ? "Head Dev" : "You",
+      verified: adminMode,
+      text,
+      image: draftImage,
+    }, ...p]);
     setDraft("");
     setDraftImage(undefined);
     if (fileRef.current) fileRef.current.value = "";
@@ -122,6 +191,27 @@ function Dashboard() {
 
   const go = (s: Section) => { setSection(s); setNavOpen(false); };
   const currentLabel = NAV.find((n) => n.id === section)?.label ?? "Global Feed";
+  const handleTitleTap = () => {
+    if (titleTapTimer.current) window.clearTimeout(titleTapTimer.current);
+    titleTapCount.current += 1;
+    titleTapTimer.current = window.setTimeout(() => {
+      titleTapCount.current = 0;
+      titleTapTimer.current = null;
+    }, 1600);
+
+    if (titleTapCount.current >= 5) {
+      titleTapCount.current = 0;
+      if (titleTapTimer.current) {
+        window.clearTimeout(titleTapTimer.current);
+        titleTapTimer.current = null;
+      }
+      setAdminMode((value) => {
+        const next = !value;
+        toast.success(next ? "Admin powers enabled." : "Admin powers disabled.");
+        return next;
+      });
+    }
+  };
 
   return (
     <div className="dark min-h-screen bg-background text-foreground">
@@ -175,8 +265,9 @@ function Dashboard() {
           </Sheet>
 
           <h1
+            onClick={handleTitleTap}
             style={{ color: "#FFFFD7" }}
-            className="flex-1 text-center text-xl font-bold tracking-tight select-none"
+            className="flex-1 text-center text-xl font-bold tracking-tight select-none cursor-default"
           >
             Dev Dashboard
           </h1>
@@ -198,6 +289,18 @@ function Dashboard() {
               </div>
               <p className="text-sm">v2.4 ships Friday. Freeze new feature merges until QA signs off. — Head Dev</p>
             </Card>
+
+            {adminMode && (
+              <Card className="border border-primary/40 bg-accent/25 p-3">
+                <div className="mb-1 flex items-center gap-2">
+                  <ShieldAlert className="h-4 w-4 text-primary" />
+                  <Badge className="uppercase tracking-wide text-[10px]">Administrative Alert Mode</Badge>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Posts from here publish as verified Head Dev updates until you toggle admin mode off.
+                </p>
+              </Card>
+            )}
 
             <Card className="p-3">
               <Label htmlFor="post" className="text-xs">Share something</Label>
@@ -286,7 +389,7 @@ function Dashboard() {
             runFix={runFix}
           />
         )}
-        {section === "suggestions" && <Suggestions />}
+        {section === "suggestions" && <Suggestions suggestions={suggestions} setSuggestions={setSuggestions} />}
         {section === "drawing" && <DrawingStudio />}
       </main>
     </div>
