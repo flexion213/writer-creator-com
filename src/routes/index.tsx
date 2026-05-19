@@ -50,20 +50,38 @@ const NAV: { id: Section; label: string; icon: React.ComponentType<{ className?:
 ];
 
 function Dashboard() {
-  const [tapCount, setTapCount] = useState(0);
-  const [adminMode, setAdminMode] = useState(false);
-  const [posts, setPosts] = useState<Post[]>(initialPosts);
+  const [posts, setPosts] = useState<Post[]>(() => {
+    if (typeof window === "undefined") return initialPosts;
+    try {
+      const raw = window.localStorage.getItem("dd:posts");
+      return raw ? (JSON.parse(raw) as Post[]) : initialPosts;
+    } catch { return initialPosts; }
+  });
   const [draft, setDraft] = useState("");
   const [draftImage, setDraftImage] = useState<string | undefined>(undefined);
   const [section, setSection] = useState<Section>("feed");
   const [navOpen, setNavOpen] = useState(false);
   const [draftFixing, setDraftFixing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [notebooks, setNotebooks] = useState<Notebook[]>([
-    { id: 1, title: "Ideas", body: "Refactor auth into a single middleware.", updated: Date.now() - 1000 * 60 * 60 },
-    { id: 2, title: "Todo", body: "Review PR #842, draft changelog.", updated: Date.now() - 1000 * 60 * 30 },
-  ]);
+  const [notebooks, setNotebooks] = useState<Notebook[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = window.localStorage.getItem("dd:notebooks");
+      if (raw) return JSON.parse(raw) as Notebook[];
+    } catch {}
+    return [
+      { id: 1, title: "Ideas", body: "Refactor auth into a single middleware.", updated: Date.now() - 1000 * 60 * 60 },
+      { id: 2, title: "Todo", body: "Review PR #842, draft changelog.", updated: Date.now() - 1000 * 60 * 30 },
+    ];
+  });
   const fix = useServerFn(fixGrammar);
+
+  useEffect(() => {
+    try { window.localStorage.setItem("dd:posts", JSON.stringify(posts)); } catch {}
+  }, [posts]);
+  useEffect(() => {
+    try { window.localStorage.setItem("dd:notebooks", JSON.stringify(notebooks)); } catch {}
+  }, [notebooks]);
 
   const runFix = async (text: string): Promise<string | null> => {
     const trimmed = text.trim();
@@ -80,12 +98,6 @@ function Dashboard() {
       toast.error("Couldn't reach the grammar assistant.");
       return null;
     }
-  };
-
-  const handleTitleTap = () => {
-    const next = tapCount + 1;
-    if (next >= 5) { setAdminMode(true); setTapCount(0); }
-    else setTapCount(next);
   };
 
   const wordCount = draft.trim() ? draft.trim().split(/\s+/).length : 0;
@@ -163,9 +175,8 @@ function Dashboard() {
           </Sheet>
 
           <h1
-            onClick={handleTitleTap}
             style={{ color: "#FFFFD7" }}
-            className="flex-1 text-center text-xl font-bold tracking-tight cursor-pointer select-none"
+            className="flex-1 text-center text-xl font-bold tracking-tight select-none"
           >
             Dev Dashboard
           </h1>
@@ -173,21 +184,8 @@ function Dashboard() {
         </div>
 
         <p className="text-center text-[11px] text-muted-foreground -mt-2">
-          {adminMode ? "Admin alert mode active" : `${currentLabel} · tap title 5× for admin`}
+          {currentLabel}
         </p>
-
-        {adminMode && (
-          <Card className="border-destructive bg-destructive/10 p-3 flex items-start gap-2">
-            <ShieldAlert className="h-4 w-4 text-destructive mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-destructive">Administrative Alert Mode</p>
-              <p className="text-xs text-muted-foreground">Elevated controls unlocked.</p>
-            </div>
-            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setAdminMode(false)}>
-              Dismiss
-            </Button>
-          </Card>
-        )}
 
         {section === "feed" && (
           <>
