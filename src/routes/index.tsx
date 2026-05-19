@@ -490,7 +490,25 @@ function DrawingStudio() {
     ctx.fillRect(0, 0, c.width, c.height);
   }, []);
 
-  useEffect(() => { fillBg(); }, [fillBg]);
+  const persist = useCallback(() => {
+    const c = canvasRef.current; if (!c) return;
+    try { window.localStorage.setItem("dd:canvas", c.toDataURL("image/png")); } catch {}
+  }, []);
+
+  // Load saved drawing or paint background on mount
+  useEffect(() => {
+    const c = canvasRef.current; if (!c) return;
+    const ctx = c.getContext("2d"); if (!ctx) return;
+    const saved = typeof window !== "undefined" ? window.localStorage.getItem("dd:canvas") : null;
+    if (saved) {
+      const img = new Image();
+      img.onload = () => { ctx.drawImage(img, 0, 0, c.width, c.height); };
+      img.src = saved;
+    } else {
+      fillBg();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Sync brush defaults
   const selectBrush = (id: BrushId) => {
@@ -653,9 +671,10 @@ function DrawingStudio() {
     drawing.current = false;
     lastPt.current = null;
     if (sprayTimer.current) { window.clearInterval(sprayTimer.current); sprayTimer.current = null; }
+    persist();
   };
 
-  const clear = () => { snapshot(); fillBg(); };
+  const clear = () => { snapshot(); fillBg(); persist(); };
 
   const save = () => {
     const c = canvasRef.current!;
@@ -751,16 +770,17 @@ function DrawingStudio() {
 
       <canvas
         ref={canvasRef}
-        width={800}
-        height={800}
+        width={1400}
+        height={1800}
         onPointerDown={start}
         onPointerMove={move}
         onPointerUp={end}
         onPointerLeave={end}
         onPointerCancel={end}
-        className="w-full aspect-square rounded-md border border-border touch-none bg-[#0a0a0a]"
+        className="w-full rounded-md border border-border touch-none bg-[#0a0a0a]"
+        style={{ height: "70vh" }}
       />
-      <p className="text-[10px] text-muted-foreground text-center">Drag to draw · drawings are local to this session</p>
+      <p className="text-[10px] text-muted-foreground text-center">Drag to draw · auto-saved on this device</p>
     </Card>
   );
 }
