@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import {
-  BadgeCheck, Bug, Lightbulb, Video, Upload, ShieldAlert, Send,
+  BadgeCheck, Bug, Lightbulb, Video, Upload, Send,
   NotebookPen, Globe, MessageSquare, Pencil, ImagePlus, X, Eraser, Megaphone,
   Brush, PenTool, Highlighter, SprayCan, Sparkles, Droplet, Undo2, Redo2, Download, Trash2,
   Plus, Wand2, Loader2,
@@ -50,20 +50,38 @@ const NAV: { id: Section; label: string; icon: React.ComponentType<{ className?:
 ];
 
 function Dashboard() {
-  const [tapCount, setTapCount] = useState(0);
-  const [adminMode, setAdminMode] = useState(false);
-  const [posts, setPosts] = useState<Post[]>(initialPosts);
+  const [posts, setPosts] = useState<Post[]>(() => {
+    if (typeof window === "undefined") return initialPosts;
+    try {
+      const raw = window.localStorage.getItem("dd:posts");
+      return raw ? (JSON.parse(raw) as Post[]) : initialPosts;
+    } catch { return initialPosts; }
+  });
   const [draft, setDraft] = useState("");
   const [draftImage, setDraftImage] = useState<string | undefined>(undefined);
   const [section, setSection] = useState<Section>("feed");
   const [navOpen, setNavOpen] = useState(false);
   const [draftFixing, setDraftFixing] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
-  const [notebooks, setNotebooks] = useState<Notebook[]>([
-    { id: 1, title: "Ideas", body: "Refactor auth into a single middleware.", updated: Date.now() - 1000 * 60 * 60 },
-    { id: 2, title: "Todo", body: "Review PR #842, draft changelog.", updated: Date.now() - 1000 * 60 * 30 },
-  ]);
+  const [notebooks, setNotebooks] = useState<Notebook[]>(() => {
+    if (typeof window === "undefined") return [];
+    try {
+      const raw = window.localStorage.getItem("dd:notebooks");
+      if (raw) return JSON.parse(raw) as Notebook[];
+    } catch {}
+    return [
+      { id: 1, title: "Ideas", body: "Refactor auth into a single middleware.", updated: Date.now() - 1000 * 60 * 60 },
+      { id: 2, title: "Todo", body: "Review PR #842, draft changelog.", updated: Date.now() - 1000 * 60 * 30 },
+    ];
+  });
   const fix = useServerFn(fixGrammar);
+
+  useEffect(() => {
+    try { window.localStorage.setItem("dd:posts", JSON.stringify(posts)); } catch {}
+  }, [posts]);
+  useEffect(() => {
+    try { window.localStorage.setItem("dd:notebooks", JSON.stringify(notebooks)); } catch {}
+  }, [notebooks]);
 
   const runFix = async (text: string): Promise<string | null> => {
     const trimmed = text.trim();
@@ -80,12 +98,6 @@ function Dashboard() {
       toast.error("Couldn't reach the grammar assistant.");
       return null;
     }
-  };
-
-  const handleTitleTap = () => {
-    const next = tapCount + 1;
-    if (next >= 5) { setAdminMode(true); setTapCount(0); }
-    else setTapCount(next);
   };
 
   const wordCount = draft.trim() ? draft.trim().split(/\s+/).length : 0;
@@ -163,9 +175,8 @@ function Dashboard() {
           </Sheet>
 
           <h1
-            onClick={handleTitleTap}
             style={{ color: "#FFFFD7" }}
-            className="flex-1 text-center text-xl font-bold tracking-tight cursor-pointer select-none"
+            className="flex-1 text-center text-xl font-bold tracking-tight select-none"
           >
             Dev Dashboard
           </h1>
@@ -173,21 +184,8 @@ function Dashboard() {
         </div>
 
         <p className="text-center text-[11px] text-muted-foreground -mt-2">
-          {adminMode ? "Admin alert mode active" : `${currentLabel} · tap title 5× for admin`}
+          {currentLabel}
         </p>
-
-        {adminMode && (
-          <Card className="border-destructive bg-destructive/10 p-3 flex items-start gap-2">
-            <ShieldAlert className="h-4 w-4 text-destructive mt-0.5" />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-destructive">Administrative Alert Mode</p>
-              <p className="text-xs text-muted-foreground">Elevated controls unlocked.</p>
-            </div>
-            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setAdminMode(false)}>
-              Dismiss
-            </Button>
-          </Card>
-        )}
 
         {section === "feed" && (
           <>
@@ -492,7 +490,25 @@ function DrawingStudio() {
     ctx.fillRect(0, 0, c.width, c.height);
   }, []);
 
-  useEffect(() => { fillBg(); }, [fillBg]);
+  const persist = useCallback(() => {
+    const c = canvasRef.current; if (!c) return;
+    try { window.localStorage.setItem("dd:canvas", c.toDataURL("image/png")); } catch {}
+  }, []);
+
+  // Load saved drawing or paint background on mount
+  useEffect(() => {
+    const c = canvasRef.current; if (!c) return;
+    const ctx = c.getContext("2d"); if (!ctx) return;
+    const saved = typeof window !== "undefined" ? window.localStorage.getItem("dd:canvas") : null;
+    if (saved) {
+      const img = new Image();
+      img.onload = () => { ctx.drawImage(img, 0, 0, c.width, c.height); };
+      img.src = saved;
+    } else {
+      fillBg();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Sync brush defaults
   const selectBrush = (id: BrushId) => {
@@ -655,9 +671,10 @@ function DrawingStudio() {
     drawing.current = false;
     lastPt.current = null;
     if (sprayTimer.current) { window.clearInterval(sprayTimer.current); sprayTimer.current = null; }
+    persist();
   };
 
-  const clear = () => { snapshot(); fillBg(); };
+  const clear = () => { snapshot(); fillBg(); persist(); };
 
   const save = () => {
     const c = canvasRef.current!;
@@ -753,16 +770,17 @@ function DrawingStudio() {
 
       <canvas
         ref={canvasRef}
-        width={800}
-        height={800}
+        width={1400}
+        height={1800}
         onPointerDown={start}
         onPointerMove={move}
         onPointerUp={end}
         onPointerLeave={end}
         onPointerCancel={end}
-        className="w-full aspect-square rounded-md border border-border touch-none bg-[#0a0a0a]"
+        className="w-full rounded-md border border-border touch-none bg-[#0a0a0a]"
+        style={{ height: "70vh" }}
       />
-      <p className="text-[10px] text-muted-foreground text-center">Drag to draw · drawings are local to this session</p>
+      <p className="text-[10px] text-muted-foreground text-center">Drag to draw · auto-saved on this device</p>
     </Card>
   );
 }
