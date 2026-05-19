@@ -508,7 +508,13 @@ function Notebooks({
   );
 }
 
-function Suggestions() {
+function Suggestions({
+  suggestions,
+  setSuggestions,
+}: {
+  suggestions: SuggestionDrafts;
+  setSuggestions: React.Dispatch<React.SetStateAction<SuggestionDrafts>>;
+}) {
   return (
     <div className="space-y-2">
       <Card className="p-3">
@@ -516,8 +522,18 @@ function Suggestions() {
           <Bug className="h-4 w-4 text-destructive" />
           <p className="text-sm font-medium">Bug Reports</p>
         </div>
-        <Input placeholder="Title" className="mb-2" />
-        <Textarea placeholder="Steps to reproduce…" className="mb-2 min-h-16 resize-none" />
+        <Input
+          placeholder="Title"
+          className="mb-2"
+          value={suggestions.bugTitle}
+          onChange={(e) => setSuggestions((current) => ({ ...current, bugTitle: e.target.value }))}
+        />
+        <Textarea
+          placeholder="Steps to reproduce…"
+          className="mb-2 min-h-16 resize-none"
+          value={suggestions.bugBody}
+          onChange={(e) => setSuggestions((current) => ({ ...current, bugBody: e.target.value }))}
+        />
         <div className="flex items-center justify-between">
           <Button variant="outline" size="sm" className="text-xs">
             <Upload className="h-3.5 w-3.5 mr-1" /> Attach
@@ -530,8 +546,18 @@ function Suggestions() {
           <Lightbulb className="h-4 w-4 text-primary" />
           <p className="text-sm font-medium">Feature Suggestions</p>
         </div>
-        <Input placeholder="Idea title" className="mb-2" />
-        <Textarea placeholder="Describe the feature…" className="mb-2 min-h-16 resize-none" />
+        <Input
+          placeholder="Idea title"
+          className="mb-2"
+          value={suggestions.featureTitle}
+          onChange={(e) => setSuggestions((current) => ({ ...current, featureTitle: e.target.value }))}
+        />
+        <Textarea
+          placeholder="Describe the feature…"
+          className="mb-2 min-h-16 resize-none"
+          value={suggestions.featureBody}
+          onChange={(e) => setSuggestions((current) => ({ ...current, featureBody: e.target.value }))}
+        />
         <div className="flex items-center justify-between">
           <Button variant="outline" size="sm" className="text-xs">
             <Upload className="h-3.5 w-3.5 mr-1" /> Attach mockup
@@ -544,8 +570,18 @@ function Suggestions() {
           <Video className="h-4 w-4 text-primary" />
           <p className="text-sm font-medium">Video / Media Bug Reports</p>
         </div>
-        <Input placeholder="What broke?" className="mb-2" />
-        <Textarea placeholder="Context (timestamp, device, etc.)" className="mb-2 min-h-16 resize-none" />
+        <Input
+          placeholder="What broke?"
+          className="mb-2"
+          value={suggestions.videoTitle}
+          onChange={(e) => setSuggestions((current) => ({ ...current, videoTitle: e.target.value }))}
+        />
+        <Textarea
+          placeholder="Context (timestamp, device, etc.)"
+          className="mb-2 min-h-16 resize-none"
+          value={suggestions.videoBody}
+          onChange={(e) => setSuggestions((current) => ({ ...current, videoBody: e.target.value }))}
+        />
         <div className="flex items-center justify-between">
           <Button variant="outline" size="sm" className="text-xs">
             <Upload className="h-3.5 w-3.5 mr-1" /> Attach video
@@ -574,11 +610,29 @@ const BRUSHES: { id: BrushId; label: string; icon: React.ComponentType<{ classNa
 
 function DrawingStudio() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [hsva, setHsva] = useState<HsvaColor>(hexToHsva("#FFFFD7"));
-  const [brush, setBrush] = useState<BrushId>("pen");
-  const [size, setSize] = useState(4);
-  const [opacity, setOpacity] = useState(1);
-  const [showColor, setShowColor] = useState(false);
+  const [hsva, setHsva] = useState<HsvaColor>(() => {
+    if (typeof window === "undefined") return hexToHsva("#FFFFD7");
+    const saved = window.localStorage.getItem("dd:drawing-color");
+    return saved ? hexToHsva(saved) : hexToHsva("#FFFFD7");
+  });
+  const [brush, setBrush] = useState<BrushId>(() => {
+    if (typeof window === "undefined") return "pen";
+    const saved = window.localStorage.getItem("dd:drawing-brush");
+    return BRUSHES.some((item) => item.id === saved) ? (saved as BrushId) : "pen";
+  });
+  const [size, setSize] = useState(() => {
+    if (typeof window === "undefined") return 4;
+    return Number(window.localStorage.getItem("dd:drawing-size") ?? 4);
+  });
+  const [opacity, setOpacity] = useState(() => {
+    if (typeof window === "undefined") return 1;
+    const saved = Number(window.localStorage.getItem("dd:drawing-opacity") ?? 1);
+    return Number.isFinite(saved) ? saved : 1;
+  });
+  const [showColor, setShowColor] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("dd:drawing-show-color") === "true";
+  });
 
   const drawing = useRef(false);
   const lastPt = useRef<{ x: number; y: number } | null>(null);
@@ -597,6 +651,16 @@ function DrawingStudio() {
     const c = canvasRef.current; if (!c) return;
     try { window.localStorage.setItem("dd:canvas", c.toDataURL("image/png")); } catch {}
   }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("dd:drawing-color", hsvaToHex(hsva));
+      window.localStorage.setItem("dd:drawing-brush", brush);
+      window.localStorage.setItem("dd:drawing-size", String(size));
+      window.localStorage.setItem("dd:drawing-opacity", String(opacity));
+      window.localStorage.setItem("dd:drawing-show-color", String(showColor));
+    } catch {}
+  }, [brush, hsva, opacity, showColor, size]);
 
   // Load saved drawing or paint background on mount
   useEffect(() => {
