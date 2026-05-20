@@ -105,6 +105,10 @@ function Dashboard() {
       return emptySuggestionDrafts;
     }
   });
+  const [broadcast, setBroadcast] = useState(() => {
+    if (typeof window === "undefined") return "v2.4 ships Friday. Freeze new feature merges until QA signs off. — Head Dev";
+    return window.localStorage.getItem("dd:broadcast") ?? "v2.4 ships Friday. Freeze new feature merges until QA signs off. — Head Dev";
+  });
   const fileRef = useRef<HTMLInputElement>(null);
   const titleTapCount = useRef(0);
   const titleTapTimer = useRef<number | null>(null);
@@ -145,6 +149,9 @@ function Dashboard() {
   useEffect(() => {
     try { window.localStorage.setItem("dd:suggestions", JSON.stringify(suggestions)); } catch {}
   }, [suggestions]);
+  useEffect(() => {
+    try { window.localStorage.setItem("dd:broadcast", broadcast); } catch {}
+  }, [broadcast]);
 
   const runFix = async (text: string): Promise<string | null> => {
     const trimmed = text.trim();
@@ -287,7 +294,12 @@ function Dashboard() {
                   Lead Dev Broadcast
                 </Badge>
               </div>
-              <p className="text-sm">v2.4 ships Friday. Freeze new feature merges until QA signs off. — Head Dev</p>
+              <Textarea
+                value={broadcast}
+                onChange={(e) => setBroadcast(e.target.value)}
+                placeholder="Write the broadcast…"
+                className="mt-1 min-h-16 resize-none border-0 bg-transparent p-0 text-sm focus-visible:ring-0"
+              />
             </Card>
 
             {adminMode && (
@@ -945,7 +957,7 @@ function DrawingStudio() {
         onPointerLeave={end}
         onPointerCancel={end}
         className="w-full rounded-md border border-border touch-none bg-[#0a0a0a]"
-        style={{ height: "70vh" }}
+        style={{ aspectRatio: "1400 / 1800" }}
       />
       <p className="text-[10px] text-muted-foreground text-center">Drag to draw · auto-saved on this device</p>
     </Card>
