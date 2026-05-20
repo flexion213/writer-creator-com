@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { fixGrammar } from "@/lib/grammar.functions";
+import { CloudNotebooks } from "@/components/CloudNotebooks";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -395,11 +396,7 @@ function Dashboard() {
         )}
 
         {section === "notebooks" && (
-          <Notebooks
-            notebooks={notebooks}
-            setNotebooks={setNotebooks}
-            runFix={runFix}
-          />
+          <CloudNotebooks runFix={runFix} />
         )}
         {section === "suggestions" && <Suggestions suggestions={suggestions} setSuggestions={setSuggestions} />}
         {section === "drawing" && <DrawingStudio />}
