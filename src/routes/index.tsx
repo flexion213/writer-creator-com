@@ -945,7 +945,7 @@ function DrawingStudio() {
         onPointerLeave={end}
         onPointerCancel={end}
         className="w-full rounded-md border border-border touch-none bg-[#0a0a0a]"
-        style={{ height: "70vh" }}
+        style={{ aspectRatio: "1400 / 1800" }}
       />
       <p className="text-[10px] text-muted-foreground text-center">Drag to draw · auto-saved on this device</p>
     </Card>
