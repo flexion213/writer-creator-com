@@ -69,90 +69,86 @@ const NAV: { id: Section; label: string; icon: React.ComponentType<{ className?:
 ];
 
 function Dashboard() {
-  const [posts, setPosts] = useState<Post[]>(() => {
-    if (typeof window === "undefined") return initialPosts;
-    try {
-      const raw = window.localStorage.getItem("dd:posts");
-      return raw ? (JSON.parse(raw) as Post[]) : initialPosts;
-    } catch { return initialPosts; }
-  });
-  const [draft, setDraft] = useState(() => {
-    if (typeof window === "undefined") return "";
-    return window.localStorage.getItem("dd:post-draft") ?? "";
-  });
-  const [draftImage, setDraftImage] = useState<string | undefined>(() => {
-    if (typeof window === "undefined") return undefined;
-    return window.localStorage.getItem("dd:post-draft-image") ?? undefined;
-  });
-  const [section, setSection] = useState<Section>(() => {
-    if (typeof window === "undefined") return "feed";
-    const saved = window.localStorage.getItem("dd:section");
-    return saved === "feed" || saved === "notebooks" || saved === "suggestions" || saved === "drawing"
-      ? saved
-      : "feed";
-  });
+  // IMPORTANT: All state below uses the same defaults on the server and the
+  // client's first render to avoid hydration mismatches. localStorage is
+  // read AFTER mount via the `hydrated` effect below.
+  const DEFAULT_BROADCAST =
+    "v2.4 ships Friday. Freeze new feature merges until QA signs off. — Head Dev";
+  const [hydrated, setHydrated] = useState(false);
+  const [posts, setPosts] = useState<Post[]>(initialPosts);
+  const [draft, setDraft] = useState("");
+  const [draftImage, setDraftImage] = useState<string | undefined>(undefined);
+  const [section, setSection] = useState<Section>("feed");
   const [navOpen, setNavOpen] = useState(false);
   const [draftFixing, setDraftFixing] = useState(false);
-  const [adminMode, setAdminMode] = useState(() => {
-    if (typeof window === "undefined") return false;
-    return window.localStorage.getItem("dd:admin-mode") === "true";
-  });
-  const [suggestions, setSuggestions] = useState<SuggestionDrafts>(() => {
-    if (typeof window === "undefined") return emptySuggestionDrafts;
-    try {
-      const raw = window.localStorage.getItem("dd:suggestions");
-      return raw ? { ...emptySuggestionDrafts, ...(JSON.parse(raw) as Partial<SuggestionDrafts>) } : emptySuggestionDrafts;
-    } catch {
-      return emptySuggestionDrafts;
-    }
-  });
-  const [broadcast, setBroadcast] = useState(() => {
-    if (typeof window === "undefined") return "v2.4 ships Friday. Freeze new feature merges until QA signs off. — Head Dev";
-    return window.localStorage.getItem("dd:broadcast") ?? "v2.4 ships Friday. Freeze new feature merges until QA signs off. — Head Dev";
-  });
+  const [adminMode, setAdminMode] = useState(false);
+  const [suggestions, setSuggestions] = useState<SuggestionDrafts>(emptySuggestionDrafts);
+  const [broadcast, setBroadcast] = useState(DEFAULT_BROADCAST);
   const fileRef = useRef<HTMLInputElement>(null);
   const titleTapCount = useRef(0);
   const titleTapTimer = useRef<number | null>(null);
-  const [notebooks, setNotebooks] = useState<Notebook[]>(() => {
-    if (typeof window === "undefined") return [];
-    try {
-      const raw = window.localStorage.getItem("dd:notebooks");
-      if (raw) return JSON.parse(raw) as Notebook[];
-    } catch {}
-    return [
-      { id: 1, title: "Ideas", body: "Refactor auth into a single middleware.", updated: Date.now() - 1000 * 60 * 60 },
-      { id: 2, title: "Todo", body: "Review PR #842, draft changelog.", updated: Date.now() - 1000 * 60 * 30 },
-    ];
-  });
+  const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const fix = useServerFn(fixGrammar);
 
+  // One-time hydration from localStorage (client only, after mount).
   useEffect(() => {
+    try {
+      const rawPosts = window.localStorage.getItem("dd:posts");
+      if (rawPosts) setPosts(JSON.parse(rawPosts) as Post[]);
+      const rawDraft = window.localStorage.getItem("dd:post-draft");
+      if (rawDraft) setDraft(rawDraft);
+      const rawImg = window.localStorage.getItem("dd:post-draft-image");
+      if (rawImg) setDraftImage(rawImg);
+      const savedSection = window.localStorage.getItem("dd:section");
+      if (savedSection === "feed" || savedSection === "notebooks" || savedSection === "suggestions" || savedSection === "drawing") {
+        setSection(savedSection);
+      }
+      setAdminMode(window.localStorage.getItem("dd:admin-mode") === "true");
+      const rawSug = window.localStorage.getItem("dd:suggestions");
+      if (rawSug) setSuggestions({ ...emptySuggestionDrafts, ...(JSON.parse(rawSug) as Partial<SuggestionDrafts>) });
+      const rawBroadcast = window.localStorage.getItem("dd:broadcast");
+      if (rawBroadcast) setBroadcast(rawBroadcast);
+      const rawNb = window.localStorage.getItem("dd:notebooks");
+      if (rawNb) setNotebooks(JSON.parse(rawNb) as Notebook[]);
+    } catch {}
+    setHydrated(true);
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
     try { window.localStorage.setItem("dd:posts", JSON.stringify(posts)); } catch {}
-  }, [posts]);
+  }, [posts, hydrated]);
   useEffect(() => {
+    if (!hydrated) return;
     try { window.localStorage.setItem("dd:notebooks", JSON.stringify(notebooks)); } catch {}
-  }, [notebooks]);
+  }, [notebooks, hydrated]);
   useEffect(() => {
+    if (!hydrated) return;
     try { window.localStorage.setItem("dd:post-draft", draft); } catch {}
-  }, [draft]);
+  }, [draft, hydrated]);
   useEffect(() => {
+    if (!hydrated) return;
     try {
       if (draftImage) window.localStorage.setItem("dd:post-draft-image", draftImage);
       else window.localStorage.removeItem("dd:post-draft-image");
     } catch {}
-  }, [draftImage]);
+  }, [draftImage, hydrated]);
   useEffect(() => {
+    if (!hydrated) return;
     try { window.localStorage.setItem("dd:section", section); } catch {}
-  }, [section]);
+  }, [section, hydrated]);
   useEffect(() => {
+    if (!hydrated) return;
     try { window.localStorage.setItem("dd:admin-mode", String(adminMode)); } catch {}
-  }, [adminMode]);
+  }, [adminMode, hydrated]);
   useEffect(() => {
+    if (!hydrated) return;
     try { window.localStorage.setItem("dd:suggestions", JSON.stringify(suggestions)); } catch {}
-  }, [suggestions]);
+  }, [suggestions, hydrated]);
   useEffect(() => {
+    if (!hydrated) return;
     try { window.localStorage.setItem("dd:broadcast", broadcast); } catch {}
-  }, [broadcast]);
+  }, [broadcast, hydrated]);
 
   const runFix = async (text: string): Promise<string | null> => {
     const trimmed = text.trim();
@@ -399,7 +395,7 @@ function Dashboard() {
           <CloudNotebooks runFix={runFix} />
         )}
         {section === "suggestions" && <Suggestions suggestions={suggestions} setSuggestions={setSuggestions} />}
-        {section === "drawing" && <DrawingStudio />}
+        {section === "drawing" && <DrawingStudio adminMode={adminMode} />}
       </main>
     </div>
   );
@@ -617,7 +613,9 @@ const BRUSHES: { id: BrushId; label: string; icon: React.ComponentType<{ classNa
   { id: "eraser",      label: "Eraser",      icon: Eraser,      defaultSize: 18, defaultOpacity: 1 },
 ];
 
-function DrawingStudio() {
+const PREMIUM_BRUSHES: BrushId[] = ["neon", "spray"];
+
+function DrawingStudio({ adminMode }: { adminMode: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hsva, setHsva] = useState<HsvaColor>(() => {
     if (typeof window === "undefined") return hexToHsva("#FFFFD7");
@@ -688,6 +686,10 @@ function DrawingStudio() {
 
   // Sync brush defaults
   const selectBrush = (id: BrushId) => {
+    if (PREMIUM_BRUSHES.includes(id) && !adminMode) {
+      toast.error("Premium brush — unlock for €3 (coming soon).");
+      return;
+    }
     setBrush(id);
     const b = BRUSHES.find((x) => x.id === id)!;
     setSize(b.defaultSize);
@@ -870,17 +872,23 @@ function DrawingStudio() {
         {BRUSHES.map((b) => {
           const Icon = b.icon;
           const active = brush === b.id;
+          const locked = PREMIUM_BRUSHES.includes(b.id) && !adminMode;
           return (
             <button
               key={b.id}
               onClick={() => selectBrush(b.id)}
-              title={b.label}
-              className={`flex flex-col items-center gap-0.5 rounded-lg p-2 text-[10px] transition-colors ${
+              title={locked ? `${b.label} — Premium (€3)` : b.label}
+              className={`relative flex flex-col items-center gap-0.5 rounded-lg p-2 text-[10px] transition-colors ${
                 active ? "bg-accent text-accent-foreground ring-1 ring-primary/60" : "bg-accent/30 hover:bg-accent/60"
-              }`}
+              } ${locked ? "opacity-60" : ""}`}
             >
               <Icon className="h-4 w-4" />
               <span className="leading-none">{b.label}</span>
+              {locked && (
+                <span className="absolute -top-1 -right-1 rounded-full bg-primary text-primary-foreground text-[8px] px-1 leading-none py-0.5">
+                  €3
+                </span>
+              )}
             </button>
           );
         })}
