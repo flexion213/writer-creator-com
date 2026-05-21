@@ -84,6 +84,7 @@ function Dashboard() {
   const [adminMode, setAdminMode] = useState(false);
   const [suggestions, setSuggestions] = useState<SuggestionDrafts>(emptySuggestionDrafts);
   const [broadcast, setBroadcast] = useState(DEFAULT_BROADCAST);
+  const [searchQuery, setSearchQuery] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const titleTapCount = useRef(0);
   const titleTapTimer = useRef<number | null>(null);
