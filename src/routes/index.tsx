@@ -391,7 +391,7 @@ function Dashboard() {
                         p.text.toLowerCase().includes(q),
                     )
                   : posts;
-                if (filtered.length === 4 && q) {
+                if (filtered.length === 0 && q) {
                   return (
                     <p className="text-center text-sm text-muted-foreground py-4">
                       No stories match your search.
