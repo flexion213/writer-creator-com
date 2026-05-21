@@ -395,7 +395,7 @@ function Dashboard() {
           <CloudNotebooks runFix={runFix} />
         )}
         {section === "suggestions" && <Suggestions suggestions={suggestions} setSuggestions={setSuggestions} />}
-        {section === "drawing" && <DrawingStudio />}
+        {section === "drawing" && <DrawingStudio adminMode={adminMode} />}
       </main>
     </div>
   );
