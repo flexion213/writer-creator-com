@@ -18,7 +18,7 @@ import {
   NotebookPen, Globe, MessageSquare, Pencil, ImagePlus, X, Eraser, Megaphone,
   Brush, PenTool, Highlighter, SprayCan, Sparkles, Droplet, Undo2, Redo2, Download, Trash2,
   ShieldAlert,
-  Plus, Wand2, Loader2,
+  Plus, Wand2, Loader2, Search,
 } from "lucide-react";
 import Wheel from "@uiw/react-color-wheel";
 import ShadeSlider from "@uiw/react-color-shade-slider";
@@ -84,6 +84,7 @@ function Dashboard() {
   const [adminMode, setAdminMode] = useState(false);
   const [suggestions, setSuggestions] = useState<SuggestionDrafts>(emptySuggestionDrafts);
   const [broadcast, setBroadcast] = useState(DEFAULT_BROADCAST);
+  const [searchQuery, setSearchQuery] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
   const titleTapCount = useRef(0);
   const titleTapTimer = useRef<number | null>(null);
@@ -370,23 +371,50 @@ function Dashboard() {
               </div>
             </Card>
 
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              <Input
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search stories, OCs, or users…"
+                className="pl-9"
+              />
+            </div>
+
             <div className="space-y-2">
-              {posts.map((p) => {
-                const wc = p.text.trim() ? p.text.trim().split(/\s+/).length : 0;
-                return (
-                  <Card key={p.id} className="p-3">
-                    <div className="flex items-center gap-1.5">
-                      <p className="text-sm font-medium">{p.author}</p>
-                      {p.verified && <BadgeCheck className="h-3.5 w-3.5 text-primary" />}
-                    </div>
-                    {p.text && <p className="text-sm mt-1">{p.text}</p>}
-                    {p.image && (
-                      <img src={p.image} alt="post" className="mt-2 rounded-md max-h-64 w-full object-cover" />
-                    )}
-                    <p className="text-[10px] text-muted-foreground mt-2">{wc} words</p>
-                  </Card>
-                );
-              })}
+              {(() => {
+                const q = searchQuery.trim().toLowerCase();
+                const filtered = q
+                  ? posts.filter(
+                      (p) =>
+                        p.author.toLowerCase().includes(q) ||
+                        p.text.toLowerCase().includes(q),
+                    )
+                  : posts;
+                if (filtered.length === 0 && q) {
+                  return (
+                    <p className="text-center text-sm text-muted-foreground py-4">
+                      No stories match your search.
+                    </p>
+                  );
+                }
+                return filtered.map((p) => {
+                  const wc = p.text.trim() ? p.text.trim().split(/\s+/).length : 0;
+                  return (
+                    <Card key={p.id} className="p-3">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium">{p.author}</p>
+                        {p.verified && <BadgeCheck className="h-3.5 w-3.5 text-primary" />}
+                      </div>
+                      {p.text && <p className="text-sm mt-1">{p.text}</p>}
+                      {p.image && (
+                        <img src={p.image} alt="post" className="mt-2 rounded-md max-h-64 w-full object-cover" />
+                      )}
+                      <p className="text-[10px] text-muted-foreground mt-2">{wc} words</p>
+                    </Card>
+                  );
+                });
+              })()}
             </div>
           </>
         )}
