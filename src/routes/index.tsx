@@ -872,17 +872,23 @@ function DrawingStudio({ adminMode }: { adminMode: boolean }) {
         {BRUSHES.map((b) => {
           const Icon = b.icon;
           const active = brush === b.id;
+          const locked = PREMIUM_BRUSHES.includes(b.id) && !adminMode;
           return (
             <button
               key={b.id}
               onClick={() => selectBrush(b.id)}
-              title={b.label}
-              className={`flex flex-col items-center gap-0.5 rounded-lg p-2 text-[10px] transition-colors ${
+              title={locked ? `${b.label} — Premium (€3)` : b.label}
+              className={`relative flex flex-col items-center gap-0.5 rounded-lg p-2 text-[10px] transition-colors ${
                 active ? "bg-accent text-accent-foreground ring-1 ring-primary/60" : "bg-accent/30 hover:bg-accent/60"
-              }`}
+              } ${locked ? "opacity-60" : ""}`}
             >
               <Icon className="h-4 w-4" />
               <span className="leading-none">{b.label}</span>
+              {locked && (
+                <span className="absolute -top-1 -right-1 rounded-full bg-primary text-primary-foreground text-[8px] px-1 leading-none py-0.5">
+                  €3
+                </span>
+              )}
             </button>
           );
         })}
