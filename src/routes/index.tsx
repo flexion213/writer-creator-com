@@ -613,7 +613,9 @@ const BRUSHES: { id: BrushId; label: string; icon: React.ComponentType<{ classNa
   { id: "eraser",      label: "Eraser",      icon: Eraser,      defaultSize: 18, defaultOpacity: 1 },
 ];
 
-function DrawingStudio() {
+const PREMIUM_BRUSHES: BrushId[] = ["neon", "spray"];
+
+function DrawingStudio({ adminMode }: { adminMode: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [hsva, setHsva] = useState<HsvaColor>(() => {
     if (typeof window === "undefined") return hexToHsva("#FFFFD7");
@@ -684,6 +686,10 @@ function DrawingStudio() {
 
   // Sync brush defaults
   const selectBrush = (id: BrushId) => {
+    if (PREMIUM_BRUSHES.includes(id) && !adminMode) {
+      toast.error("Premium brush — unlock for €3 (coming soon).");
+      return;
+    }
     setBrush(id);
     const b = BRUSHES.find((x) => x.id === id)!;
     setSize(b.defaultSize);
