@@ -15,7 +15,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   NotebookPen, Plus, Trash2, Wand2, Loader2, Users, MessageCircle,
-  UserPlus, Send, ShieldCheck, X, LogIn,
+  UserPlus, Send, ShieldCheck, X, LogIn, Shield,
 } from "lucide-react";
 
 type Notebook = {
@@ -41,7 +41,7 @@ type Message = {
 };
 
 export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<string | null> }) {
-  const { user, profile, loading } = useAuth();
+  const { user, profile, loading, isAdmin, isModerator } = useAuth();
   const navigate = useNavigate();
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [fetching, setFetching] = useState(true);
@@ -292,6 +292,7 @@ export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<s
               notebookTitle={notebooks.find((n) => n.id === openChatFor)?.title ?? "Notebook"}
               currentUserId={user.id}
               currentUsername={profile?.username ?? "you"}
+              canModerate={isAdmin || isModerator}
             />
           )}
         </SheetContent>
@@ -436,27 +437,43 @@ function ChatPanel({
   notebookTitle,
   currentUserId,
   currentUsername,
+  canModerate,
 }: {
   notebookId: string;
   notebookTitle: string;
   currentUserId: string;
   currentUsername: string;
+  canModerate: boolean;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [userMap, setUserMap] = useState<Record<string, string>>({});
+  const [roleMap, setRoleMap] = useState<Record<string, Array<"admin" | "moderator" | "user">>>({});
   const send = useServerFn(sendModeratedMessage);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const fetchUsernames = async (ids: string[]) => {
     const missing = Array.from(new Set(ids)).filter((id) => !userMap[id]);
     if (missing.length === 0) return;
-    const { data } = await supabase.from("profiles").select("id, username").in("id", missing);
+    const [{ data }, { data: rd }] = await Promise.all([
+      supabase.from("profiles").select("id, username").in("id", missing),
+      supabase.from("user_roles").select("user_id, role").in("user_id", missing),
+    ]);
     if (data) {
       setUserMap((prev) => {
         const next = { ...prev };
         for (const p of data as Array<{ id: string; username: string }>) next[p.id] = p.username;
+        return next;
+      });
+    }
+    if (rd) {
+      setRoleMap((prev) => {
+        const next = { ...prev };
+        for (const r of rd as Array<{ user_id: string; role: "admin" | "moderator" | "user" }>) {
+          const arr = next[r.user_id] ?? [];
+          if (!arr.includes(r.role)) next[r.user_id] = [...arr, r.role];
+        }
         return next;
       });
     }
@@ -517,6 +534,12 @@ function ChatPanel({
 
   const grouped = useMemo(() => messages, [messages]);
 
+  const deleteMessage = async (id: string) => {
+    const { error } = await supabase.from("notebook_messages").delete().eq("id", id);
+    if (error) { toast.error(error.message); return; }
+    setMessages((prev) => prev.filter((m) => m.id !== id));
+  };
+
   return (
     <>
       <SheetHeader className="px-4 pt-4 pb-2 border-b">
@@ -534,11 +557,42 @@ function ChatPanel({
         {grouped.map((m) => {
           const mine = m.user_id === currentUserId;
           const name = mine ? currentUsername : (userMap[m.user_id] ?? "user");
+          const authorRoles = roleMap[m.user_id] ?? [];
+          const isAuthorMod = authorRoles.includes("moderator") || authorRoles.includes("admin");
+          const canDelete = mine || canModerate;
           return (
             <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-primary text-primary-foreground" : "bg-accent"}`}>
-                {!mine && <p className="text-[10px] font-semibold opacity-70 mb-0.5">@{name}</p>}
-                <p className="whitespace-pre-wrap break-words">{m.body}</p>
+              <div className="group max-w-[80%] flex items-start gap-1">
+                <div className={`rounded-2xl px-3 py-2 text-sm ${mine ? "bg-primary text-primary-foreground" : "bg-accent"}`}>
+                  {!mine && (
+                    <p className="text-[10px] font-semibold opacity-70 mb-0.5 flex items-center gap-1">
+                      @{name}
+                      {isAuthorMod && (
+                        <span
+                          className="inline-flex items-center gap-0.5 rounded-sm px-1 py-[1px] text-[9px] font-bold uppercase tracking-wide text-white"
+                          style={{
+                            background: "linear-gradient(135deg, #ff1a1a, #8a0000)",
+                            boxShadow: "0 0 6px rgba(255, 40, 40, 0.7)",
+                          }}
+                          title={authorRoles.includes("admin") ? "Admin" : "Moderator"}
+                        >
+                          <Shield className="h-2.5 w-2.5" />
+                          {authorRoles.includes("admin") ? "Admin" : "Mod"}
+                        </span>
+                      )}
+                    </p>
+                  )}
+                  <p className="whitespace-pre-wrap break-words">{m.body}</p>
+                </div>
+                {canDelete && (
+                  <button
+                    onClick={() => deleteMessage(m.id)}
+                    aria-label="Delete message"
+                    className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive p-1"
+                  >
+                    <Trash2 className="h-3 w-3" />
+                  </button>
+                )}
               </div>
             </div>
           );
