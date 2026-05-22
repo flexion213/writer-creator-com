@@ -71,6 +71,8 @@ const NAV: { id: Section; label: string; icon: React.ComponentType<{ className?:
 ];
 
 function Dashboard() {
+  const { isAdmin } = useAuth();
+  const navigate = useNavigate();
   // IMPORTANT: All state below uses the same defaults on the server and the
   // client's first render to avoid hydration mismatches. localStorage is
   // read AFTER mount via the `hydrated` effect below.
@@ -83,13 +85,11 @@ function Dashboard() {
   const [section, setSection] = useState<Section>("feed");
   const [navOpen, setNavOpen] = useState(false);
   const [draftFixing, setDraftFixing] = useState(false);
-  const [adminMode, setAdminMode] = useState(false);
+  const adminMode = isAdmin;
   const [suggestions, setSuggestions] = useState<SuggestionDrafts>(emptySuggestionDrafts);
   const [broadcast, setBroadcast] = useState(DEFAULT_BROADCAST);
   const [searchQuery, setSearchQuery] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
-  const titleTapCount = useRef(0);
-  const titleTapTimer = useRef<number | null>(null);
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const fix = useServerFn(fixGrammar);
 
@@ -106,7 +106,6 @@ function Dashboard() {
       if (savedSection === "feed" || savedSection === "notebooks" || savedSection === "suggestions" || savedSection === "drawing") {
         setSection(savedSection);
       }
-      setAdminMode(window.localStorage.getItem("dd:admin-mode") === "true");
       const rawSug = window.localStorage.getItem("dd:suggestions");
       if (rawSug) setSuggestions({ ...emptySuggestionDrafts, ...(JSON.parse(rawSug) as Partial<SuggestionDrafts>) });
       const rawBroadcast = window.localStorage.getItem("dd:broadcast");
@@ -140,10 +139,6 @@ function Dashboard() {
     if (!hydrated) return;
     try { window.localStorage.setItem("dd:section", section); } catch {}
   }, [section, hydrated]);
-  useEffect(() => {
-    if (!hydrated) return;
-    try { window.localStorage.setItem("dd:admin-mode", String(adminMode)); } catch {}
-  }, [adminMode, hydrated]);
   useEffect(() => {
     if (!hydrated) return;
     try { window.localStorage.setItem("dd:suggestions", JSON.stringify(suggestions)); } catch {}
@@ -198,27 +193,6 @@ function Dashboard() {
 
   const go = (s: Section) => { setSection(s); setNavOpen(false); };
   const currentLabel = NAV.find((n) => n.id === section)?.label ?? "Global Feed";
-  const handleTitleTap = () => {
-    if (titleTapTimer.current) window.clearTimeout(titleTapTimer.current);
-    titleTapCount.current += 1;
-    titleTapTimer.current = window.setTimeout(() => {
-      titleTapCount.current = 0;
-      titleTapTimer.current = null;
-    }, 1600);
-
-    if (titleTapCount.current >= 5) {
-      titleTapCount.current = 0;
-      if (titleTapTimer.current) {
-        window.clearTimeout(titleTapTimer.current);
-        titleTapTimer.current = null;
-      }
-      setAdminMode((value) => {
-        const next = !value;
-        toast.success(next ? "Admin powers enabled." : "Admin powers disabled.");
-        return next;
-      });
-    }
-  };
 
   return (
     <div className="dark min-h-screen bg-background text-foreground">
@@ -272,7 +246,6 @@ function Dashboard() {
           </Sheet>
 
           <h1
-            onClick={handleTitleTap}
             style={{ color: "#FFFFD7" }}
             className="flex-1 text-center text-xl font-bold tracking-tight select-none cursor-default"
           >
@@ -427,6 +400,21 @@ function Dashboard() {
         {section === "suggestions" && <Suggestions suggestions={suggestions} setSuggestions={setSuggestions} />}
         {section === "drawing" && <DrawingStudio adminMode={adminMode} />}
       </main>
+
+      {isAdmin && (
+        <button
+          type="button"
+          onClick={() => navigate({ to: "/admin" })}
+          aria-label="Admin dashboard"
+          className="fixed bottom-5 right-5 z-50 h-12 w-12 rounded-full opacity-20 hover:opacity-100 transition-opacity flex items-center justify-center shadow-lg"
+          style={{
+            background: "radial-gradient(circle at 30% 30%, #FFE680, #C9A227 60%, #7A5A0F)",
+            boxShadow: "0 0 18px rgba(255, 215, 80, 0.45)",
+          }}
+        >
+          <Crown className="h-5 w-5 text-black/80" />
+        </button>
+      )}
     </div>
   );
 }
