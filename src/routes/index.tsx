@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { fixGrammar } from "@/lib/grammar.functions";
 import { CloudNotebooks } from "@/components/CloudNotebooks";
+import { useAuth } from "@/hooks/use-auth";
+import { useNavigate } from "@tanstack/react-router";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +19,7 @@ import {
   BadgeCheck, Bug, Lightbulb, Video, Upload, Send,
   NotebookPen, Globe, MessageSquare, Pencil, ImagePlus, X, Eraser, Megaphone,
   Brush, PenTool, Highlighter, SprayCan, Sparkles, Droplet, Undo2, Redo2, Download, Trash2,
-  ShieldAlert,
+  ShieldAlert, Crown,
   Plus, Wand2, Loader2, Search,
 } from "lucide-react";
 import Wheel from "@uiw/react-color-wheel";
