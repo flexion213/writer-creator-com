@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { fixGrammar } from "@/lib/grammar.functions";
 import { CloudNotebooks } from "@/components/CloudNotebooks";
 import { useAuth } from "@/hooks/use-auth";
-import { useNavigate, Link } from "@tanstack/react-router";
+import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
