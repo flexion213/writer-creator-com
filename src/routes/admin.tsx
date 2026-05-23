@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
-import { Crown, Shield, ArrowLeft, Loader2, Search } from "lucide-react";
+import { Crown, Shield, ArrowLeft, Loader2, Search, MessageSquare } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   component: AdminDashboard,
@@ -91,6 +91,12 @@ function AdminDashboard() {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search users…" className="pl-9" />
         </div>
+
+        <Link to="/admin/reports" className="block">
+          <Button variant="outline" className="w-full justify-start">
+            <MessageSquare className="h-4 w-4 mr-2" /> View Reports & Suggestions
+          </Button>
+        </Link>
 
         {fetching && (
           <Card className="p-6 text-center"><Loader2 className="h-5 w-5 mx-auto animate-spin" /></Card>
