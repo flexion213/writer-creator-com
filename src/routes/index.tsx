@@ -7,6 +7,7 @@ import { fixGrammar } from "@/lib/grammar.functions";
 import { CloudNotebooks } from "@/components/CloudNotebooks";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "@tanstack/react-router";
+import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,7 +38,7 @@ export const Route = createFileRoute("/")({
   }),
 });
 
-type Post = { id: number; author: string; verified: boolean; text: string; image?: string };
+type Post = { id: number; author: string; verified: boolean; title?: string; text: string; image?: string };
 type Section = "feed" | "notebooks" | "suggestions" | "drawing";
 type Notebook = { id: number; title: string; body: string; updated: number };
 type SuggestionDrafts = {
@@ -47,6 +48,8 @@ type SuggestionDrafts = {
   featureBody: string;
   videoTitle: string;
   videoBody: string;
+  userTarget: string;
+  userBody: string;
 };
 
 const emptySuggestionDrafts: SuggestionDrafts = {
@@ -56,6 +59,8 @@ const emptySuggestionDrafts: SuggestionDrafts = {
   featureBody: "",
   videoTitle: "",
   videoBody: "",
+  userTarget: "",
+  userBody: "",
 };
 
 const initialPosts: Post[] = [
@@ -71,7 +76,7 @@ const NAV: { id: Section; label: string; icon: React.ComponentType<{ className?:
 ];
 
 function Dashboard() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isModerator } = useAuth();
   const navigate = useNavigate();
   // IMPORTANT: All state below uses the same defaults on the server and the
   // client's first render to avoid hydration mismatches. localStorage is
@@ -81,6 +86,7 @@ function Dashboard() {
   const [hydrated, setHydrated] = useState(false);
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [draft, setDraft] = useState("");
+  const [draftTitle, setDraftTitle] = useState("");
   const [draftImage, setDraftImage] = useState<string | undefined>(undefined);
   const [section, setSection] = useState<Section>("feed");
   const [navOpen, setNavOpen] = useState(false);
@@ -178,15 +184,18 @@ function Dashboard() {
 
   const submitPost = () => {
     const text = draft.trim();
-    if (!text && !draftImage) return;
+    const title = draftTitle.trim();
+    if (!text && !draftImage && !title) return;
     setPosts((p) => [{
       id: Date.now(),
       author: adminMode ? "Head Dev" : "You",
       verified: adminMode,
+      title: title || undefined,
       text,
       image: draftImage,
     }, ...p]);
     setDraft("");
+    setDraftTitle("");
     setDraftImage(undefined);
     if (fileRef.current) fileRef.current.value = "";
   };
@@ -289,12 +298,19 @@ function Dashboard() {
 
             <Card className="p-3">
               <Label htmlFor="post" className="text-xs">Share something</Label>
+              <Input
+                value={draftTitle}
+                onChange={(e) => setDraftTitle(e.target.value)}
+                placeholder="Title (optional)"
+                className="mt-1 font-semibold"
+                maxLength={120}
+              />
               <Textarea
                 id="post"
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 placeholder="Write a post…"
-                className="mt-1 min-h-20 resize-none"
+                className="mt-2 min-h-20 resize-none"
               />
               {draftImage && (
                 <div className="relative mt-2">
@@ -339,7 +355,7 @@ function Dashboard() {
                     {draftFixing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
                     Fix
                   </Button>
-                  <Button size="sm" onClick={submitPost} disabled={!draft.trim() && !draftImage}>
+                  <Button size="sm" onClick={submitPost} disabled={!draft.trim() && !draftImage && !draftTitle.trim()}>
                     <Send className="h-3.5 w-3.5 mr-1" /> Post
                   </Button>
                 </div>
@@ -363,6 +379,7 @@ function Dashboard() {
                   ? posts.filter(
                       (p) =>
                         p.author.toLowerCase().includes(q) ||
+                        (p.title ?? "").toLowerCase().includes(q) ||
                         p.text.toLowerCase().includes(q),
                     )
                   : posts;
@@ -381,6 +398,7 @@ function Dashboard() {
                         <p className="text-sm font-medium">{p.author}</p>
                         {p.verified && <BadgeCheck className="h-3.5 w-3.5 text-primary" />}
                       </div>
+                      {p.title && <p className="text-base font-semibold mt-1">{p.title}</p>}
                       {p.text && <p className="text-sm mt-1">{p.text}</p>}
                       {p.image && (
                         <img src={p.image} alt="post" className="mt-2 rounded-md max-h-64 w-full object-cover" />
@@ -401,11 +419,11 @@ function Dashboard() {
         {section === "drawing" && <DrawingStudio adminMode={adminMode} />}
       </main>
 
-      {isAdmin && (
+      {(isAdmin || isModerator) && (
         <button
           type="button"
-          onClick={() => navigate({ to: "/admin" })}
-          aria-label="Admin dashboard"
+          onClick={() => navigate({ to: isAdmin ? "/admin" : "/admin/reports" })}
+          aria-label={isAdmin ? "Admin dashboard" : "Reports"}
           className="fixed bottom-5 right-5 z-50 h-12 w-12 rounded-full opacity-20 hover:opacity-100 transition-opacity flex items-center justify-center shadow-lg"
           style={{
             background: "radial-gradient(circle at 30% 30%, #FFE680, #C9A227 60%, #7A5A0F)",
@@ -538,6 +556,48 @@ function Suggestions({
   suggestions: SuggestionDrafts;
   setSuggestions: React.Dispatch<React.SetStateAction<SuggestionDrafts>>;
 }) {
+  const { user } = useAuth();
+  const [submitting, setSubmitting] = useState<string | null>(null);
+
+  const submit = async (
+    kind: "bug" | "feature" | "video" | "user",
+    title: string,
+    body: string,
+    reportedUsername?: string,
+    resetKeys?: (keyof SuggestionDrafts)[],
+  ) => {
+    if (!user) { toast.error("Please sign in to submit."); return; }
+    if (!title.trim()) { toast.error("Add a title first."); return; }
+    setSubmitting(kind);
+    let reportedUserId: string | null = null;
+    if (kind === "user" && reportedUsername?.trim()) {
+      const { data: p } = await supabase
+        .from("profiles").select("id")
+        .ilike("username", reportedUsername.trim().replace(/^@/, ""))
+        .maybeSingle();
+      reportedUserId = p?.id ?? null;
+      if (!reportedUserId) {
+        setSubmitting(null);
+        toast.error("User not found.");
+        return;
+      }
+    }
+    const { error } = await supabase.from("reports").insert({
+      kind, title: title.trim(), body: body.trim(),
+      reporter_id: user.id, reported_user_id: reportedUserId,
+    });
+    setSubmitting(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Submitted — staff will review.");
+    if (resetKeys) {
+      setSuggestions((cur) => {
+        const next = { ...cur };
+        for (const k of resetKeys) next[k] = "" as never;
+        return next;
+      });
+    }
+  };
+
   return (
     <div className="space-y-2">
       <Card className="p-3">
@@ -561,7 +621,9 @@ function Suggestions({
           <Button variant="outline" size="sm" className="text-xs">
             <Upload className="h-3.5 w-3.5 mr-1" /> Attach
           </Button>
-          <Button size="sm">Submit</Button>
+          <Button size="sm" disabled={submitting === "bug"} onClick={() => submit("bug", suggestions.bugTitle, suggestions.bugBody, undefined, ["bugTitle","bugBody"])}>
+            {submitting === "bug" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Submit"}
+          </Button>
         </div>
       </Card>
       <Card className="p-3">
@@ -585,7 +647,9 @@ function Suggestions({
           <Button variant="outline" size="sm" className="text-xs">
             <Upload className="h-3.5 w-3.5 mr-1" /> Attach mockup
           </Button>
-          <Button size="sm">Submit</Button>
+          <Button size="sm" disabled={submitting === "feature"} onClick={() => submit("feature", suggestions.featureTitle, suggestions.featureBody, undefined, ["featureTitle","featureBody"])}>
+            {submitting === "feature" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Submit"}
+          </Button>
         </div>
       </Card>
       <Card className="p-3">
@@ -609,7 +673,36 @@ function Suggestions({
           <Button variant="outline" size="sm" className="text-xs">
             <Upload className="h-3.5 w-3.5 mr-1" /> Attach video
           </Button>
-          <Button size="sm">Submit</Button>
+          <Button size="sm" disabled={submitting === "video"} onClick={() => submit("video", suggestions.videoTitle, suggestions.videoBody, undefined, ["videoTitle","videoBody"])}>
+            {submitting === "video" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Submit"}
+          </Button>
+        </div>
+      </Card>
+      <Card className="p-3">
+        <div className="flex items-center gap-2 mb-2">
+          <ShieldAlert className="h-4 w-4 text-destructive" />
+          <p className="text-sm font-medium">Report a User</p>
+        </div>
+        <Input
+          placeholder="Username (e.g. alice)"
+          className="mb-2"
+          value={suggestions.userTarget}
+          onChange={(e) => setSuggestions((current) => ({ ...current, userTarget: e.target.value }))}
+        />
+        <Textarea
+          placeholder="What happened? Be specific."
+          className="mb-2 min-h-16 resize-none"
+          value={suggestions.userBody}
+          onChange={(e) => setSuggestions((current) => ({ ...current, userBody: e.target.value }))}
+        />
+        <div className="flex items-center justify-end">
+          <Button
+            size="sm"
+            disabled={submitting === "user"}
+            onClick={() => submit("user", `Report: @${suggestions.userTarget.trim().replace(/^@/, "")}`, suggestions.userBody, suggestions.userTarget, ["userTarget","userBody"])}
+          >
+            {submitting === "user" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Submit"}
+          </Button>
         </div>
       </Card>
     </div>
