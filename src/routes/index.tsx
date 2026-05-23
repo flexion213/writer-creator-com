@@ -76,7 +76,7 @@ const NAV: { id: Section; label: string; icon: React.ComponentType<{ className?:
 ];
 
 function Dashboard() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isModerator } = useAuth();
   const navigate = useNavigate();
   // IMPORTANT: All state below uses the same defaults on the server and the
   // client's first render to avoid hydration mismatches. localStorage is
@@ -419,11 +419,11 @@ function Dashboard() {
         {section === "drawing" && <DrawingStudio adminMode={adminMode} />}
       </main>
 
-      {isAdmin && (
+      {(isAdmin || isModerator) && (
         <button
           type="button"
-          onClick={() => navigate({ to: "/admin" })}
-          aria-label="Admin dashboard"
+          onClick={() => navigate({ to: isAdmin ? "/admin" : "/admin/reports" })}
+          aria-label={isAdmin ? "Admin dashboard" : "Reports"}
           className="fixed bottom-5 right-5 z-50 h-12 w-12 rounded-full opacity-20 hover:opacity-100 transition-opacity flex items-center justify-center shadow-lg"
           style={{
             background: "radial-gradient(circle at 30% 30%, #FFE680, #C9A227 60%, #7A5A0F)",
