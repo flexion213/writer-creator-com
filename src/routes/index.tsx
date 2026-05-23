@@ -6,7 +6,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { fixGrammar } from "@/lib/grammar.functions";
 import { CloudNotebooks } from "@/components/CloudNotebooks";
 import { useAuth } from "@/hooks/use-auth";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, Link } from "@tanstack/react-router";
+import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -37,7 +38,7 @@ export const Route = createFileRoute("/")({
   }),
 });
 
-type Post = { id: number; author: string; verified: boolean; text: string; image?: string };
+type Post = { id: number; author: string; verified: boolean; title?: string; text: string; image?: string };
 type Section = "feed" | "notebooks" | "suggestions" | "drawing";
 type Notebook = { id: number; title: string; body: string; updated: number };
 type SuggestionDrafts = {
@@ -47,6 +48,8 @@ type SuggestionDrafts = {
   featureBody: string;
   videoTitle: string;
   videoBody: string;
+  userTarget: string;
+  userBody: string;
 };
 
 const emptySuggestionDrafts: SuggestionDrafts = {
@@ -56,6 +59,8 @@ const emptySuggestionDrafts: SuggestionDrafts = {
   featureBody: "",
   videoTitle: "",
   videoBody: "",
+  userTarget: "",
+  userBody: "",
 };
 
 const initialPosts: Post[] = [
@@ -81,6 +86,7 @@ function Dashboard() {
   const [hydrated, setHydrated] = useState(false);
   const [posts, setPosts] = useState<Post[]>(initialPosts);
   const [draft, setDraft] = useState("");
+  const [draftTitle, setDraftTitle] = useState("");
   const [draftImage, setDraftImage] = useState<string | undefined>(undefined);
   const [section, setSection] = useState<Section>("feed");
   const [navOpen, setNavOpen] = useState(false);
@@ -178,15 +184,18 @@ function Dashboard() {
 
   const submitPost = () => {
     const text = draft.trim();
-    if (!text && !draftImage) return;
+    const title = draftTitle.trim();
+    if (!text && !draftImage && !title) return;
     setPosts((p) => [{
       id: Date.now(),
       author: adminMode ? "Head Dev" : "You",
       verified: adminMode,
+      title: title || undefined,
       text,
       image: draftImage,
     }, ...p]);
     setDraft("");
+    setDraftTitle("");
     setDraftImage(undefined);
     if (fileRef.current) fileRef.current.value = "";
   };
@@ -289,12 +298,19 @@ function Dashboard() {
 
             <Card className="p-3">
               <Label htmlFor="post" className="text-xs">Share something</Label>
+              <Input
+                value={draftTitle}
+                onChange={(e) => setDraftTitle(e.target.value)}
+                placeholder="Title (optional)"
+                className="mt-1 font-semibold"
+                maxLength={120}
+              />
               <Textarea
                 id="post"
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 placeholder="Write a post…"
-                className="mt-1 min-h-20 resize-none"
+                className="mt-2 min-h-20 resize-none"
               />
               {draftImage && (
                 <div className="relative mt-2">
@@ -339,7 +355,7 @@ function Dashboard() {
                     {draftFixing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
                     Fix
                   </Button>
-                  <Button size="sm" onClick={submitPost} disabled={!draft.trim() && !draftImage}>
+                  <Button size="sm" onClick={submitPost} disabled={!draft.trim() && !draftImage && !draftTitle.trim()}>
                     <Send className="h-3.5 w-3.5 mr-1" /> Post
                   </Button>
                 </div>
@@ -363,6 +379,7 @@ function Dashboard() {
                   ? posts.filter(
                       (p) =>
                         p.author.toLowerCase().includes(q) ||
+                        (p.title ?? "").toLowerCase().includes(q) ||
                         p.text.toLowerCase().includes(q),
                     )
                   : posts;
@@ -381,6 +398,7 @@ function Dashboard() {
                         <p className="text-sm font-medium">{p.author}</p>
                         {p.verified && <BadgeCheck className="h-3.5 w-3.5 text-primary" />}
                       </div>
+                      {p.title && <p className="text-base font-semibold mt-1">{p.title}</p>}
                       {p.text && <p className="text-sm mt-1">{p.text}</p>}
                       {p.image && (
                         <img src={p.image} alt="post" className="mt-2 rounded-md max-h-64 w-full object-cover" />
