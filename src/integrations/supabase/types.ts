@@ -126,6 +126,39 @@ export type Database = {
         }
         Relationships: []
       }
+      reports: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          kind: Database["public"]["Enums"]["report_kind"]
+          reported_user_id: string | null
+          reporter_id: string
+          resolved: boolean
+          title: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          id?: string
+          kind: Database["public"]["Enums"]["report_kind"]
+          reported_user_id?: string | null
+          reporter_id: string
+          resolved?: boolean
+          title: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          kind?: Database["public"]["Enums"]["report_kind"]
+          reported_user_id?: string | null
+          reporter_id?: string
+          resolved?: boolean
+          title?: string
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -174,6 +207,7 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"
+      report_kind: "bug" | "feature" | "video" | "user"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -302,6 +336,7 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "moderator", "user"],
+      report_kind: ["bug", "feature", "video", "user"],
     },
   },
 } as const
