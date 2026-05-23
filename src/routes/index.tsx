@@ -556,6 +556,48 @@ function Suggestions({
   suggestions: SuggestionDrafts;
   setSuggestions: React.Dispatch<React.SetStateAction<SuggestionDrafts>>;
 }) {
+  const { user } = useAuth();
+  const [submitting, setSubmitting] = useState<string | null>(null);
+
+  const submit = async (
+    kind: "bug" | "feature" | "video" | "user",
+    title: string,
+    body: string,
+    reportedUsername?: string,
+    resetKeys?: (keyof SuggestionDrafts)[],
+  ) => {
+    if (!user) { toast.error("Please sign in to submit."); return; }
+    if (!title.trim()) { toast.error("Add a title first."); return; }
+    setSubmitting(kind);
+    let reportedUserId: string | null = null;
+    if (kind === "user" && reportedUsername?.trim()) {
+      const { data: p } = await supabase
+        .from("profiles").select("id")
+        .ilike("username", reportedUsername.trim().replace(/^@/, ""))
+        .maybeSingle();
+      reportedUserId = p?.id ?? null;
+      if (!reportedUserId) {
+        setSubmitting(null);
+        toast.error("User not found.");
+        return;
+      }
+    }
+    const { error } = await supabase.from("reports").insert({
+      kind, title: title.trim(), body: body.trim(),
+      reporter_id: user.id, reported_user_id: reportedUserId,
+    });
+    setSubmitting(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Submitted — staff will review.");
+    if (resetKeys) {
+      setSuggestions((cur) => {
+        const next = { ...cur };
+        for (const k of resetKeys) next[k] = "" as never;
+        return next;
+      });
+    }
+  };
+
   return (
     <div className="space-y-2">
       <Card className="p-3">
@@ -579,7 +621,9 @@ function Suggestions({
           <Button variant="outline" size="sm" className="text-xs">
             <Upload className="h-3.5 w-3.5 mr-1" /> Attach
           </Button>
-          <Button size="sm">Submit</Button>
+          <Button size="sm" disabled={submitting === "bug"} onClick={() => submit("bug", suggestions.bugTitle, suggestions.bugBody, undefined, ["bugTitle","bugBody"])}>
+            {submitting === "bug" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Submit"}
+          </Button>
         </div>
       </Card>
       <Card className="p-3">
@@ -603,7 +647,9 @@ function Suggestions({
           <Button variant="outline" size="sm" className="text-xs">
             <Upload className="h-3.5 w-3.5 mr-1" /> Attach mockup
           </Button>
-          <Button size="sm">Submit</Button>
+          <Button size="sm" disabled={submitting === "feature"} onClick={() => submit("feature", suggestions.featureTitle, suggestions.featureBody, undefined, ["featureTitle","featureBody"])}>
+            {submitting === "feature" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Submit"}
+          </Button>
         </div>
       </Card>
       <Card className="p-3">
@@ -627,7 +673,36 @@ function Suggestions({
           <Button variant="outline" size="sm" className="text-xs">
             <Upload className="h-3.5 w-3.5 mr-1" /> Attach video
           </Button>
-          <Button size="sm">Submit</Button>
+          <Button size="sm" disabled={submitting === "video"} onClick={() => submit("video", suggestions.videoTitle, suggestions.videoBody, undefined, ["videoTitle","videoBody"])}>
+            {submitting === "video" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Submit"}
+          </Button>
+        </div>
+      </Card>
+      <Card className="p-3">
+        <div className="flex items-center gap-2 mb-2">
+          <ShieldAlert className="h-4 w-4 text-destructive" />
+          <p className="text-sm font-medium">Report a User</p>
+        </div>
+        <Input
+          placeholder="Username (e.g. alice)"
+          className="mb-2"
+          value={suggestions.userTarget}
+          onChange={(e) => setSuggestions((current) => ({ ...current, userTarget: e.target.value }))}
+        />
+        <Textarea
+          placeholder="What happened? Be specific."
+          className="mb-2 min-h-16 resize-none"
+          value={suggestions.userBody}
+          onChange={(e) => setSuggestions((current) => ({ ...current, userBody: e.target.value }))}
+        />
+        <div className="flex items-center justify-end">
+          <Button
+            size="sm"
+            disabled={submitting === "user"}
+            onClick={() => submit("user", `Report: @${suggestions.userTarget.trim().replace(/^@/, "")}`, suggestions.userBody, suggestions.userTarget, ["userTarget","userBody"])}
+          >
+            {submitting === "user" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Submit"}
+          </Button>
         </div>
       </Card>
     </div>
