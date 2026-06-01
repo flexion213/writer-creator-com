@@ -271,7 +271,14 @@ function Dashboard() {
       {section !== "feed" && (
       <main className="mx-auto max-w-md px-4 py-4 space-y-4">
         <div className="flex items-center gap-2">
-          <SheetWrapTrigger onOpen={() => setNavOpen(true)}>
+          <Button variant="ghost" size="icon" aria-label="Open menu" className="h-9 w-9" onClick={() => setNavOpen(true)}>
+            <div className="flex flex-col gap-[5px]">
+              <span className="block h-[2px] w-5 bg-foreground" />
+              <span className="block h-[2px] w-5 bg-foreground" />
+              <span className="block h-[2px] w-5 bg-foreground" />
+            </div>
+          </Button>
+          {false && (
               <Button variant="ghost" size="icon" aria-label="Open menu" className="h-9 w-9">
                 <div className="flex flex-col gap-[5px]">
                   <span className="block h-[2px] w-5 bg-foreground" />
@@ -279,7 +286,7 @@ function Dashboard() {
                   <span className="block h-[2px] w-5 bg-foreground" />
                 </div>
               </Button>
-          </SheetWrapTrigger>
+          )}
 
           <h1
             style={{ color: "#FFFFD7" }}
