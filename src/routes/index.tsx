@@ -206,10 +206,72 @@ function Dashboard() {
   return (
     <div className="dark min-h-screen bg-background text-foreground">
       <Toaster />
+      {/* Menu sheet always mounted so the feed reel can open it imperatively */}
+      <Sheet open={navOpen} onOpenChange={setNavOpen}>
+        <SheetContent side="left" className="w-80 border-r-0 bg-gradient-to-b from-background to-background/95">
+          <SheetHeader className="text-left">
+            <SheetTitle style={{ color: "#FFFFD7" }} className="text-2xl font-bold tracking-tight">
+              Dev Dashboard
+            </SheetTitle>
+            <p className="text-xs text-muted-foreground">Jump to a section</p>
+          </SheetHeader>
+          <nav className="mt-6 space-y-2">
+            {NAV.map((n) => {
+              const Icon = n.icon;
+              const active = section === n.id;
+              return (
+                <button
+                  key={n.id}
+                  onClick={() => go(n.id)}
+                  className={`group flex w-full items-center gap-4 rounded-2xl px-4 py-3.5 text-left transition-all ${
+                    active
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/40 hover:translate-x-0.5"
+                  }`}
+                >
+                  <span
+                    className={`flex h-10 w-10 items-center justify-center rounded-xl transition-colors ${
+                      active ? "bg-background/60" : "bg-accent/40 group-hover:bg-accent/70"
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <span className="text-base font-medium tracking-tight">{n.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </SheetContent>
+      </Sheet>
+
+      {section === "feed" && (
+        <FeedReel
+          posts={posts}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onOpenMenu={() => setNavOpen(true)}
+          broadcast={broadcast}
+          setBroadcast={setBroadcast}
+          adminMode={adminMode}
+          draft={draft}
+          setDraft={setDraft}
+          draftTitle={draftTitle}
+          setDraftTitle={setDraftTitle}
+          draftImage={draftImage}
+          setDraftImage={setDraftImage}
+          fileRef={fileRef}
+          onPickImage={onPickImage}
+          submitPost={submitPost}
+          runFix={runFix}
+          draftFixing={draftFixing}
+          setDraftFixing={setDraftFixing}
+        />
+      )}
+
+      {section !== "feed" && (
       <main className="mx-auto max-w-md px-4 py-4 space-y-4">
         <div className="flex items-center gap-2">
-          <Sheet open={navOpen} onOpenChange={setNavOpen}>
-            <SheetTrigger asChild>
+          <SheetWrapTrigger onOpen={() => setNavOpen(true)}>
               <Button variant="ghost" size="icon" aria-label="Open menu" className="h-9 w-9">
                 <div className="flex flex-col gap-[5px]">
                   <span className="block h-[2px] w-5 bg-foreground" />
@@ -217,42 +279,7 @@ function Dashboard() {
                   <span className="block h-[2px] w-5 bg-foreground" />
                 </div>
               </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-80 border-r-0 bg-gradient-to-b from-background to-background/95">
-              <SheetHeader className="text-left">
-                <SheetTitle style={{ color: "#FFFFD7" }} className="text-2xl font-bold tracking-tight">
-                  Dev Dashboard
-                </SheetTitle>
-                <p className="text-xs text-muted-foreground">Jump to a section</p>
-              </SheetHeader>
-              <nav className="mt-6 space-y-2">
-                {NAV.map((n) => {
-                  const Icon = n.icon;
-                  const active = section === n.id;
-                  return (
-                    <button
-                      key={n.id}
-                      onClick={() => go(n.id)}
-                      className={`group flex w-full items-center gap-4 rounded-xl px-4 py-3.5 text-left transition-all ${
-                        active
-                          ? "bg-accent text-accent-foreground shadow-sm"
-                          : "hover:bg-accent/40 hover:translate-x-0.5"
-                      }`}
-                    >
-                      <span
-                        className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
-                          active ? "bg-background/60" : "bg-accent/40 group-hover:bg-accent/70"
-                        }`}
-                      >
-                        <Icon className="h-5 w-5" />
-                      </span>
-                      <span className="text-base font-medium tracking-tight">{n.label}</span>
-                    </button>
-                  );
-                })}
-              </nav>
-            </SheetContent>
-          </Sheet>
+          </SheetWrapTrigger>
 
           <h1
             style={{ color: "#FFFFD7" }}
@@ -267,157 +294,13 @@ function Dashboard() {
           {currentLabel}
         </p>
 
-        {section === "feed" && (
-          <>
-            <Card className="border-2 border-destructive p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <Megaphone className="h-4 w-4 text-destructive" />
-                <Badge variant="destructive" className="uppercase tracking-wide text-[10px]">
-                  Lead Dev Broadcast
-                </Badge>
-              </div>
-              <Textarea
-                value={broadcast}
-                onChange={(e) => setBroadcast(e.target.value)}
-                placeholder="Write the broadcast…"
-                className="mt-1 min-h-16 resize-none border-0 bg-transparent p-0 text-sm focus-visible:ring-0"
-              />
-            </Card>
-
-            {adminMode && (
-              <Card className="border border-primary/40 bg-accent/25 p-3">
-                <div className="mb-1 flex items-center gap-2">
-                  <ShieldAlert className="h-4 w-4 text-primary" />
-                  <Badge className="uppercase tracking-wide text-[10px]">Administrative Alert Mode</Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Posts from here publish as verified Head Dev updates until you toggle admin mode off.
-                </p>
-              </Card>
-            )}
-
-            <Card className="p-3">
-              <Label htmlFor="post" className="text-xs">Share something</Label>
-              <Input
-                value={draftTitle}
-                onChange={(e) => setDraftTitle(e.target.value)}
-                placeholder="Title (optional)"
-                className="mt-1 font-semibold"
-                maxLength={120}
-              />
-              <Textarea
-                id="post"
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder="Write a post…"
-                className="mt-2 min-h-20 resize-none"
-              />
-              {draftImage && (
-                <div className="relative mt-2">
-                  <img src={draftImage} alt="attachment preview" className="rounded-md max-h-48 w-full object-cover" />
-                  <Button
-                    size="icon"
-                    variant="secondary"
-                    className="absolute top-1 right-1 h-6 w-6"
-                    onClick={() => { setDraftImage(undefined); if (fileRef.current) fileRef.current.value = ""; }}
-                    aria-label="Remove image"
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              )}
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={onPickImage}
-              />
-              <div className="flex items-center justify-between mt-2 gap-2">
-                <span className="text-[11px] text-muted-foreground">
-                  {wordCount} w · {charCount} ch
-                </span>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()}>
-                    <ImagePlus className="h-3.5 w-3.5 mr-1" /> Photo
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!draft.trim() || draftFixing}
-                    onClick={async () => {
-                      setDraftFixing(true);
-                      const fixed = await runFix(draft);
-                      if (fixed) setDraft(fixed);
-                      setDraftFixing(false);
-                    }}
-                  >
-                    {draftFixing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
-                    Fix
-                  </Button>
-                  <Button size="sm" onClick={submitPost} disabled={!draft.trim() && !draftImage && !draftTitle.trim()}>
-                    <Send className="h-3.5 w-3.5 mr-1" /> Post
-                  </Button>
-                </div>
-              </div>
-            </Card>
-
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search stories, OCs, or users…"
-                className="pl-9"
-              />
-            </div>
-
-            <div className="space-y-2">
-              {(() => {
-                const q = searchQuery.trim().toLowerCase();
-                const filtered = q
-                  ? posts.filter(
-                      (p) =>
-                        p.author.toLowerCase().includes(q) ||
-                        (p.title ?? "").toLowerCase().includes(q) ||
-                        p.text.toLowerCase().includes(q),
-                    )
-                  : posts;
-                if (filtered.length === 0 && q) {
-                  return (
-                    <p className="text-center text-sm text-muted-foreground py-4">
-                      No stories match your search.
-                    </p>
-                  );
-                }
-                return filtered.map((p) => {
-                  const wc = p.text.trim() ? p.text.trim().split(/\s+/).length : 0;
-                  return (
-                    <Card key={p.id} className="p-3">
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-medium">{p.author}</p>
-                        {p.verified && <BadgeCheck className="h-3.5 w-3.5 text-primary" />}
-                      </div>
-                      {p.title && <p className="text-base font-semibold mt-1">{p.title}</p>}
-                      {p.text && <p className="text-sm mt-1">{p.text}</p>}
-                      {p.image && (
-                        <img src={p.image} alt="post" className="mt-2 rounded-md max-h-64 w-full object-cover" />
-                      )}
-                      <p className="text-[10px] text-muted-foreground mt-2">{wc} words</p>
-                    </Card>
-                  );
-                });
-              })()}
-            </div>
-          </>
-        )}
-
         {section === "notebooks" && (
           <CloudNotebooks runFix={runFix} />
         )}
         {section === "suggestions" && <Suggestions suggestions={suggestions} setSuggestions={setSuggestions} />}
         {section === "drawing" && <DrawingStudio adminMode={adminMode} />}
       </main>
+      )}
 
       {(isAdmin || isModerator) && (
         <button
