@@ -969,3 +969,346 @@ function DrawingStudio({ adminMode }: { adminMode: boolean }) {
     </Card>
   );
 }
+
+// ============== TikTok-style vertical scroll-snap feed ==============
+
+type FeedReelProps = {
+  posts: Post[];
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
+  onOpenMenu: () => void;
+  broadcast: string;
+  setBroadcast: (s: string) => void;
+  adminMode: boolean;
+  draft: string;
+  setDraft: (s: string) => void;
+  draftTitle: string;
+  setDraftTitle: (s: string) => void;
+  draftImage: string | undefined;
+  setDraftImage: (s: string | undefined) => void;
+  fileRef: React.RefObject<HTMLInputElement | null>;
+  onPickImage: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  submitPost: () => void;
+  runFix: (text: string) => Promise<string | null>;
+  draftFixing: boolean;
+  setDraftFixing: (b: boolean) => void;
+};
+
+function FeedReel(props: FeedReelProps) {
+  const {
+    posts, searchQuery, setSearchQuery, onOpenMenu,
+    broadcast, setBroadcast, adminMode,
+    draft, setDraft, draftTitle, setDraftTitle,
+    draftImage, setDraftImage, fileRef, onPickImage,
+    submitPost, runFix, draftFixing, setDraftFixing,
+  } = props;
+
+  const [likes, setLikes] = useState<Record<number, number>>({});
+  const [liked, setLiked] = useState<Record<number, boolean>>({});
+  const [comments, setComments] = useState<Record<number, string[]>>({});
+  const [openCommentsFor, setOpenCommentsFor] = useState<number | null>(null);
+  const [commentDraft, setCommentDraft] = useState("");
+
+  const q = searchQuery.trim().toLowerCase();
+  const filtered = q
+    ? posts.filter(
+        (p) =>
+          p.author.toLowerCase().includes(q) ||
+          (p.title ?? "").toLowerCase().includes(q) ||
+          p.text.toLowerCase().includes(q),
+      )
+    : posts;
+
+  const toggleLike = (id: number) => {
+    setLiked((l) => ({ ...l, [id]: !l[id] }));
+    setLikes((c) => ({ ...c, [id]: (c[id] ?? 0) + (liked[id] ? -1 : 1) }));
+  };
+
+  const addComment = (id: number) => {
+    const t = commentDraft.trim();
+    if (!t) return;
+    setComments((c) => ({ ...c, [id]: [...(c[id] ?? []), t] }));
+    setCommentDraft("");
+  };
+
+  // Shared glass panel classes
+  const glass =
+    "rounded-[20px] border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.4)]";
+
+  return (
+    <div
+      className="fixed inset-0 z-30 overflow-hidden text-foreground"
+      style={{
+        background:
+          "linear-gradient(180deg, #050505 0%, #0d0d10 50%, #050505 100%)",
+      }}
+    >
+      {/* Top translucent overlay: menu + search */}
+      <div
+        className="absolute top-0 left-0 right-0 z-40 flex items-center gap-2 px-3 pt-3"
+        style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+      >
+        <button
+          type="button"
+          onClick={onOpenMenu}
+          aria-label="Open menu"
+          className={`${glass} h-11 w-11 shrink-0 flex items-center justify-center text-white/90`}
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <div className={`${glass} relative flex-1 h-11 flex items-center`}>
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/60 pointer-events-none" />
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search #tags or @users"
+            className="w-full h-full bg-transparent pl-10 pr-4 text-sm text-white placeholder:text-white/50 outline-none rounded-[20px]"
+          />
+        </div>
+      </div>
+
+      {/* Snap container */}
+      <div
+        className="h-full w-full overflow-y-auto"
+        style={{
+          scrollSnapType: "y mandatory",
+          scrollBehavior: "smooth",
+          WebkitOverflowScrolling: "touch",
+        }}
+      >
+        {/* Composer slide */}
+        <FeedSlide>
+          <div className={`${glass} w-full max-w-sm p-5`}>
+            <p className="text-xs uppercase tracking-widest text-white/60 mb-3">
+              Share a story
+            </p>
+            <Input
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              placeholder="Title (optional)"
+              className="rounded-[20px] bg-white/5 border-white/10 text-white placeholder:text-white/40 font-semibold"
+              maxLength={120}
+            />
+            <Textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="What's the story?"
+              className="mt-2 min-h-28 resize-none rounded-[20px] bg-white/5 border-white/10 text-white placeholder:text-white/40"
+            />
+            {draftImage && (
+              <div className="relative mt-2">
+                <img src={draftImage} alt="" className="rounded-[20px] max-h-48 w-full object-cover" />
+                <button
+                  onClick={() => { setDraftImage(undefined); if (fileRef.current) fileRef.current.value = ""; }}
+                  className="absolute top-2 right-2 h-7 w-7 rounded-full bg-black/60 backdrop-blur flex items-center justify-center"
+                  aria-label="Remove image"
+                >
+                  <X className="h-3.5 w-3.5 text-white" />
+                </button>
+              </div>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onPickImage}
+            />
+            <div className="flex items-center gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className={`${glass} h-10 px-3 flex items-center gap-1.5 text-xs text-white/90`}
+              >
+                <ImagePlus className="h-4 w-4" /> Photo
+              </button>
+              <button
+                type="button"
+                disabled={!draft.trim() || draftFixing}
+                onClick={async () => {
+                  setDraftFixing(true);
+                  const fixed = await runFix(draft);
+                  if (fixed) setDraft(fixed);
+                  setDraftFixing(false);
+                }}
+                className={`${glass} h-10 px-3 flex items-center gap-1.5 text-xs text-white/90 disabled:opacity-40`}
+              >
+                {draftFixing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                Fix
+              </button>
+              <button
+                type="button"
+                onClick={submitPost}
+                disabled={!draft.trim() && !draftImage && !draftTitle.trim()}
+                className="ml-auto h-10 px-4 rounded-[20px] bg-white text-black text-xs font-semibold flex items-center gap-1.5 disabled:opacity-40"
+              >
+                <Send className="h-4 w-4" /> Post
+              </button>
+            </div>
+            <p className="mt-4 text-center text-[11px] text-white/40">
+              Swipe up to explore stories
+            </p>
+          </div>
+        </FeedSlide>
+
+        {/* Broadcast slide */}
+        {broadcast.trim() && (
+          <FeedSlide>
+            <div className={`${glass} w-full max-w-sm p-5`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Megaphone className="h-4 w-4 text-red-400" />
+                <span className="text-[10px] uppercase tracking-widest text-red-300/80">
+                  Lead Dev Broadcast
+                </span>
+              </div>
+              <Textarea
+                value={broadcast}
+                onChange={(e) => setBroadcast(e.target.value)}
+                className="min-h-32 resize-none rounded-[20px] bg-transparent border-0 p-0 text-white text-base focus-visible:ring-0"
+              />
+              {adminMode && (
+                <div className="mt-4 flex items-center gap-2 text-[11px] text-white/50">
+                  <ShieldAlert className="h-3.5 w-3.5" />
+                  Admin mode: your posts publish as Head Dev.
+                </div>
+              )}
+            </div>
+          </FeedSlide>
+        )}
+
+        {/* Posts */}
+        {filtered.length === 0 && q ? (
+          <FeedSlide>
+            <div className={`${glass} w-full max-w-sm p-6 text-center`}>
+              <p className="text-white/70 text-sm">No stories match “{searchQuery}”.</p>
+            </div>
+          </FeedSlide>
+        ) : (
+          filtered.map((p) => (
+            <FeedSlide key={p.id}>
+              <FeedPostCard
+                post={p}
+                liked={!!liked[p.id]}
+                likeCount={likes[p.id] ?? 0}
+                commentCount={(comments[p.id] ?? []).length}
+                onLike={() => toggleLike(p.id)}
+                onOpenComments={() => setOpenCommentsFor(p.id)}
+                glass={glass}
+              />
+            </FeedSlide>
+          ))
+        )}
+      </div>
+
+      {/* Comments sheet */}
+      <Sheet open={openCommentsFor !== null} onOpenChange={(o) => !o && setOpenCommentsFor(null)}>
+        <SheetContent
+          side="bottom"
+          className="rounded-t-[24px] border-white/10 bg-[#0a0a0a]/95 backdrop-blur-xl text-white h-[70vh] flex flex-col"
+        >
+          <SheetHeader className="text-left">
+            <SheetTitle className="text-white">Comments</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto py-3 space-y-2">
+            {(openCommentsFor !== null ? comments[openCommentsFor] ?? [] : []).map((c, i) => (
+              <div key={i} className="rounded-[20px] bg-white/5 border border-white/10 px-3 py-2 text-sm">
+                {c}
+              </div>
+            ))}
+            {openCommentsFor !== null && (comments[openCommentsFor] ?? []).length === 0 && (
+              <p className="text-center text-sm text-white/50 py-6">Be the first to comment.</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 pt-2">
+            <input
+              value={commentDraft}
+              onChange={(e) => setCommentDraft(e.target.value)}
+              placeholder="Add a comment…"
+              onKeyDown={(e) => { if (e.key === "Enter" && openCommentsFor !== null) addComment(openCommentsFor); }}
+              className="flex-1 h-11 rounded-[20px] bg-white/5 border border-white/10 px-4 text-sm text-white placeholder:text-white/40 outline-none"
+            />
+            <button
+              onClick={() => openCommentsFor !== null && addComment(openCommentsFor)}
+              className="h-11 px-4 rounded-[20px] bg-white text-black text-sm font-semibold"
+            >
+              Send
+            </button>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
+
+function FeedSlide({ children }: { children: React.ReactNode }) {
+  return (
+    <section
+      className="relative w-full flex items-center justify-center px-4"
+      style={{ height: "100vh", scrollSnapAlign: "start", scrollSnapStop: "always" }}
+    >
+      {children}
+    </section>
+  );
+}
+
+function FeedPostCard({
+  post, liked, likeCount, commentCount, onLike, onOpenComments, glass,
+}: {
+  post: Post;
+  liked: boolean;
+  likeCount: number;
+  commentCount: number;
+  onLike: () => void;
+  onOpenComments: () => void;
+  glass: string;
+}) {
+  return (
+    <>
+      <article className={`${glass} w-full max-w-sm p-5 pr-6 animate-fade-in`}>
+        <div className="flex items-center gap-1.5">
+          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-white/30 to-white/5 border border-white/10" />
+          <p className="text-sm font-medium text-white ml-1">{post.author}</p>
+          {post.verified && <BadgeCheck className="h-3.5 w-3.5 text-sky-400" />}
+        </div>
+        {post.title && (
+          <h2 className="mt-3 text-xl font-semibold leading-tight text-white">{post.title}</h2>
+        )}
+        {post.text && (
+          <p className="mt-2 text-[15px] leading-relaxed text-white/85 whitespace-pre-wrap">{post.text}</p>
+        )}
+        {post.image && (
+          <img
+            src={post.image}
+            alt=""
+            className="mt-3 rounded-[20px] w-full max-h-[45vh] object-cover border border-white/10"
+          />
+        )}
+      </article>
+
+      {/* Right floating interaction bar */}
+      <div className="absolute right-3 bottom-24 flex flex-col items-center gap-3 z-10">
+        <button
+          type="button"
+          onClick={onLike}
+          aria-label="Like"
+          className={`${glass} h-12 w-12 flex items-center justify-center transition-transform active:scale-90`}
+        >
+          <Heart
+            className={`h-6 w-6 transition-colors ${liked ? "text-rose-500 fill-rose-500" : "text-white"}`}
+          />
+        </button>
+        <span className="text-xs font-semibold text-white/90 -mt-1">{likeCount}</span>
+
+        <button
+          type="button"
+          onClick={onOpenComments}
+          aria-label="Comments"
+          className={`${glass} h-12 w-12 flex items-center justify-center transition-transform active:scale-90`}
+        >
+          <MessageCircle className="h-6 w-6 text-white" />
+        </button>
+        <span className="text-xs font-semibold text-white/90 -mt-1">{commentCount}</span>
+      </div>
+    </>
+  );
+}
