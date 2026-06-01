@@ -21,7 +21,7 @@ import {
   NotebookPen, Globe, MessageSquare, Pencil, ImagePlus, X, Eraser, Megaphone,
   Brush, PenTool, Highlighter, SprayCan, Sparkles, Droplet, Undo2, Redo2, Download, Trash2,
   ShieldAlert, Crown,
-  Plus, Wand2, Loader2, Search,
+  Plus, Wand2, Loader2, Search, Heart, MessageCircle, Menu,
 } from "lucide-react";
 import Wheel from "@uiw/react-color-wheel";
 import ShadeSlider from "@uiw/react-color-shade-slider";
@@ -206,10 +206,79 @@ function Dashboard() {
   return (
     <div className="dark min-h-screen bg-background text-foreground">
       <Toaster />
+      {/* Menu sheet always mounted so the feed reel can open it imperatively */}
+      <Sheet open={navOpen} onOpenChange={setNavOpen}>
+        <SheetContent side="left" className="w-80 border-r-0 bg-gradient-to-b from-background to-background/95">
+          <SheetHeader className="text-left">
+            <SheetTitle style={{ color: "#FFFFD7" }} className="text-2xl font-bold tracking-tight">
+              Dev Dashboard
+            </SheetTitle>
+            <p className="text-xs text-muted-foreground">Jump to a section</p>
+          </SheetHeader>
+          <nav className="mt-6 space-y-2">
+            {NAV.map((n) => {
+              const Icon = n.icon;
+              const active = section === n.id;
+              return (
+                <button
+                  key={n.id}
+                  onClick={() => go(n.id)}
+                  className={`group flex w-full items-center gap-4 rounded-2xl px-4 py-3.5 text-left transition-all ${
+                    active
+                      ? "bg-accent text-accent-foreground shadow-sm"
+                      : "hover:bg-accent/40 hover:translate-x-0.5"
+                  }`}
+                >
+                  <span
+                    className={`flex h-10 w-10 items-center justify-center rounded-xl transition-colors ${
+                      active ? "bg-background/60" : "bg-accent/40 group-hover:bg-accent/70"
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </span>
+                  <span className="text-base font-medium tracking-tight">{n.label}</span>
+                </button>
+              );
+            })}
+          </nav>
+        </SheetContent>
+      </Sheet>
+
+      {section === "feed" && (
+        <FeedReel
+          posts={posts}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          onOpenMenu={() => setNavOpen(true)}
+          broadcast={broadcast}
+          setBroadcast={setBroadcast}
+          adminMode={adminMode}
+          draft={draft}
+          setDraft={setDraft}
+          draftTitle={draftTitle}
+          setDraftTitle={setDraftTitle}
+          draftImage={draftImage}
+          setDraftImage={setDraftImage}
+          fileRef={fileRef}
+          onPickImage={onPickImage}
+          submitPost={submitPost}
+          runFix={runFix}
+          draftFixing={draftFixing}
+          setDraftFixing={setDraftFixing}
+        />
+      )}
+
+      {section !== "feed" && (
       <main className="mx-auto max-w-md px-4 py-4 space-y-4">
         <div className="flex items-center gap-2">
-          <Sheet open={navOpen} onOpenChange={setNavOpen}>
-            <SheetTrigger asChild>
+          <Button variant="ghost" size="icon" aria-label="Open menu" className="h-9 w-9" onClick={() => setNavOpen(true)}>
+            <div className="flex flex-col gap-[5px]">
+              <span className="block h-[2px] w-5 bg-foreground" />
+              <span className="block h-[2px] w-5 bg-foreground" />
+              <span className="block h-[2px] w-5 bg-foreground" />
+            </div>
+          </Button>
+          {false && (
               <Button variant="ghost" size="icon" aria-label="Open menu" className="h-9 w-9">
                 <div className="flex flex-col gap-[5px]">
                   <span className="block h-[2px] w-5 bg-foreground" />
@@ -217,42 +286,7 @@ function Dashboard() {
                   <span className="block h-[2px] w-5 bg-foreground" />
                 </div>
               </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-80 border-r-0 bg-gradient-to-b from-background to-background/95">
-              <SheetHeader className="text-left">
-                <SheetTitle style={{ color: "#FFFFD7" }} className="text-2xl font-bold tracking-tight">
-                  Dev Dashboard
-                </SheetTitle>
-                <p className="text-xs text-muted-foreground">Jump to a section</p>
-              </SheetHeader>
-              <nav className="mt-6 space-y-2">
-                {NAV.map((n) => {
-                  const Icon = n.icon;
-                  const active = section === n.id;
-                  return (
-                    <button
-                      key={n.id}
-                      onClick={() => go(n.id)}
-                      className={`group flex w-full items-center gap-4 rounded-xl px-4 py-3.5 text-left transition-all ${
-                        active
-                          ? "bg-accent text-accent-foreground shadow-sm"
-                          : "hover:bg-accent/40 hover:translate-x-0.5"
-                      }`}
-                    >
-                      <span
-                        className={`flex h-10 w-10 items-center justify-center rounded-lg transition-colors ${
-                          active ? "bg-background/60" : "bg-accent/40 group-hover:bg-accent/70"
-                        }`}
-                      >
-                        <Icon className="h-5 w-5" />
-                      </span>
-                      <span className="text-base font-medium tracking-tight">{n.label}</span>
-                    </button>
-                  );
-                })}
-              </nav>
-            </SheetContent>
-          </Sheet>
+          )}
 
           <h1
             style={{ color: "#FFFFD7" }}
@@ -267,157 +301,13 @@ function Dashboard() {
           {currentLabel}
         </p>
 
-        {section === "feed" && (
-          <>
-            <Card className="border-2 border-destructive p-3">
-              <div className="flex items-center gap-2 mb-1">
-                <Megaphone className="h-4 w-4 text-destructive" />
-                <Badge variant="destructive" className="uppercase tracking-wide text-[10px]">
-                  Lead Dev Broadcast
-                </Badge>
-              </div>
-              <Textarea
-                value={broadcast}
-                onChange={(e) => setBroadcast(e.target.value)}
-                placeholder="Write the broadcast…"
-                className="mt-1 min-h-16 resize-none border-0 bg-transparent p-0 text-sm focus-visible:ring-0"
-              />
-            </Card>
-
-            {adminMode && (
-              <Card className="border border-primary/40 bg-accent/25 p-3">
-                <div className="mb-1 flex items-center gap-2">
-                  <ShieldAlert className="h-4 w-4 text-primary" />
-                  <Badge className="uppercase tracking-wide text-[10px]">Administrative Alert Mode</Badge>
-                </div>
-                <p className="text-sm text-muted-foreground">
-                  Posts from here publish as verified Head Dev updates until you toggle admin mode off.
-                </p>
-              </Card>
-            )}
-
-            <Card className="p-3">
-              <Label htmlFor="post" className="text-xs">Share something</Label>
-              <Input
-                value={draftTitle}
-                onChange={(e) => setDraftTitle(e.target.value)}
-                placeholder="Title (optional)"
-                className="mt-1 font-semibold"
-                maxLength={120}
-              />
-              <Textarea
-                id="post"
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                placeholder="Write a post…"
-                className="mt-2 min-h-20 resize-none"
-              />
-              {draftImage && (
-                <div className="relative mt-2">
-                  <img src={draftImage} alt="attachment preview" className="rounded-md max-h-48 w-full object-cover" />
-                  <Button
-                    size="icon"
-                    variant="secondary"
-                    className="absolute top-1 right-1 h-6 w-6"
-                    onClick={() => { setDraftImage(undefined); if (fileRef.current) fileRef.current.value = ""; }}
-                    aria-label="Remove image"
-                  >
-                    <X className="h-3 w-3" />
-                  </Button>
-                </div>
-              )}
-              <input
-                ref={fileRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={onPickImage}
-              />
-              <div className="flex items-center justify-between mt-2 gap-2">
-                <span className="text-[11px] text-muted-foreground">
-                  {wordCount} w · {charCount} ch
-                </span>
-                <div className="flex gap-2">
-                  <Button size="sm" variant="outline" onClick={() => fileRef.current?.click()}>
-                    <ImagePlus className="h-3.5 w-3.5 mr-1" /> Photo
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!draft.trim() || draftFixing}
-                    onClick={async () => {
-                      setDraftFixing(true);
-                      const fixed = await runFix(draft);
-                      if (fixed) setDraft(fixed);
-                      setDraftFixing(false);
-                    }}
-                  >
-                    {draftFixing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
-                    Fix
-                  </Button>
-                  <Button size="sm" onClick={submitPost} disabled={!draft.trim() && !draftImage && !draftTitle.trim()}>
-                    <Send className="h-3.5 w-3.5 mr-1" /> Post
-                  </Button>
-                </div>
-              </div>
-            </Card>
-
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-              <Input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search stories, OCs, or users…"
-                className="pl-9"
-              />
-            </div>
-
-            <div className="space-y-2">
-              {(() => {
-                const q = searchQuery.trim().toLowerCase();
-                const filtered = q
-                  ? posts.filter(
-                      (p) =>
-                        p.author.toLowerCase().includes(q) ||
-                        (p.title ?? "").toLowerCase().includes(q) ||
-                        p.text.toLowerCase().includes(q),
-                    )
-                  : posts;
-                if (filtered.length === 0 && q) {
-                  return (
-                    <p className="text-center text-sm text-muted-foreground py-4">
-                      No stories match your search.
-                    </p>
-                  );
-                }
-                return filtered.map((p) => {
-                  const wc = p.text.trim() ? p.text.trim().split(/\s+/).length : 0;
-                  return (
-                    <Card key={p.id} className="p-3">
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-medium">{p.author}</p>
-                        {p.verified && <BadgeCheck className="h-3.5 w-3.5 text-primary" />}
-                      </div>
-                      {p.title && <p className="text-base font-semibold mt-1">{p.title}</p>}
-                      {p.text && <p className="text-sm mt-1">{p.text}</p>}
-                      {p.image && (
-                        <img src={p.image} alt="post" className="mt-2 rounded-md max-h-64 w-full object-cover" />
-                      )}
-                      <p className="text-[10px] text-muted-foreground mt-2">{wc} words</p>
-                    </Card>
-                  );
-                });
-              })()}
-            </div>
-          </>
-        )}
-
         {section === "notebooks" && (
           <CloudNotebooks runFix={runFix} />
         )}
         {section === "suggestions" && <Suggestions suggestions={suggestions} setSuggestions={setSuggestions} />}
         {section === "drawing" && <DrawingStudio adminMode={adminMode} />}
       </main>
+      )}
 
       {(isAdmin || isModerator) && (
         <button
@@ -1077,5 +967,348 @@ function DrawingStudio({ adminMode }: { adminMode: boolean }) {
       />
       <p className="text-[10px] text-muted-foreground text-center">Drag to draw · auto-saved on this device</p>
     </Card>
+  );
+}
+
+// ============== TikTok-style vertical scroll-snap feed ==============
+
+type FeedReelProps = {
+  posts: Post[];
+  searchQuery: string;
+  setSearchQuery: (q: string) => void;
+  onOpenMenu: () => void;
+  broadcast: string;
+  setBroadcast: (s: string) => void;
+  adminMode: boolean;
+  draft: string;
+  setDraft: (s: string) => void;
+  draftTitle: string;
+  setDraftTitle: (s: string) => void;
+  draftImage: string | undefined;
+  setDraftImage: (s: string | undefined) => void;
+  fileRef: React.RefObject<HTMLInputElement | null>;
+  onPickImage: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  submitPost: () => void;
+  runFix: (text: string) => Promise<string | null>;
+  draftFixing: boolean;
+  setDraftFixing: (b: boolean) => void;
+};
+
+function FeedReel(props: FeedReelProps) {
+  const {
+    posts, searchQuery, setSearchQuery, onOpenMenu,
+    broadcast, setBroadcast, adminMode,
+    draft, setDraft, draftTitle, setDraftTitle,
+    draftImage, setDraftImage, fileRef, onPickImage,
+    submitPost, runFix, draftFixing, setDraftFixing,
+  } = props;
+
+  const [likes, setLikes] = useState<Record<number, number>>({});
+  const [liked, setLiked] = useState<Record<number, boolean>>({});
+  const [comments, setComments] = useState<Record<number, string[]>>({});
+  const [openCommentsFor, setOpenCommentsFor] = useState<number | null>(null);
+  const [commentDraft, setCommentDraft] = useState("");
+
+  const q = searchQuery.trim().toLowerCase();
+  const filtered = q
+    ? posts.filter(
+        (p) =>
+          p.author.toLowerCase().includes(q) ||
+          (p.title ?? "").toLowerCase().includes(q) ||
+          p.text.toLowerCase().includes(q),
+      )
+    : posts;
+
+  const toggleLike = (id: number) => {
+    setLiked((l) => ({ ...l, [id]: !l[id] }));
+    setLikes((c) => ({ ...c, [id]: (c[id] ?? 0) + (liked[id] ? -1 : 1) }));
+  };
+
+  const addComment = (id: number) => {
+    const t = commentDraft.trim();
+    if (!t) return;
+    setComments((c) => ({ ...c, [id]: [...(c[id] ?? []), t] }));
+    setCommentDraft("");
+  };
+
+  // Shared glass panel classes
+  const glass =
+    "rounded-[20px] border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.4)]";
+
+  return (
+    <div
+      className="fixed inset-0 z-30 overflow-hidden text-foreground"
+      style={{
+        background:
+          "linear-gradient(180deg, #050505 0%, #0d0d10 50%, #050505 100%)",
+      }}
+    >
+      {/* Top translucent overlay: menu + search */}
+      <div
+        className="absolute top-0 left-0 right-0 z-40 flex items-center gap-2 px-3 pt-3"
+        style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+      >
+        <button
+          type="button"
+          onClick={onOpenMenu}
+          aria-label="Open menu"
+          className={`${glass} h-11 w-11 shrink-0 flex items-center justify-center text-white/90`}
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <div className={`${glass} relative flex-1 h-11 flex items-center`}>
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/60 pointer-events-none" />
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Search #tags or @users"
+            className="w-full h-full bg-transparent pl-10 pr-4 text-sm text-white placeholder:text-white/50 outline-none rounded-[20px]"
+          />
+        </div>
+      </div>
+
+      {/* Snap container */}
+      <div
+        className="h-full w-full overflow-y-auto"
+        style={{
+          scrollSnapType: "y mandatory",
+          scrollBehavior: "smooth",
+          WebkitOverflowScrolling: "touch",
+        }}
+      >
+        {/* Composer slide */}
+        <FeedSlide>
+          <div className={`${glass} w-full max-w-sm p-5`}>
+            <p className="text-xs uppercase tracking-widest text-white/60 mb-3">
+              Share a story
+            </p>
+            <Input
+              value={draftTitle}
+              onChange={(e) => setDraftTitle(e.target.value)}
+              placeholder="Title (optional)"
+              className="rounded-[20px] bg-white/5 border-white/10 text-white placeholder:text-white/40 font-semibold"
+              maxLength={120}
+            />
+            <Textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              placeholder="What's the story?"
+              className="mt-2 min-h-28 resize-none rounded-[20px] bg-white/5 border-white/10 text-white placeholder:text-white/40"
+            />
+            {draftImage && (
+              <div className="relative mt-2">
+                <img src={draftImage} alt="" className="rounded-[20px] max-h-48 w-full object-cover" />
+                <button
+                  onClick={() => { setDraftImage(undefined); if (fileRef.current) fileRef.current.value = ""; }}
+                  className="absolute top-2 right-2 h-7 w-7 rounded-full bg-black/60 backdrop-blur flex items-center justify-center"
+                  aria-label="Remove image"
+                >
+                  <X className="h-3.5 w-3.5 text-white" />
+                </button>
+              </div>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onPickImage}
+            />
+            <div className="flex items-center gap-2 mt-3">
+              <button
+                type="button"
+                onClick={() => fileRef.current?.click()}
+                className={`${glass} h-10 px-3 flex items-center gap-1.5 text-xs text-white/90`}
+              >
+                <ImagePlus className="h-4 w-4" /> Photo
+              </button>
+              <button
+                type="button"
+                disabled={!draft.trim() || draftFixing}
+                onClick={async () => {
+                  setDraftFixing(true);
+                  const fixed = await runFix(draft);
+                  if (fixed) setDraft(fixed);
+                  setDraftFixing(false);
+                }}
+                className={`${glass} h-10 px-3 flex items-center gap-1.5 text-xs text-white/90 disabled:opacity-40`}
+              >
+                {draftFixing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                Fix
+              </button>
+              <button
+                type="button"
+                onClick={submitPost}
+                disabled={!draft.trim() && !draftImage && !draftTitle.trim()}
+                className="ml-auto h-10 px-4 rounded-[20px] bg-white text-black text-xs font-semibold flex items-center gap-1.5 disabled:opacity-40"
+              >
+                <Send className="h-4 w-4" /> Post
+              </button>
+            </div>
+            <p className="mt-4 text-center text-[11px] text-white/40">
+              Swipe up to explore stories
+            </p>
+          </div>
+        </FeedSlide>
+
+        {/* Broadcast slide */}
+        {broadcast.trim() && (
+          <FeedSlide>
+            <div className={`${glass} w-full max-w-sm p-5`}>
+              <div className="flex items-center gap-2 mb-2">
+                <Megaphone className="h-4 w-4 text-red-400" />
+                <span className="text-[10px] uppercase tracking-widest text-red-300/80">
+                  Lead Dev Broadcast
+                </span>
+              </div>
+              <Textarea
+                value={broadcast}
+                onChange={(e) => setBroadcast(e.target.value)}
+                className="min-h-32 resize-none rounded-[20px] bg-transparent border-0 p-0 text-white text-base focus-visible:ring-0"
+              />
+              {adminMode && (
+                <div className="mt-4 flex items-center gap-2 text-[11px] text-white/50">
+                  <ShieldAlert className="h-3.5 w-3.5" />
+                  Admin mode: your posts publish as Head Dev.
+                </div>
+              )}
+            </div>
+          </FeedSlide>
+        )}
+
+        {/* Posts */}
+        {filtered.length === 0 && q ? (
+          <FeedSlide>
+            <div className={`${glass} w-full max-w-sm p-6 text-center`}>
+              <p className="text-white/70 text-sm">No stories match “{searchQuery}”.</p>
+            </div>
+          </FeedSlide>
+        ) : (
+          filtered.map((p) => (
+            <FeedSlide key={p.id}>
+              <FeedPostCard
+                post={p}
+                liked={!!liked[p.id]}
+                likeCount={likes[p.id] ?? 0}
+                commentCount={(comments[p.id] ?? []).length}
+                onLike={() => toggleLike(p.id)}
+                onOpenComments={() => setOpenCommentsFor(p.id)}
+                glass={glass}
+              />
+            </FeedSlide>
+          ))
+        )}
+      </div>
+
+      {/* Comments sheet */}
+      <Sheet open={openCommentsFor !== null} onOpenChange={(o) => !o && setOpenCommentsFor(null)}>
+        <SheetContent
+          side="bottom"
+          className="rounded-t-[24px] border-white/10 bg-[#0a0a0a]/95 backdrop-blur-xl text-white h-[70vh] flex flex-col"
+        >
+          <SheetHeader className="text-left">
+            <SheetTitle className="text-white">Comments</SheetTitle>
+          </SheetHeader>
+          <div className="flex-1 overflow-y-auto py-3 space-y-2">
+            {(openCommentsFor !== null ? comments[openCommentsFor] ?? [] : []).map((c, i) => (
+              <div key={i} className="rounded-[20px] bg-white/5 border border-white/10 px-3 py-2 text-sm">
+                {c}
+              </div>
+            ))}
+            {openCommentsFor !== null && (comments[openCommentsFor] ?? []).length === 0 && (
+              <p className="text-center text-sm text-white/50 py-6">Be the first to comment.</p>
+            )}
+          </div>
+          <div className="flex items-center gap-2 pt-2">
+            <input
+              value={commentDraft}
+              onChange={(e) => setCommentDraft(e.target.value)}
+              placeholder="Add a comment…"
+              onKeyDown={(e) => { if (e.key === "Enter" && openCommentsFor !== null) addComment(openCommentsFor); }}
+              className="flex-1 h-11 rounded-[20px] bg-white/5 border border-white/10 px-4 text-sm text-white placeholder:text-white/40 outline-none"
+            />
+            <button
+              onClick={() => openCommentsFor !== null && addComment(openCommentsFor)}
+              className="h-11 px-4 rounded-[20px] bg-white text-black text-sm font-semibold"
+            >
+              Send
+            </button>
+          </div>
+        </SheetContent>
+      </Sheet>
+    </div>
+  );
+}
+
+function FeedSlide({ children }: { children: React.ReactNode }) {
+  return (
+    <section
+      className="relative w-full flex items-center justify-center px-4"
+      style={{ height: "100vh", scrollSnapAlign: "start", scrollSnapStop: "always" }}
+    >
+      {children}
+    </section>
+  );
+}
+
+function FeedPostCard({
+  post, liked, likeCount, commentCount, onLike, onOpenComments, glass,
+}: {
+  post: Post;
+  liked: boolean;
+  likeCount: number;
+  commentCount: number;
+  onLike: () => void;
+  onOpenComments: () => void;
+  glass: string;
+}) {
+  return (
+    <>
+      <article className={`${glass} w-full max-w-sm p-5 pr-6 animate-fade-in`}>
+        <div className="flex items-center gap-1.5">
+          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-white/30 to-white/5 border border-white/10" />
+          <p className="text-sm font-medium text-white ml-1">{post.author}</p>
+          {post.verified && <BadgeCheck className="h-3.5 w-3.5 text-sky-400" />}
+        </div>
+        {post.title && (
+          <h2 className="mt-3 text-xl font-semibold leading-tight text-white">{post.title}</h2>
+        )}
+        {post.text && (
+          <p className="mt-2 text-[15px] leading-relaxed text-white/85 whitespace-pre-wrap">{post.text}</p>
+        )}
+        {post.image && (
+          <img
+            src={post.image}
+            alt=""
+            className="mt-3 rounded-[20px] w-full max-h-[45vh] object-cover border border-white/10"
+          />
+        )}
+      </article>
+
+      {/* Right floating interaction bar */}
+      <div className="absolute right-3 bottom-24 flex flex-col items-center gap-3 z-10">
+        <button
+          type="button"
+          onClick={onLike}
+          aria-label="Like"
+          className={`${glass} h-12 w-12 flex items-center justify-center transition-transform active:scale-90`}
+        >
+          <Heart
+            className={`h-6 w-6 transition-colors ${liked ? "text-rose-500 fill-rose-500" : "text-white"}`}
+          />
+        </button>
+        <span className="text-xs font-semibold text-white/90 -mt-1">{likeCount}</span>
+
+        <button
+          type="button"
+          onClick={onOpenComments}
+          aria-label="Comments"
+          className={`${glass} h-12 w-12 flex items-center justify-center transition-transform active:scale-90`}
+        >
+          <MessageCircle className="h-6 w-6 text-white" />
+        </button>
+        <span className="text-xs font-semibold text-white/90 -mt-1">{commentCount}</span>
+      </div>
+    </>
   );
 }
