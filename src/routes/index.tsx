@@ -978,6 +978,7 @@ function DrawingStudio({ adminMode }: { adminMode: boolean }) {
 
 type FeedReelProps = {
   posts: Post[];
+  currentUsername: string;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   onOpenMenu: () => void;
