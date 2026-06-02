@@ -39,6 +39,7 @@ export const Route = createFileRoute("/")({
 });
 
 type Post = { id: number; author: string; verified: boolean; title?: string; text: string; image?: string };
+type Comment = { author: string; text: string; ts: number };
 type Section = "feed" | "notebooks" | "suggestions" | "drawing";
 type Notebook = { id: number; title: string; body: string; updated: number };
 type SuggestionDrafts = {
@@ -63,10 +64,7 @@ const emptySuggestionDrafts: SuggestionDrafts = {
   userBody: "",
 };
 
-const initialPosts: Post[] = [
-  { id: 1, author: "Ada Lovelace", verified: true, text: "Shipped a new diff renderer today — feels fast and crisp." },
-  { id: 2, author: "Linus T.", verified: true, text: "Small commits, clear messages, never break the main branch." },
-];
+const initialPosts: Post[] = [];
 
 const NAV: { id: Section; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "feed", label: "Global Feed", icon: Globe },
@@ -76,7 +74,12 @@ const NAV: { id: Section; label: string; icon: React.ComponentType<{ className?:
 ];
 
 function Dashboard() {
-  const { isAdmin, isModerator } = useAuth();
+  const { isAdmin, isModerator, profile, user } = useAuth();
+  const currentUsername =
+    profile?.username ||
+    profile?.display_name ||
+    user?.email?.split("@")[0] ||
+    "anonymous";
   const navigate = useNavigate();
   // IMPORTANT: All state below uses the same defaults on the server and the
   // client's first render to avoid hydration mismatches. localStorage is
@@ -188,7 +191,7 @@ function Dashboard() {
     if (!text && !draftImage && !title) return;
     setPosts((p) => [{
       id: Date.now(),
-      author: adminMode ? "Head Dev" : "You",
+      author: adminMode ? "Head Dev" : currentUsername,
       verified: adminMode,
       title: title || undefined,
       text,
@@ -247,6 +250,7 @@ function Dashboard() {
       {section === "feed" && (
         <FeedReel
           posts={posts}
+          currentUsername={currentUsername}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           onOpenMenu={() => setNavOpen(true)}
