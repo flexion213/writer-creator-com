@@ -1169,7 +1169,7 @@ function FeedReel(props: FeedReelProps) {
         }}
       >
         {/* Composer slide */}
-        <FeedSlide>
+        <FeedSlide postId={null} onActive={setActivePostId}>
           <div className={`${glass} w-full max-w-sm p-5`}>
             <p className="text-xs uppercase tracking-widest text-white/60 mb-3">
               Share a story
@@ -1245,7 +1245,7 @@ function FeedReel(props: FeedReelProps) {
 
         {/* Broadcast slide */}
         {broadcast.trim() && (
-          <FeedSlide>
+          <FeedSlide postId={null} onActive={setActivePostId}>
             <div className={`${glass} w-full max-w-sm p-5`}>
               <div className="flex items-center gap-2 mb-2">
                 <Megaphone className="h-4 w-4 text-red-400" />
@@ -1270,7 +1270,7 @@ function FeedReel(props: FeedReelProps) {
 
         {/* Posts */}
         {filtered.length === 0 && q ? (
-          <FeedSlide>
+          <FeedSlide postId={null} onActive={setActivePostId}>
             <div className={`${glass} w-full max-w-sm p-6 text-center`}>
               <p className="text-white/70 text-sm">No stories match “{searchQuery}”.</p>
             </div>
