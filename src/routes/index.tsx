@@ -1001,7 +1001,7 @@ type FeedReelProps = {
 
 function FeedReel(props: FeedReelProps) {
   const {
-    posts, searchQuery, setSearchQuery, onOpenMenu,
+    posts, currentUsername, searchQuery, setSearchQuery, onOpenMenu,
     broadcast, setBroadcast, adminMode,
     draft, setDraft, draftTitle, setDraftTitle,
     draftImage, setDraftImage, fileRef, onPickImage,
@@ -1010,9 +1010,36 @@ function FeedReel(props: FeedReelProps) {
 
   const [likes, setLikes] = useState<Record<number, number>>({});
   const [liked, setLiked] = useState<Record<number, boolean>>({});
-  const [comments, setComments] = useState<Record<number, string[]>>({});
+  const [comments, setComments] = useState<Record<number, Comment[]>>({});
+  const [feedHydrated, setFeedHydrated] = useState(false);
   const [openCommentsFor, setOpenCommentsFor] = useState<number | null>(null);
   const [commentDraft, setCommentDraft] = useState("");
+  const [activePostId, setActivePostId] = useState<number | null>(null);
+
+  // Hydrate likes/comments from localStorage (once, on mount)
+  useEffect(() => {
+    try {
+      const rl = window.localStorage.getItem("dd:likes");
+      if (rl) setLikes(JSON.parse(rl));
+      const rk = window.localStorage.getItem("dd:liked");
+      if (rk) setLiked(JSON.parse(rk));
+      const rc = window.localStorage.getItem("dd:comments");
+      if (rc) setComments(JSON.parse(rc));
+    } catch {}
+    setFeedHydrated(true);
+  }, []);
+  useEffect(() => {
+    if (!feedHydrated) return;
+    try { window.localStorage.setItem("dd:likes", JSON.stringify(likes)); } catch {}
+  }, [likes, feedHydrated]);
+  useEffect(() => {
+    if (!feedHydrated) return;
+    try { window.localStorage.setItem("dd:liked", JSON.stringify(liked)); } catch {}
+  }, [liked, feedHydrated]);
+  useEffect(() => {
+    if (!feedHydrated) return;
+    try { window.localStorage.setItem("dd:comments", JSON.stringify(comments)); } catch {}
+  }, [comments, feedHydrated]);
 
   const q = searchQuery.trim().toLowerCase();
   const filtered = q
@@ -1025,20 +1052,26 @@ function FeedReel(props: FeedReelProps) {
     : posts;
 
   const toggleLike = (id: number) => {
-    setLiked((l) => ({ ...l, [id]: !l[id] }));
-    setLikes((c) => ({ ...c, [id]: (c[id] ?? 0) + (liked[id] ? -1 : 1) }));
+    setLiked((l) => {
+      const wasLiked = !!l[id];
+      setLikes((c) => ({ ...c, [id]: Math.max(0, (c[id] ?? 0) + (wasLiked ? -1 : 1)) }));
+      return { ...l, [id]: !wasLiked };
+    });
   };
 
   const addComment = (id: number) => {
     const t = commentDraft.trim();
     if (!t) return;
-    setComments((c) => ({ ...c, [id]: [...(c[id] ?? []), t] }));
+    const entry: Comment = { author: currentUsername, text: t, ts: Date.now() };
+    setComments((c) => ({ ...c, [id]: [...(c[id] ?? []), entry] }));
     setCommentDraft("");
   };
 
   // Shared glass panel classes
   const glass =
     "rounded-[20px] border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.4)]";
+
+  const activePost = activePostId !== null ? filtered.find((p) => p.id === activePostId) : null;
 
   return (
     <div
