@@ -145,7 +145,11 @@ function Dashboard() {
   useEffect(() => {
     try {
       const rawPosts = window.localStorage.getItem("dd:posts");
-      if (rawPosts) setPosts(sanitizeStoredPosts(JSON.parse(rawPosts)));
+      if (rawPosts) {
+        const sanitizedPosts = sanitizeStoredPosts(JSON.parse(rawPosts));
+        setPosts(sanitizedPosts);
+        window.localStorage.setItem("dd:posts", JSON.stringify(sanitizedPosts));
+      }
       const rawDraft = window.localStorage.getItem("dd:post-draft");
       if (rawDraft) setDraft(rawDraft);
       const rawImg = window.localStorage.getItem("dd:post-draft-image");
