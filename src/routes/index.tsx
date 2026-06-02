@@ -66,6 +66,45 @@ const emptySuggestionDrafts: SuggestionDrafts = {
 
 const initialPosts: Post[] = [];
 
+const BOT_AUTHOR_PATTERNS = [
+  /ada lovelace/i,
+  /linus/i,
+  /head dev/i,
+  /anonymous/i,
+  /bot/i,
+  /mock/i,
+  /test user/i,
+];
+
+function isRealPostCandidate(post: unknown): post is Post {
+  if (!post || typeof post !== "object") return false;
+  const candidate = post as Partial<Post>;
+  if (typeof candidate.id !== "number") return false;
+  if (typeof candidate.author !== "string") return false;
+  if (typeof candidate.text !== "string") return false;
+
+  const author = candidate.author.trim();
+  if (!author) return false;
+  if (BOT_AUTHOR_PATTERNS.some((pattern) => pattern.test(author))) return false;
+
+  return true;
+}
+
+function sanitizeStoredPosts(posts: unknown): Post[] {
+  if (!Array.isArray(posts)) return [];
+
+  return posts
+    .filter(isRealPostCandidate)
+    .map((post) => ({
+      id: post.id,
+      author: post.author.trim(),
+      verified: !!post.verified,
+      title: typeof post.title === "string" && post.title.trim() ? post.title.trim() : undefined,
+      text: post.text,
+      image: typeof post.image === "string" && post.image.trim() ? post.image : undefined,
+    }));
+}
+
 const NAV: { id: Section; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "feed", label: "Global Feed", icon: Globe },
   { id: "notebooks", label: "My Private Notebooks", icon: NotebookPen },
@@ -106,7 +145,11 @@ function Dashboard() {
   useEffect(() => {
     try {
       const rawPosts = window.localStorage.getItem("dd:posts");
-      if (rawPosts) setPosts(JSON.parse(rawPosts) as Post[]);
+      if (rawPosts) {
+        const sanitizedPosts = sanitizeStoredPosts(JSON.parse(rawPosts));
+        setPosts(sanitizedPosts);
+        window.localStorage.setItem("dd:posts", JSON.stringify(sanitizedPosts));
+      }
       const rawDraft = window.localStorage.getItem("dd:post-draft");
       if (rawDraft) setDraft(rawDraft);
       const rawImg = window.localStorage.getItem("dd:post-draft-image");
@@ -1073,6 +1116,17 @@ function FeedReel(props: FeedReelProps) {
 
   const activePost = activePostId !== null ? filtered.find((p) => p.id === activePostId) : null;
 
+  useEffect(() => {
+    if (filtered.length === 0) {
+      setActivePostId(null);
+      return;
+    }
+
+    if (activePostId === null || !filtered.some((post) => post.id === activePostId)) {
+      setActivePostId(filtered[0].id);
+    }
+  }, [filtered, activePostId]);
+
   return (
     <div
       className="fixed inset-0 z-30 overflow-hidden text-foreground"
@@ -1115,7 +1169,7 @@ function FeedReel(props: FeedReelProps) {
         }}
       >
         {/* Composer slide */}
-        <FeedSlide>
+        <FeedSlide postId={null} onActive={setActivePostId}>
           <div className={`${glass} w-full max-w-sm p-5`}>
             <p className="text-xs uppercase tracking-widest text-white/60 mb-3">
               Share a story
@@ -1191,7 +1245,7 @@ function FeedReel(props: FeedReelProps) {
 
         {/* Broadcast slide */}
         {broadcast.trim() && (
-          <FeedSlide>
+          <FeedSlide postId={null} onActive={setActivePostId}>
             <div className={`${glass} w-full max-w-sm p-5`}>
               <div className="flex items-center gap-2 mb-2">
                 <Megaphone className="h-4 w-4 text-red-400" />
@@ -1216,7 +1270,7 @@ function FeedReel(props: FeedReelProps) {
 
         {/* Posts */}
         {filtered.length === 0 && q ? (
-          <FeedSlide>
+          <FeedSlide postId={null} onActive={setActivePostId}>
             <div className={`${glass} w-full max-w-sm p-6 text-center`}>
               <p className="text-white/70 text-sm">No stories match “{searchQuery}”.</p>
             </div>
@@ -1311,8 +1365,8 @@ function FeedSlide({
   onActive,
 }: {
   children: React.ReactNode;
-  postId?: number;
-  onActive?: (id: number) => void;
+  postId?: number | null;
+  onActive?: (id: number | null) => void;
 }) {
   const ref = useRef<HTMLElement | null>(null);
   useEffect(() => {
@@ -1342,7 +1396,7 @@ function FeedSlide({
 
 function FeedPostCard({ post, glass }: { post: Post; glass: string }) {
   return (
-    <article className={`${glass} w-full max-w-sm p-5 pr-20 animate-fade-in`}>
+    <article className={`${glass} relative w-full max-w-sm overflow-hidden p-5 pr-20 animate-fade-in`}>
         <div className="flex items-center gap-1.5">
           <div className="h-8 w-8 rounded-full bg-gradient-to-br from-white/30 to-white/5 border border-white/10" />
           <p className="text-sm font-medium text-white ml-1">{post.author}</p>
