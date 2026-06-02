@@ -1112,6 +1112,17 @@ function FeedReel(props: FeedReelProps) {
 
   const activePost = activePostId !== null ? filtered.find((p) => p.id === activePostId) : null;
 
+  useEffect(() => {
+    if (filtered.length === 0) {
+      setActivePostId(null);
+      return;
+    }
+
+    if (activePostId === null || !filtered.some((post) => post.id === activePostId)) {
+      setActivePostId(filtered[0].id);
+    }
+  }, [filtered, activePostId]);
+
   return (
     <div
       className="fixed inset-0 z-30 overflow-hidden text-foreground"
@@ -1381,7 +1392,7 @@ function FeedSlide({
 
 function FeedPostCard({ post, glass }: { post: Post; glass: string }) {
   return (
-    <article className={`${glass} w-full max-w-sm p-5 pr-20 animate-fade-in`}>
+    <article className={`${glass} relative w-full max-w-sm overflow-hidden p-5 pr-20 animate-fade-in`}>
         <div className="flex items-center gap-1.5">
           <div className="h-8 w-8 rounded-full bg-gradient-to-br from-white/30 to-white/5 border border-white/10" />
           <p className="text-sm font-medium text-white ml-1">{post.author}</p>
