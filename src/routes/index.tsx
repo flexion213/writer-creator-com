@@ -39,6 +39,7 @@ export const Route = createFileRoute("/")({
 });
 
 type Post = { id: number; author: string; verified: boolean; title?: string; text: string; image?: string };
+type Comment = { author: string; text: string; ts: number };
 type Section = "feed" | "notebooks" | "suggestions" | "drawing";
 type Notebook = { id: number; title: string; body: string; updated: number };
 type SuggestionDrafts = {
@@ -63,10 +64,7 @@ const emptySuggestionDrafts: SuggestionDrafts = {
   userBody: "",
 };
 
-const initialPosts: Post[] = [
-  { id: 1, author: "Ada Lovelace", verified: true, text: "Shipped a new diff renderer today — feels fast and crisp." },
-  { id: 2, author: "Linus T.", verified: true, text: "Small commits, clear messages, never break the main branch." },
-];
+const initialPosts: Post[] = [];
 
 const NAV: { id: Section; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "feed", label: "Global Feed", icon: Globe },
@@ -76,7 +74,12 @@ const NAV: { id: Section; label: string; icon: React.ComponentType<{ className?:
 ];
 
 function Dashboard() {
-  const { isAdmin, isModerator } = useAuth();
+  const { isAdmin, isModerator, profile, user } = useAuth();
+  const currentUsername =
+    profile?.username ||
+    profile?.display_name ||
+    user?.email?.split("@")[0] ||
+    "anonymous";
   const navigate = useNavigate();
   // IMPORTANT: All state below uses the same defaults on the server and the
   // client's first render to avoid hydration mismatches. localStorage is
@@ -188,7 +191,7 @@ function Dashboard() {
     if (!text && !draftImage && !title) return;
     setPosts((p) => [{
       id: Date.now(),
-      author: adminMode ? "Head Dev" : "You",
+      author: adminMode ? "Head Dev" : currentUsername,
       verified: adminMode,
       title: title || undefined,
       text,
@@ -247,6 +250,7 @@ function Dashboard() {
       {section === "feed" && (
         <FeedReel
           posts={posts}
+          currentUsername={currentUsername}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           onOpenMenu={() => setNavOpen(true)}
@@ -974,6 +978,7 @@ function DrawingStudio({ adminMode }: { adminMode: boolean }) {
 
 type FeedReelProps = {
   posts: Post[];
+  currentUsername: string;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   onOpenMenu: () => void;
@@ -996,7 +1001,7 @@ type FeedReelProps = {
 
 function FeedReel(props: FeedReelProps) {
   const {
-    posts, searchQuery, setSearchQuery, onOpenMenu,
+    posts, currentUsername, searchQuery, setSearchQuery, onOpenMenu,
     broadcast, setBroadcast, adminMode,
     draft, setDraft, draftTitle, setDraftTitle,
     draftImage, setDraftImage, fileRef, onPickImage,
@@ -1005,9 +1010,36 @@ function FeedReel(props: FeedReelProps) {
 
   const [likes, setLikes] = useState<Record<number, number>>({});
   const [liked, setLiked] = useState<Record<number, boolean>>({});
-  const [comments, setComments] = useState<Record<number, string[]>>({});
+  const [comments, setComments] = useState<Record<number, Comment[]>>({});
+  const [feedHydrated, setFeedHydrated] = useState(false);
   const [openCommentsFor, setOpenCommentsFor] = useState<number | null>(null);
   const [commentDraft, setCommentDraft] = useState("");
+  const [activePostId, setActivePostId] = useState<number | null>(null);
+
+  // Hydrate likes/comments from localStorage (once, on mount)
+  useEffect(() => {
+    try {
+      const rl = window.localStorage.getItem("dd:likes");
+      if (rl) setLikes(JSON.parse(rl));
+      const rk = window.localStorage.getItem("dd:liked");
+      if (rk) setLiked(JSON.parse(rk));
+      const rc = window.localStorage.getItem("dd:comments");
+      if (rc) setComments(JSON.parse(rc));
+    } catch {}
+    setFeedHydrated(true);
+  }, []);
+  useEffect(() => {
+    if (!feedHydrated) return;
+    try { window.localStorage.setItem("dd:likes", JSON.stringify(likes)); } catch {}
+  }, [likes, feedHydrated]);
+  useEffect(() => {
+    if (!feedHydrated) return;
+    try { window.localStorage.setItem("dd:liked", JSON.stringify(liked)); } catch {}
+  }, [liked, feedHydrated]);
+  useEffect(() => {
+    if (!feedHydrated) return;
+    try { window.localStorage.setItem("dd:comments", JSON.stringify(comments)); } catch {}
+  }, [comments, feedHydrated]);
 
   const q = searchQuery.trim().toLowerCase();
   const filtered = q
@@ -1020,20 +1052,26 @@ function FeedReel(props: FeedReelProps) {
     : posts;
 
   const toggleLike = (id: number) => {
-    setLiked((l) => ({ ...l, [id]: !l[id] }));
-    setLikes((c) => ({ ...c, [id]: (c[id] ?? 0) + (liked[id] ? -1 : 1) }));
+    setLiked((l) => {
+      const wasLiked = !!l[id];
+      setLikes((c) => ({ ...c, [id]: Math.max(0, (c[id] ?? 0) + (wasLiked ? -1 : 1)) }));
+      return { ...l, [id]: !wasLiked };
+    });
   };
 
   const addComment = (id: number) => {
     const t = commentDraft.trim();
     if (!t) return;
-    setComments((c) => ({ ...c, [id]: [...(c[id] ?? []), t] }));
+    const entry: Comment = { author: currentUsername, text: t, ts: Date.now() };
+    setComments((c) => ({ ...c, [id]: [...(c[id] ?? []), entry] }));
     setCommentDraft("");
   };
 
   // Shared glass panel classes
   const glass =
     "rounded-[20px] border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.4)]";
+
+  const activePost = activePostId !== null ? filtered.find((p) => p.id === activePostId) : null;
 
   return (
     <div
@@ -1185,20 +1223,45 @@ function FeedReel(props: FeedReelProps) {
           </FeedSlide>
         ) : (
           filtered.map((p) => (
-            <FeedSlide key={p.id}>
-              <FeedPostCard
-                post={p}
-                liked={!!liked[p.id]}
-                likeCount={likes[p.id] ?? 0}
-                commentCount={(comments[p.id] ?? []).length}
-                onLike={() => toggleLike(p.id)}
-                onOpenComments={() => setOpenCommentsFor(p.id)}
-                glass={glass}
-              />
+            <FeedSlide key={p.id} postId={p.id} onActive={setActivePostId}>
+              <FeedPostCard post={p} glass={glass} />
             </FeedSlide>
           ))
         )}
       </div>
+
+      {/* Single fixed interaction bar — tracks the currently visible post */}
+      {activePost && (
+        <div
+          className="fixed right-3 z-40 flex flex-col items-center gap-3"
+          style={{ bottom: "max(6rem, calc(env(safe-area-inset-bottom) + 5rem))" }}
+        >
+          <button
+            type="button"
+            onClick={() => toggleLike(activePost.id)}
+            aria-label="Like"
+            className={`${glass} h-12 w-12 flex items-center justify-center transition-transform active:scale-90`}
+          >
+            <Heart
+              className={`h-6 w-6 transition-colors ${liked[activePost.id] ? "text-rose-500 fill-rose-500" : "text-white"}`}
+            />
+          </button>
+          <span className="text-xs font-semibold text-white/90 -mt-1">
+            {likes[activePost.id] ?? 0}
+          </span>
+          <button
+            type="button"
+            onClick={() => setOpenCommentsFor(activePost.id)}
+            aria-label="Comments"
+            className={`${glass} h-12 w-12 flex items-center justify-center transition-transform active:scale-90`}
+          >
+            <MessageCircle className="h-6 w-6 text-white" />
+          </button>
+          <span className="text-xs font-semibold text-white/90 -mt-1">
+            {(comments[activePost.id] ?? []).length}
+          </span>
+        </div>
+      )}
 
       {/* Comments sheet */}
       <Sheet open={openCommentsFor !== null} onOpenChange={(o) => !o && setOpenCommentsFor(null)}>
@@ -1212,7 +1275,8 @@ function FeedReel(props: FeedReelProps) {
           <div className="flex-1 overflow-y-auto py-3 space-y-2">
             {(openCommentsFor !== null ? comments[openCommentsFor] ?? [] : []).map((c, i) => (
               <div key={i} className="rounded-[20px] bg-white/5 border border-white/10 px-3 py-2 text-sm">
-                {c}
+                <p className="text-[11px] font-semibold text-white/70">@{c.author}</p>
+                <p className="text-white/90 whitespace-pre-wrap">{c.text}</p>
               </div>
             ))}
             {openCommentsFor !== null && (comments[openCommentsFor] ?? []).length === 0 && (
@@ -1220,6 +1284,7 @@ function FeedReel(props: FeedReelProps) {
             )}
           </div>
           <div className="flex items-center gap-2 pt-2">
+            <span className="text-[11px] text-white/50 shrink-0 pl-1">@{currentUsername}</span>
             <input
               value={commentDraft}
               onChange={(e) => setCommentDraft(e.target.value)}
@@ -1240,9 +1305,33 @@ function FeedReel(props: FeedReelProps) {
   );
 }
 
-function FeedSlide({ children }: { children: React.ReactNode }) {
+function FeedSlide({
+  children,
+  postId,
+  onActive,
+}: {
+  children: React.ReactNode;
+  postId?: number;
+  onActive?: (id: number) => void;
+}) {
+  const ref = useRef<HTMLElement | null>(null);
+  useEffect(() => {
+    if (postId === undefined || !onActive || !ref.current) return;
+    const el = ref.current;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        for (const e of entries) {
+          if (e.isIntersecting && e.intersectionRatio >= 0.6) onActive(postId);
+        }
+      },
+      { threshold: [0.6] },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [postId, onActive]);
   return (
     <section
+      ref={ref}
       className="relative w-full flex items-center justify-center px-4"
       style={{ height: "100vh", scrollSnapAlign: "start", scrollSnapStop: "always" }}
     >
@@ -1251,20 +1340,9 @@ function FeedSlide({ children }: { children: React.ReactNode }) {
   );
 }
 
-function FeedPostCard({
-  post, liked, likeCount, commentCount, onLike, onOpenComments, glass,
-}: {
-  post: Post;
-  liked: boolean;
-  likeCount: number;
-  commentCount: number;
-  onLike: () => void;
-  onOpenComments: () => void;
-  glass: string;
-}) {
+function FeedPostCard({ post, glass }: { post: Post; glass: string }) {
   return (
-    <>
-      <article className={`${glass} w-full max-w-sm p-5 pr-6 animate-fade-in`}>
+    <article className={`${glass} w-full max-w-sm p-5 pr-20 animate-fade-in`}>
         <div className="flex items-center gap-1.5">
           <div className="h-8 w-8 rounded-full bg-gradient-to-br from-white/30 to-white/5 border border-white/10" />
           <p className="text-sm font-medium text-white ml-1">{post.author}</p>
@@ -1283,32 +1361,6 @@ function FeedPostCard({
             className="mt-3 rounded-[20px] w-full max-h-[45vh] object-cover border border-white/10"
           />
         )}
-      </article>
-
-      {/* Right floating interaction bar */}
-      <div className="absolute right-3 bottom-24 flex flex-col items-center gap-3 z-10">
-        <button
-          type="button"
-          onClick={onLike}
-          aria-label="Like"
-          className={`${glass} h-12 w-12 flex items-center justify-center transition-transform active:scale-90`}
-        >
-          <Heart
-            className={`h-6 w-6 transition-colors ${liked ? "text-rose-500 fill-rose-500" : "text-white"}`}
-          />
-        </button>
-        <span className="text-xs font-semibold text-white/90 -mt-1">{likeCount}</span>
-
-        <button
-          type="button"
-          onClick={onOpenComments}
-          aria-label="Comments"
-          className={`${glass} h-12 w-12 flex items-center justify-center transition-transform active:scale-90`}
-        >
-          <MessageCircle className="h-6 w-6 text-white" />
-        </button>
-        <span className="text-xs font-semibold text-white/90 -mt-1">{commentCount}</span>
-      </div>
-    </>
+    </article>
   );
 }
