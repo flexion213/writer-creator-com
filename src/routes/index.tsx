@@ -66,6 +66,45 @@ const emptySuggestionDrafts: SuggestionDrafts = {
 
 const initialPosts: Post[] = [];
 
+const BOT_AUTHOR_PATTERNS = [
+  /ada lovelace/i,
+  /linus/i,
+  /head dev/i,
+  /anonymous/i,
+  /bot/i,
+  /mock/i,
+  /test user/i,
+];
+
+function isRealPostCandidate(post: unknown): post is Post {
+  if (!post || typeof post !== "object") return false;
+  const candidate = post as Partial<Post>;
+  if (typeof candidate.id !== "number") return false;
+  if (typeof candidate.author !== "string") return false;
+  if (typeof candidate.text !== "string") return false;
+
+  const author = candidate.author.trim();
+  if (!author) return false;
+  if (BOT_AUTHOR_PATTERNS.some((pattern) => pattern.test(author))) return false;
+
+  return true;
+}
+
+function sanitizeStoredPosts(posts: unknown): Post[] {
+  if (!Array.isArray(posts)) return [];
+
+  return posts
+    .filter(isRealPostCandidate)
+    .map((post) => ({
+      id: post.id,
+      author: post.author.trim(),
+      verified: !!post.verified,
+      title: typeof post.title === "string" && post.title.trim() ? post.title.trim() : undefined,
+      text: post.text,
+      image: typeof post.image === "string" && post.image.trim() ? post.image : undefined,
+    }));
+}
+
 const NAV: { id: Section; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "feed", label: "Global Feed", icon: Globe },
   { id: "notebooks", label: "My Private Notebooks", icon: NotebookPen },
@@ -106,7 +145,7 @@ function Dashboard() {
   useEffect(() => {
     try {
       const rawPosts = window.localStorage.getItem("dd:posts");
-      if (rawPosts) setPosts(JSON.parse(rawPosts) as Post[]);
+      if (rawPosts) setPosts(sanitizeStoredPosts(JSON.parse(rawPosts)));
       const rawDraft = window.localStorage.getItem("dd:post-draft");
       if (rawDraft) setDraft(rawDraft);
       const rawImg = window.localStorage.getItem("dd:post-draft-image");
