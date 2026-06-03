@@ -180,6 +180,221 @@ export type Database = {
         }
         Relationships: []
       }
+      writer_chapters: {
+        Row: {
+          body: string
+          created_at: string
+          id: string
+          owner_id: string
+          position: number
+          project_id: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          body?: string
+          created_at?: string
+          id?: string
+          owner_id: string
+          position?: number
+          project_id: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          body?: string
+          created_at?: string
+          id?: string
+          owner_id?: string
+          position?: number
+          project_id?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "writer_chapters_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "writer_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      writer_characters: {
+        Row: {
+          backstory: string
+          created_at: string
+          id: string
+          name: string
+          owner_id: string
+          project_id: string
+          role: string
+          traits: string
+        }
+        Insert: {
+          backstory?: string
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id: string
+          project_id: string
+          role?: string
+          traits?: string
+        }
+        Update: {
+          backstory?: string
+          created_at?: string
+          id?: string
+          name?: string
+          owner_id?: string
+          project_id?: string
+          role?: string
+          traits?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "writer_characters_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "writer_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      writer_feedback: {
+        Row: {
+          created_at: string
+          id: string
+          kind: string
+          message: string
+          reporter_id: string
+          resolved: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          kind?: string
+          message: string
+          reporter_id: string
+          resolved?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          kind?: string
+          message?: string
+          reporter_id?: string
+          resolved?: boolean
+        }
+        Relationships: []
+      }
+      writer_lore: {
+        Row: {
+          category: string
+          created_at: string
+          details: string
+          id: string
+          owner_id: string
+          project_id: string
+          title: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          details?: string
+          id?: string
+          owner_id: string
+          project_id: string
+          title?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          details?: string
+          id?: string
+          owner_id?: string
+          project_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "writer_lore_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "writer_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      writer_projects: {
+        Row: {
+          created_at: string
+          id: string
+          owner_id: string
+          status: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          owner_id: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          owner_id?: string
+          status?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      writer_timeline_events: {
+        Row: {
+          created_at: string
+          description: string
+          event_date: string
+          event_order: number
+          id: string
+          owner_id: string
+          project_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          event_date?: string
+          event_order?: number
+          id?: string
+          owner_id: string
+          project_id: string
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          event_date?: string
+          event_order?: number
+          id?: string
+          owner_id?: string
+          project_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "writer_timeline_events_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "writer_projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
