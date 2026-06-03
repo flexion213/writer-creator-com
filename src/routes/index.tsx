@@ -1396,7 +1396,17 @@ function FeedSlide({
 
 function FeedPostCard({ post, glass }: { post: Post; glass: string }) {
   return (
-    <article className={`${glass} relative w-full max-w-sm overflow-hidden p-5 pr-20 animate-fade-in`}>
+    <article
+      className={`${glass} relative w-full max-w-sm overflow-y-auto p-5 pr-20 animate-fade-in`}
+      style={{
+        maxHeight: "calc(100vh - 8rem)",
+        overscrollBehavior: "contain",
+        WebkitOverflowScrolling: "touch",
+        scrollbarWidth: "thin",
+      }}
+      onWheelCapture={(e) => e.stopPropagation()}
+      onTouchMoveCapture={(e) => e.stopPropagation()}
+    >
         <div className="flex items-center gap-1.5">
           <div className="h-8 w-8 rounded-full bg-gradient-to-br from-white/30 to-white/5 border border-white/10" />
           <p className="text-sm font-medium text-white ml-1">{post.author}</p>
