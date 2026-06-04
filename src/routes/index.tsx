@@ -1453,8 +1453,8 @@ function FeedSlide({
   onActive,
 }: {
   children: React.ReactNode;
-  postId?: number | null;
-  onActive?: (id: number | null) => void;
+  postId?: string | null;
+  onActive?: (id: string | null) => void;
 }) {
   const ref = useRef<HTMLElement | null>(null);
   useEffect(() => {
