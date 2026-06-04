@@ -9,18 +9,12 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as WriterRouteImport } from './routes/writer'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminReportsRouteImport } from './routes/admin.reports'
 
-const WriterRoute = WriterRouteImport.update({
-  id: '/writer',
-  path: '/writer',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -51,14 +45,12 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
-  '/writer': typeof WriterRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
-  '/writer': typeof WriterRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin': typeof AdminIndexRoute
 }
@@ -67,41 +59,25 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/auth': typeof AuthRoute
-  '/writer': typeof WriterRoute
   '/admin/reports': typeof AdminReportsRoute
   '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/auth' | '/writer' | '/admin/reports' | '/admin/'
+  fullPaths: '/' | '/admin' | '/auth' | '/admin/reports' | '/admin/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/auth' | '/writer' | '/admin/reports' | '/admin'
-  id:
-    | '__root__'
-    | '/'
-    | '/admin'
-    | '/auth'
-    | '/writer'
-    | '/admin/reports'
-    | '/admin/'
+  to: '/' | '/auth' | '/admin/reports' | '/admin'
+  id: '__root__' | '/' | '/admin' | '/auth' | '/admin/reports' | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   AuthRoute: typeof AuthRoute
-  WriterRoute: typeof WriterRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/writer': {
-      id: '/writer'
-      path: '/writer'
-      fullPath: '/writer'
-      preLoaderRoute: typeof WriterRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -156,7 +132,6 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   AuthRoute: AuthRoute,
-  WriterRoute: WriterRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
