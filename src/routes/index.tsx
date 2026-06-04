@@ -331,7 +331,11 @@ function Dashboard() {
         />
       )}
 
-      {section !== "feed" && (
+      {section === "drawing" && (
+        <DrawingStudio adminMode={adminMode} onOpenMenu={() => setNavOpen(true)} />
+      )}
+
+      {(section === "notebooks" || section === "suggestions") && (
       <main className="mx-auto max-w-md px-4 py-4 space-y-4">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" aria-label="Open menu" className="h-9 w-9" onClick={() => setNavOpen(true)}>
@@ -368,7 +372,6 @@ function Dashboard() {
           <CloudNotebooks runFix={runFix} />
         )}
         {section === "suggestions" && <Suggestions suggestions={suggestions} setSuggestions={setSuggestions} />}
-        {section === "drawing" && <DrawingStudio adminMode={adminMode} />}
       </main>
       )}
 
