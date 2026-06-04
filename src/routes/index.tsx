@@ -682,8 +682,23 @@ const BRUSHES: { id: BrushId; label: string; icon: React.ComponentType<{ classNa
 
 const PREMIUM_BRUSHES: BrushId[] = ["neon", "spray"];
 
-function DrawingStudio({ adminMode }: { adminMode: boolean }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMenu: () => void }) {
+  type Layer = { id: string; name: string; visible: boolean };
+  const CANVAS_W = 1400;
+  const CANVAS_H = 1800;
+
+  const layerRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
+  const setLayerRef = (id: string) => (el: HTMLCanvasElement | null) => {
+    if (el) layerRefs.current.set(id, el);
+    else layerRefs.current.delete(id);
+  };
+
+  const [layers, setLayers] = useState<Layer[]>([{ id: "base", name: "Layer 1", visible: true }]);
+  const [activeLayerId, setActiveLayerId] = useState<string>("base");
+  const [showSide, setShowSide] = useState(false);
+
+  const activeCanvas = () => layerRefs.current.get(activeLayerId) ?? null;
+
   const [hsva, setHsva] = useState<HsvaColor>(() => {
     if (typeof window === "undefined") return hexToHsva("#FFFFD7");
     const saved = window.localStorage.getItem("dd:drawing-color");
@@ -710,20 +725,14 @@ function DrawingStudio({ adminMode }: { adminMode: boolean }) {
 
   const drawing = useRef(false);
   const lastPt = useRef<{ x: number; y: number } | null>(null);
-  const history = useRef<ImageData[]>([]);
-  const future = useRef<ImageData[]>([]);
+  // History tracked per active layer
+  const history = useRef<Map<string, ImageData[]>>(new Map());
+  const future = useRef<Map<string, ImageData[]>>(new Map());
   const sprayTimer = useRef<number | null>(null);
 
-  const fillBg = useCallback(() => {
-    const c = canvasRef.current; if (!c) return;
-    const ctx = c.getContext("2d"); if (!ctx) return;
-    ctx.fillStyle = "#0a0a0a";
-    ctx.fillRect(0, 0, c.width, c.height);
-  }, []);
-
-  const persist = useCallback(() => {
-    const c = canvasRef.current; if (!c) return;
-    try { window.localStorage.setItem("dd:canvas", c.toDataURL("image/png")); } catch {}
+  const persistLayer = useCallback((id: string) => {
+    const c = layerRefs.current.get(id); if (!c) return;
+    try { window.localStorage.setItem(`dd:canvas:${id}`, c.toDataURL("image/png")); } catch {}
   }, []);
 
   useEffect(() => {
@@ -736,22 +745,21 @@ function DrawingStudio({ adminMode }: { adminMode: boolean }) {
     } catch {}
   }, [brush, hsva, opacity, showColor, size]);
 
-  // Load saved drawing or paint background on mount
+  // Restore each layer's saved bitmap on mount/when layers change
   useEffect(() => {
-    const c = canvasRef.current; if (!c) return;
-    const ctx = c.getContext("2d"); if (!ctx) return;
-    const saved = typeof window !== "undefined" ? window.localStorage.getItem("dd:canvas") : null;
-    if (saved) {
-      const img = new Image();
-      img.onload = () => { ctx.drawImage(img, 0, 0, c.width, c.height); };
-      img.src = saved;
-    } else {
-      fillBg();
+    for (const layer of layers) {
+      const c = layerRefs.current.get(layer.id); if (!c) continue;
+      const ctx = c.getContext("2d"); if (!ctx) continue;
+      const saved = typeof window !== "undefined" ? window.localStorage.getItem(`dd:canvas:${layer.id}`) : null;
+      if (saved) {
+        const img = new Image();
+        img.onload = () => ctx.drawImage(img, 0, 0, c.width, c.height);
+        img.src = saved;
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [layers.length]);
 
-  // Sync brush defaults
   const selectBrush = (id: BrushId) => {
     if (PREMIUM_BRUSHES.includes(id) && !adminMode) {
       toast.error("Premium brush — unlock for €3 (coming soon).");
@@ -764,32 +772,44 @@ function DrawingStudio({ adminMode }: { adminMode: boolean }) {
   };
 
   const snapshot = () => {
-    const c = canvasRef.current!;
+    const c = activeCanvas(); if (!c) return;
     const ctx = c.getContext("2d")!;
-    history.current.push(ctx.getImageData(0, 0, c.width, c.height));
-    if (history.current.length > 25) history.current.shift();
-    future.current = [];
+    const h = history.current.get(activeLayerId) ?? [];
+    h.push(ctx.getImageData(0, 0, c.width, c.height));
+    if (h.length > 25) h.shift();
+    history.current.set(activeLayerId, h);
+    future.current.set(activeLayerId, []);
   };
 
   const undo = () => {
-    const c = canvasRef.current!;
+    const c = activeCanvas(); if (!c) return;
     const ctx = c.getContext("2d")!;
-    const last = history.current.pop();
+    const h = history.current.get(activeLayerId) ?? [];
+    const last = h.pop();
     if (!last) return;
-    future.current.push(ctx.getImageData(0, 0, c.width, c.height));
+    const f = future.current.get(activeLayerId) ?? [];
+    f.push(ctx.getImageData(0, 0, c.width, c.height));
+    future.current.set(activeLayerId, f);
+    history.current.set(activeLayerId, h);
     ctx.putImageData(last, 0, 0);
+    persistLayer(activeLayerId);
   };
   const redo = () => {
-    const c = canvasRef.current!;
+    const c = activeCanvas(); if (!c) return;
     const ctx = c.getContext("2d")!;
-    const next = future.current.pop();
+    const f = future.current.get(activeLayerId) ?? [];
+    const next = f.pop();
     if (!next) return;
-    history.current.push(ctx.getImageData(0, 0, c.width, c.height));
+    const h = history.current.get(activeLayerId) ?? [];
+    h.push(ctx.getImageData(0, 0, c.width, c.height));
+    history.current.set(activeLayerId, h);
+    future.current.set(activeLayerId, f);
     ctx.putImageData(next, 0, 0);
+    persistLayer(activeLayerId);
   };
 
   const pos = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const c = canvasRef.current!;
+    const c = e.currentTarget;
     const r = c.getBoundingClientRect();
     return { x: (e.clientX - r.left) * (c.width / r.width), y: (e.clientY - r.top) * (c.height / r.height) };
   };
@@ -830,9 +850,7 @@ function DrawingStudio({ adminMode }: { adminMode: boolean }) {
         ctx.lineCap = "butt";
         break;
       case "eraser":
-        ctx.globalCompositeOperation = "source-over";
-        ctx.strokeStyle = "#0a0a0a";
-        ctx.fillStyle = "#0a0a0a";
+        ctx.globalCompositeOperation = "destination-out";
         ctx.globalAlpha = 1;
         break;
     }
@@ -895,9 +913,10 @@ function DrawingStudio({ adminMode }: { adminMode: boolean }) {
 
   const start = (e: React.PointerEvent<HTMLCanvasElement>) => {
     (e.target as Element).setPointerCapture?.(e.pointerId);
+    const c = activeCanvas(); if (!c) return;
     drawing.current = true;
     snapshot();
-    const ctx = canvasRef.current!.getContext("2d")!;
+    const ctx = c.getContext("2d")!;
     applyStroke(ctx);
     const p = pos(e);
     lastPt.current = p;
@@ -906,7 +925,8 @@ function DrawingStudio({ adminMode }: { adminMode: boolean }) {
   };
   const move = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!drawing.current || !lastPt.current) return;
-    const ctx = canvasRef.current!.getContext("2d")!;
+    const c = activeCanvas(); if (!c) return;
+    const ctx = c.getContext("2d")!;
     applyStroke(ctx);
     const p = pos(e);
     drawSegment(ctx, lastPt.current, p);
@@ -916,123 +936,210 @@ function DrawingStudio({ adminMode }: { adminMode: boolean }) {
     drawing.current = false;
     lastPt.current = null;
     if (sprayTimer.current) { window.clearInterval(sprayTimer.current); sprayTimer.current = null; }
-    persist();
+    persistLayer(activeLayerId);
   };
 
-  const clear = () => { snapshot(); fillBg(); persist(); };
+  const clearActive = () => {
+    const c = activeCanvas(); if (!c) return;
+    snapshot();
+    const ctx = c.getContext("2d")!;
+    ctx.clearRect(0, 0, c.width, c.height);
+    persistLayer(activeLayerId);
+  };
 
   const save = () => {
-    const c = canvasRef.current!;
+    // Flatten all visible layers to a single PNG and download.
+    const out = document.createElement("canvas");
+    out.width = CANVAS_W; out.height = CANVAS_H;
+    const octx = out.getContext("2d")!;
+    octx.fillStyle = "#0a0a0a"; octx.fillRect(0, 0, out.width, out.height);
+    for (const layer of layers) {
+      if (!layer.visible) continue;
+      const c = layerRefs.current.get(layer.id); if (!c) continue;
+      octx.drawImage(c, 0, 0);
+    }
     const link = document.createElement("a");
     link.download = `drawing-${Date.now()}.png`;
-    link.href = c.toDataURL("image/png");
+    link.href = out.toDataURL("image/png");
     link.click();
+  };
+
+  const addLayer = () => {
+    if (layers.length >= 8) { toast.error("Layer limit reached (8)."); return; }
+    const id = `layer-${Date.now()}`;
+    setLayers((ls) => [...ls, { id, name: `Layer ${ls.length + 1}`, visible: true }]);
+    setActiveLayerId(id);
+  };
+  const removeLayer = (id: string) => {
+    if (layers.length <= 1) { toast.error("Need at least one layer."); return; }
+    try { window.localStorage.removeItem(`dd:canvas:${id}`); } catch {}
+    setLayers((ls) => {
+      const next = ls.filter((l) => l.id !== id);
+      if (activeLayerId === id) setActiveLayerId(next[0].id);
+      return next;
+    });
+  };
+  const toggleLayer = (id: string) => {
+    setLayers((ls) => ls.map((l) => l.id === id ? { ...l, visible: !l.visible } : l));
   };
 
   const swatches = ["#FFFFD7","#FFFFFF","#000000","#EF4444","#F97316","#EAB308","#22C55E","#06B6D4","#3B82F6","#A855F7","#EC4899","#78350F"];
   const currentHex = hsvaToHex(hsva);
 
   return (
-    <Card className="p-3 space-y-3">
-      {/* Brush palette */}
-      <div className="grid grid-cols-5 gap-1.5">
-        {BRUSHES.map((b) => {
-          const Icon = b.icon;
-          const active = brush === b.id;
-          const locked = PREMIUM_BRUSHES.includes(b.id) && !adminMode;
-          return (
-            <button
-              key={b.id}
-              onClick={() => selectBrush(b.id)}
-              title={locked ? `${b.label} — Premium (€3)` : b.label}
-              className={`relative flex flex-col items-center gap-0.5 rounded-lg p-2 text-[10px] transition-colors ${
-                active ? "bg-accent text-accent-foreground ring-1 ring-primary/60" : "bg-accent/30 hover:bg-accent/60"
-              } ${locked ? "opacity-60" : ""}`}
-            >
-              <Icon className="h-4 w-4" />
-              <span className="leading-none">{b.label}</span>
-              {locked && (
-                <span className="absolute -top-1 -right-1 rounded-full bg-primary text-primary-foreground text-[8px] px-1 leading-none py-0.5">
-                  €3
-                </span>
-              )}
-            </button>
-          );
-        })}
+    <div className="fixed inset-0 z-30 flex flex-col bg-[#0a0a0a] text-white">
+      {/* Top mini bar */}
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-black/40 backdrop-blur shrink-0">
+        <Button variant="ghost" size="icon" aria-label="Open menu" className="h-9 w-9 text-white" onClick={onOpenMenu}>
+          <Menu className="h-5 w-5" />
+        </Button>
+        <span className="text-sm font-semibold flex-1">Drawing Studio</span>
+        <Button variant="ghost" size="icon" className="h-9 w-9 text-white" onClick={() => setShowSide((s) => !s)} aria-label="Toggle side panel">
+          <Sparkles className="h-4 w-4" />
+        </Button>
       </div>
 
-      {/* Color + sliders */}
-      <div className="flex items-start gap-3">
-        <button
-          onClick={() => setShowColor((s) => !s)}
-          className="h-12 w-12 shrink-0 rounded-full border-2 border-border shadow-inner"
-          style={{ background: currentHex }}
-          aria-label="Toggle color wheel"
-        />
-        <div className="flex-1 space-y-2">
-          <div>
-            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-              <span>Size</span><span>{size}px</span>
-            </div>
-            <input type="range" min={1} max={80} value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-full accent-primary" />
-          </div>
-          <div>
-            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-              <span>Opacity</span><span>{Math.round(opacity * 100)}%</span>
-            </div>
-            <input type="range" min={5} max={100} value={Math.round(opacity * 100)} onChange={(e) => setOpacity(Number(e.target.value) / 100)} className="w-full accent-primary" />
-          </div>
-        </div>
-      </div>
-
-      {/* Color wheel panel */}
-      {showColor && (
-        <div className="rounded-lg border bg-card/60 p-3 space-y-2">
-          <div className="flex justify-center">
-            <Wheel color={hsva} onChange={(c) => setHsva({ ...hsva, ...c.hsva })} width={180} height={180} />
-          </div>
-          <ShadeSlider hsva={hsva} onChange={(s) => setHsva({ ...hsva, ...s })} style={{ width: "100%" }} />
-          <Alpha hsva={hsva} onChange={(a) => setHsva({ ...hsva, ...a })} style={{ width: "100%", height: 14 }} />
-          <div className="grid grid-cols-6 gap-1.5 pt-1">
-            {swatches.map((s) => (
-              <button
-                key={s}
-                onClick={() => setHsva(hexToHsva(s))}
-                className="h-7 rounded-md border border-border"
-                style={{ background: s }}
-                aria-label={s}
+      {/* Canvas area (fills remaining space) */}
+      <div className="flex-1 min-h-0 relative overflow-hidden bg-[#0a0a0a]">
+        <div className="absolute inset-0 flex items-center justify-center p-2">
+          <div
+            className="relative shadow-2xl rounded-md overflow-hidden bg-[#0a0a0a] border border-white/10"
+            style={{ aspectRatio: `${CANVAS_W} / ${CANVAS_H}`, maxHeight: "100%", maxWidth: "100%" }}
+          >
+            {layers.map((layer) => (
+              <canvas
+                key={layer.id}
+                ref={setLayerRef(layer.id)}
+                width={CANVAS_W}
+                height={CANVAS_H}
+                onPointerDown={layer.id === activeLayerId ? start : undefined}
+                onPointerMove={layer.id === activeLayerId ? move : undefined}
+                onPointerUp={layer.id === activeLayerId ? end : undefined}
+                onPointerLeave={layer.id === activeLayerId ? end : undefined}
+                onPointerCancel={layer.id === activeLayerId ? end : undefined}
+                className="absolute inset-0 w-full h-full touch-none"
+                style={{
+                  pointerEvents: layer.id === activeLayerId ? "auto" : "none",
+                  visibility: layer.visible ? "visible" : "hidden",
+                  zIndex: layers.indexOf(layer),
+                }}
               />
             ))}
           </div>
         </div>
-      )}
 
-      {/* Action bar */}
-      <div className="flex items-center justify-between gap-1">
-        <div className="flex gap-1">
-          <Button size="sm" variant="outline" onClick={undo}><Undo2 className="h-3.5 w-3.5" /></Button>
-          <Button size="sm" variant="outline" onClick={redo}><Redo2 className="h-3.5 w-3.5" /></Button>
-        </div>
-        <div className="flex gap-1">
-          <Button size="sm" variant="outline" onClick={save}><Download className="h-3.5 w-3.5 mr-1" /> Save</Button>
-          <Button size="sm" variant="outline" onClick={clear}><Trash2 className="h-3.5 w-3.5 mr-1" /> Clear</Button>
-        </div>
+        {/* Side utilities panel */}
+        {showSide && (
+          <aside className="absolute top-2 right-2 bottom-2 w-64 max-w-[80vw] rounded-2xl bg-black/70 backdrop-blur-xl border border-white/10 p-3 space-y-3 overflow-y-auto z-10">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-widest text-white/70">Layers</span>
+              <Button size="icon" variant="ghost" className="h-7 w-7 text-white" onClick={addLayer} aria-label="Add layer">
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <div className="space-y-1">
+              {[...layers].reverse().map((layer) => {
+                const active = layer.id === activeLayerId;
+                return (
+                  <div
+                    key={layer.id}
+                    className={`flex items-center gap-2 rounded-xl px-2 py-1.5 text-sm cursor-pointer ${active ? "bg-white/15 ring-1 ring-white/30" : "hover:bg-white/5"}`}
+                    onClick={() => setActiveLayerId(layer.id)}
+                  >
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleLayer(layer.id); }}
+                      className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-white/10"
+                      aria-label={layer.visible ? "Hide layer" : "Show layer"}
+                      title={layer.visible ? "Hide" : "Show"}
+                    >
+                      <span className={`block h-2 w-2 rounded-full ${layer.visible ? "bg-emerald-400" : "bg-white/20"}`} />
+                    </button>
+                    <span className="flex-1 truncate">{layer.name}</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeLayer(layer.id); }}
+                      className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-rose-500/20 hover:text-rose-300"
+                      aria-label="Delete layer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="border-t border-white/10 pt-3 space-y-2">
+              <span className="text-xs font-semibold uppercase tracking-widest text-white/70">Actions</span>
+              <div className="grid grid-cols-2 gap-2">
+                <Button size="sm" variant="secondary" className="rounded-xl" onClick={undo}><Undo2 className="h-3.5 w-3.5 mr-1" /> Undo</Button>
+                <Button size="sm" variant="secondary" className="rounded-xl" onClick={redo}><Redo2 className="h-3.5 w-3.5 mr-1" /> Redo</Button>
+                <Button size="sm" variant="secondary" className="rounded-xl" onClick={save}><Download className="h-3.5 w-3.5 mr-1" /> Save</Button>
+                <Button size="sm" variant="secondary" className="rounded-xl" onClick={clearActive}><Trash2 className="h-3.5 w-3.5 mr-1" /> Clear</Button>
+              </div>
+            </div>
+
+            {showColor && (
+              <div className="border-t border-white/10 pt-3 space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-widest text-white/70">Color</span>
+                <div className="flex justify-center">
+                  <Wheel color={hsva} onChange={(c) => setHsva({ ...hsva, ...c.hsva })} width={180} height={180} />
+                </div>
+                <ShadeSlider hsva={hsva} onChange={(s) => setHsva({ ...hsva, ...s })} style={{ width: "100%" }} />
+                <Alpha hsva={hsva} onChange={(a) => setHsva({ ...hsva, ...a })} style={{ width: "100%", height: 14 }} />
+                <div className="grid grid-cols-6 gap-1.5">
+                  {swatches.map((s) => (
+                    <button key={s} onClick={() => setHsva(hexToHsva(s))}
+                      className="h-7 rounded-md border border-white/10" style={{ background: s }} aria-label={s} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </aside>
+        )}
       </div>
 
-      <canvas
-        ref={canvasRef}
-        width={1400}
-        height={1800}
-        onPointerDown={start}
-        onPointerMove={move}
-        onPointerUp={end}
-        onPointerLeave={end}
-        onPointerCancel={end}
-        className="w-full rounded-md border border-border touch-none bg-[#0a0a0a]"
-        style={{ aspectRatio: "1400 / 1800" }}
-      />
-      <p className="text-[10px] text-muted-foreground text-center">Drag to draw · auto-saved on this device</p>
-    </Card>
+      {/* Bottom toolbar dock */}
+      <div className="shrink-0 border-t border-white/10 bg-black/70 backdrop-blur-xl p-3 space-y-2">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <button
+            onClick={() => setShowColor((s) => !s)}
+            className="h-10 w-10 shrink-0 rounded-full border-2 border-white/20 shadow-inner"
+            style={{ background: currentHex }}
+            aria-label="Toggle color"
+          />
+          {BRUSHES.map((b) => {
+            const Icon = b.icon;
+            const active = brush === b.id;
+            const locked = PREMIUM_BRUSHES.includes(b.id) && !adminMode;
+            return (
+              <button
+                key={b.id}
+                onClick={() => selectBrush(b.id)}
+                title={locked ? `${b.label} — Premium (€3)` : b.label}
+                className={`relative shrink-0 flex flex-col items-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[10px] transition-colors ${
+                  active ? "bg-white/15 ring-1 ring-white/40" : "bg-white/5 hover:bg-white/10"
+                } ${locked ? "opacity-60" : ""}`}
+              >
+                <Icon className="h-4 w-4" />
+                <span className="leading-none">{b.label}</span>
+                {locked && (
+                  <span className="absolute -top-1 -right-1 rounded-full bg-primary text-primary-foreground text-[8px] px-1 leading-none py-0.5">€3</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-3 text-[10px] text-white/70">
+          <div className="flex-1">
+            <div className="flex items-center justify-between"><span>Size</span><span>{size}px</span></div>
+            <input type="range" min={1} max={80} value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-full accent-white" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center justify-between"><span>Opacity</span><span>{Math.round(opacity * 100)}%</span></div>
+            <input type="range" min={5} max={100} value={Math.round(opacity * 100)} onChange={(e) => setOpacity(Number(e.target.value) / 100)} className="w-full accent-white" />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
