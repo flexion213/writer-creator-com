@@ -10,12 +10,14 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
-import { Link, useNavigate } from "@tanstack/react-router";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
   NotebookPen, Plus, Trash2, Wand2, Loader2, Users, MessageCircle,
-  UserPlus, Send, ShieldCheck, X, LogIn, Shield,
+  UserPlus, Send, ShieldCheck, X, LogIn, Shield, ArrowLeft, BookOpen,
+  Clock, ChevronUp, ChevronDown,
 } from "lucide-react";
 
 type Notebook = {
@@ -37,7 +39,22 @@ type Message = {
   user_id: string;
   body: string;
   created_at: string;
-  username?: string;
+};
+type Character = {
+  id: string;
+  notebook_id: string;
+  name: string;
+  role: string;
+  traits: string;
+  backstory: string;
+};
+type TimelineEvent = {
+  id: string;
+  notebook_id: string;
+  title: string;
+  description: string;
+  event_order: number;
+  event_date: string;
 };
 
 export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<string | null> }) {
@@ -45,13 +62,10 @@ export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<s
   const navigate = useNavigate();
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [fetching, setFetching] = useState(true);
-  const [fixingId, setFixingId] = useState<string | null>(null);
-  const [openSharingFor, setOpenSharingFor] = useState<string | null>(null);
-  const [openChatFor, setOpenChatFor] = useState<string | null>(null);
+  const [openId, setOpenId] = useState<string | null>(null);
   const migrate = useServerFn(migrateLocalNotebooks);
   const migratedRef = useRef(false);
 
-  // Initial load + realtime
   useEffect(() => {
     if (!user) { setNotebooks([]); setFetching(false); return; }
     let alive = true;
@@ -90,7 +104,6 @@ export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<s
     return () => { alive = false; supabase.removeChannel(ch); };
   }, [user]);
 
-  // One-time migration of localStorage notebooks
   useEffect(() => {
     if (!user || migratedRef.current) return;
     if (typeof window === "undefined") return;
@@ -128,7 +141,7 @@ export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<s
         <div>
           <p className="text-sm font-medium">Sign in to use cloud notebooks</p>
           <p className="text-xs text-muted-foreground">
-            Your notebooks sync across devices, and you can invite people by username.
+            Your notebooks sync across devices, with characters and timeline.
           </p>
         </div>
         <Button onClick={() => navigate({ to: "/auth" })} className="w-full">
@@ -139,19 +152,11 @@ export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<s
   }
 
   const addNotebook = async () => {
-    const { error } = await supabase.from("notebooks").insert({
-      owner_id: user.id,
-      title: "Untitled",
-      body: "",
-    });
-    if (error) toast.error(error.message);
-  };
-
-  const update = async (id: string, patch: Partial<Pick<Notebook, "title" | "body">>) => {
-    // Optimistic
-    setNotebooks((prev) => prev.map((n) => (n.id === id ? { ...n, ...patch, updated_at: new Date().toISOString() } : n)));
-    const { error } = await supabase.from("notebooks").update(patch).eq("id", id);
-    if (error) toast.error(error.message);
+    const { data, error } = await supabase.from("notebooks").insert({
+      owner_id: user.id, title: "Untitled", body: "",
+    }).select("*").single();
+    if (error) { toast.error(error.message); return; }
+    if (data) setOpenId((data as Notebook).id);
   };
 
   const remove = async (id: string) => {
@@ -159,6 +164,21 @@ export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<s
     const { error } = await supabase.from("notebooks").delete().eq("id", id);
     if (error) toast.error(error.message);
   };
+
+  const openNotebook = notebooks.find((n) => n.id === openId) ?? null;
+
+  if (openNotebook) {
+    return (
+      <NotebookFullscreen
+        notebook={openNotebook}
+        currentUserId={user.id}
+        currentUsername={profile?.username ?? "you"}
+        canModerate={isAdmin || isModerator}
+        runFix={runFix}
+        onClose={() => setOpenId(null)}
+      />
+    );
+  }
 
   return (
     <div className="space-y-3">
@@ -191,117 +211,278 @@ export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<s
         </Card>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-2">
         {notebooks.map((nb) => {
-          const fixing = fixingId === nb.id;
           const isOwner = nb.owner_id === user.id;
           return (
             <Card
               key={nb.id}
-              className="overflow-hidden border-border/60 bg-gradient-to-b from-card to-card/70 shadow-sm rounded-2xl"
+              className="overflow-hidden border-border/60 bg-gradient-to-b from-card to-card/70 shadow-sm rounded-2xl cursor-pointer hover:border-primary/40 transition-colors"
+              onClick={() => setOpenId(nb.id)}
             >
-              <div className="p-3 space-y-2">
-                <div className="flex items-center gap-2">
-                  <Input
-                    value={nb.title}
-                    onChange={(e) => update(nb.id, { title: e.target.value })}
-                    placeholder="Title"
-                    className="h-8 border-0 bg-transparent px-0 text-base font-semibold focus-visible:ring-0"
-                  />
-                  {!isOwner && <Badge variant="secondary" className="text-[10px]">shared</Badge>}
-                  {isOwner && (
-                    <Button
-                      size="icon"
-                      variant="ghost"
-                      className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      onClick={() => remove(nb.id)}
-                      aria-label="Delete notebook"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
+              <div className="p-3 flex items-center gap-3">
+                <BookOpen className="h-4 w-4 text-muted-foreground shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold truncate">{nb.title || "Untitled"}</p>
+                  <p className="text-xs text-muted-foreground truncate">
+                    {nb.body ? nb.body.slice(0, 80) : "Empty notebook"}
+                  </p>
                 </div>
-                <Textarea
-                  value={nb.body}
-                  onChange={(e) => update(nb.id, { body: e.target.value })}
-                  placeholder="Start writing…"
-                  className="min-h-24 resize-none border-0 bg-muted/30 rounded-lg focus-visible:ring-1"
-                />
-                <div className="flex items-center justify-between gap-2 pt-1">
-                  <div className="flex gap-1">
-                    {isOwner && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="rounded-full"
-                        onClick={() => setOpenSharingFor(nb.id)}
-                      >
-                        <Users className="h-3.5 w-3.5 mr-1" /> Share
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="rounded-full"
-                      onClick={() => setOpenChatFor(nb.id)}
-                    >
-                      <MessageCircle className="h-3.5 w-3.5 mr-1" /> Chat
-                    </Button>
-                  </div>
+                {!isOwner && <Badge variant="secondary" className="text-[10px]">shared</Badge>}
+                {isOwner && (
                   <Button
-                    size="sm"
-                    variant="outline"
-                    disabled={!nb.body.trim() || fixing}
-                    className="rounded-full"
-                    onClick={async () => {
-                      setFixingId(nb.id);
-                      const fixed = await runFix(nb.body);
-                      if (fixed) await update(nb.id, { body: fixed });
-                      setFixingId(null);
-                    }}
+                    size="icon"
+                    variant="ghost"
+                    className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                    onClick={(e) => { e.stopPropagation(); void remove(nb.id); }}
+                    aria-label="Delete notebook"
                   >
-                    {fixing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
-                    Fix
+                    <Trash2 className="h-4 w-4" />
                   </Button>
-                </div>
+                )}
               </div>
             </Card>
           );
         })}
       </div>
+    </div>
+  );
+}
 
-      <p className="text-center text-[11px]">
-        <Link to="/auth" className="underline text-muted-foreground">Account & sign out</Link>
-      </p>
+// ---------- Fullscreen single-notebook workspace ----------
+function NotebookFullscreen({
+  notebook,
+  currentUserId,
+  currentUsername,
+  canModerate,
+  runFix,
+  onClose,
+}: {
+  notebook: Notebook;
+  currentUserId: string;
+  currentUsername: string;
+  canModerate: boolean;
+  runFix: (text: string) => Promise<string | null>;
+  onClose: () => void;
+}) {
+  const [title, setTitle] = useState(notebook.title);
+  const [body, setBody] = useState(notebook.body);
+  const [saving, setSaving] = useState(false);
+  const [fixing, setFixing] = useState(false);
+  const [tab, setTab] = useState<"write" | "characters" | "timeline">("write");
+  const [characters, setCharacters] = useState<Character[]>([]);
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [openSharing, setOpenSharing] = useState(false);
+  const [openChat, setOpenChat] = useState(false);
+  const isOwner = notebook.owner_id === currentUserId;
 
-      {/* Sharing sheet */}
-      <Sheet open={!!openSharingFor} onOpenChange={(o) => { if (!o) setOpenSharingFor(null); }}>
-        <SheetContent side="right" className="w-[92vw] sm:max-w-md overflow-y-auto">
-          {openSharingFor && (
-            <SharingPanel notebookId={openSharingFor} ownerId={user.id} />
+  // Sync incoming changes
+  useEffect(() => { setTitle(notebook.title); setBody(notebook.body); }, [notebook.id]);
+
+  // Load characters + timeline
+  useEffect(() => {
+    void (async () => {
+      const [{ data: cd }, { data: td }] = await Promise.all([
+        supabase.from("notebook_characters").select("*").eq("notebook_id", notebook.id),
+        supabase.from("notebook_timeline_events").select("*").eq("notebook_id", notebook.id).order("event_order"),
+      ]);
+      setCharacters((cd as Character[]) ?? []);
+      setTimeline((td as TimelineEvent[]) ?? []);
+    })();
+  }, [notebook.id]);
+
+  // Debounced autosave
+  useEffect(() => {
+    if (title === notebook.title && body === notebook.body) return;
+    const t = window.setTimeout(async () => {
+      setSaving(true);
+      await supabase.from("notebooks").update({ title, body }).eq("id", notebook.id);
+      setSaving(false);
+    }, 700);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title, body]);
+
+  const addCharacter = async () => {
+    const { data } = await supabase.from("notebook_characters").insert({
+      notebook_id: notebook.id, name: "New character",
+    }).select("*").single();
+    if (data) setCharacters((cs) => [...cs, data as Character]);
+  };
+  const updateCharacter = async (id: string, patch: Partial<Character>) => {
+    setCharacters((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c)));
+    await supabase.from("notebook_characters").update(patch).eq("id", id);
+  };
+  const removeCharacter = async (id: string) => {
+    setCharacters((cs) => cs.filter((c) => c.id !== id));
+    await supabase.from("notebook_characters").delete().eq("id", id);
+  };
+
+  const addEvent = async () => {
+    const { data } = await supabase.from("notebook_timeline_events").insert({
+      notebook_id: notebook.id, title: "New event", event_order: timeline.length,
+    }).select("*").single();
+    if (data) setTimeline((xs) => [...xs, data as TimelineEvent]);
+  };
+  const updateEvent = async (id: string, patch: Partial<TimelineEvent>) => {
+    setTimeline((xs) => xs.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+    await supabase.from("notebook_timeline_events").update(patch).eq("id", id);
+  };
+  const removeEvent = async (id: string) => {
+    setTimeline((xs) => xs.filter((x) => x.id !== id));
+    await supabase.from("notebook_timeline_events").delete().eq("id", id);
+  };
+  const moveEvent = async (id: string, dir: -1 | 1) => {
+    const idx = timeline.findIndex((e) => e.id === id);
+    const j = idx + dir;
+    if (idx < 0 || j < 0 || j >= timeline.length) return;
+    const next = [...timeline];
+    [next[idx], next[j]] = [next[j], next[idx]];
+    const reorder = next.map((e, i) => ({ ...e, event_order: i }));
+    setTimeline(reorder);
+    await Promise.all(reorder.map((e) =>
+      supabase.from("notebook_timeline_events").update({ event_order: e.event_order }).eq("id", e.id)
+    ));
+  };
+
+  return (
+    <div className="fixed inset-0 z-40 bg-background flex flex-col">
+      <header className="flex items-center gap-2 px-3 h-14 border-b bg-card/60 backdrop-blur shrink-0">
+        <Button variant="ghost" size="icon" className="rounded-2xl" onClick={onClose} aria-label="Back">
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <Input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="flex-1 h-9 rounded-2xl font-semibold"
+          placeholder="Notebook title"
+        />
+        <span className="text-[10px] text-muted-foreground hidden sm:inline">
+          {saving ? "Saving…" : "Saved"}
+        </span>
+        {isOwner && (
+          <Button variant="ghost" size="icon" className="rounded-2xl" onClick={() => setOpenSharing(true)} aria-label="Share">
+            <Users className="h-4 w-4" />
+          </Button>
+        )}
+        <Button variant="ghost" size="icon" className="rounded-2xl" onClick={() => setOpenChat(true)} aria-label="Chat">
+          <MessageCircle className="h-4 w-4" />
+        </Button>
+      </header>
+
+      <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="flex-1 flex flex-col min-h-0">
+        <TabsList className="mx-3 mt-3 grid grid-cols-3 rounded-2xl shrink-0">
+          <TabsTrigger value="write" className="rounded-2xl"><BookOpen className="h-3.5 w-3.5 mr-1" /> Write</TabsTrigger>
+          <TabsTrigger value="characters" className="rounded-2xl"><Users className="h-3.5 w-3.5 mr-1" /> Characters</TabsTrigger>
+          <TabsTrigger value="timeline" className="rounded-2xl"><Clock className="h-3.5 w-3.5 mr-1" /> Timeline</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="write" className="flex-1 min-h-0 m-0 mt-3 px-3 pb-3 flex flex-col gap-2">
+          <Textarea
+            value={body}
+            onChange={(e) => setBody(e.target.value)}
+            placeholder="Start writing your story…"
+            className="flex-1 resize-none border-0 bg-muted/20 rounded-2xl text-base leading-relaxed focus-visible:ring-1 p-4"
+          />
+          <div className="flex items-center justify-end gap-2">
+            <Button
+              size="sm" variant="outline" className="rounded-full"
+              disabled={!body.trim() || fixing}
+              onClick={async () => {
+                setFixing(true);
+                const fixed = await runFix(body);
+                if (fixed) setBody(fixed);
+                setFixing(false);
+              }}
+            >
+              {fixing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
+              Fix grammar
+            </Button>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="characters" className="flex-1 min-h-0 m-0 mt-3 px-3 pb-3 overflow-y-auto space-y-3">
+          <Button size="sm" variant="outline" className="w-full rounded-2xl" onClick={addCharacter}>
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add character
+          </Button>
+          {characters.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-6">No characters yet.</p>
           )}
+          <div className="overflow-x-auto rounded-2xl border">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40">
+                <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground">
+                  <th className="p-2">Name</th>
+                  <th className="p-2">Role</th>
+                  <th className="p-2">Traits</th>
+                  <th className="p-2">Backstory</th>
+                  <th className="p-2 w-10"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {characters.map((c) => (
+                  <tr key={c.id} className="border-t align-top">
+                    <td className="p-2"><Input value={c.name} onChange={(e) => updateCharacter(c.id, { name: e.target.value })} className="h-8 rounded-xl" /></td>
+                    <td className="p-2"><Input value={c.role} onChange={(e) => updateCharacter(c.id, { role: e.target.value })} className="h-8 rounded-xl" placeholder="Protagonist" /></td>
+                    <td className="p-2"><Textarea value={c.traits} onChange={(e) => updateCharacter(c.id, { traits: e.target.value })} className="min-h-[60px] rounded-xl text-xs" placeholder="Brave, witty…" /></td>
+                    <td className="p-2"><Textarea value={c.backstory} onChange={(e) => updateCharacter(c.id, { backstory: e.target.value })} className="min-h-[60px] rounded-xl text-xs" placeholder="Backstory" /></td>
+                    <td className="p-2"><Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive" onClick={() => removeCharacter(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </TabsContent>
+
+        <TabsContent value="timeline" className="flex-1 min-h-0 m-0 mt-3 px-3 pb-3 overflow-y-auto space-y-3">
+          <Button size="sm" variant="outline" className="w-full rounded-2xl" onClick={addEvent}>
+            <Plus className="h-3.5 w-3.5 mr-1" /> Add event
+          </Button>
+          {timeline.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-6">No events yet. Map your plot beats here.</p>
+          )}
+          <div className="relative pl-4">
+            <div className="absolute left-[7px] top-2 bottom-2 w-px bg-border" />
+            {timeline.map((ev, i) => (
+              <div key={ev.id} className="relative pl-4 pb-4">
+                <div className="absolute left-[-1px] top-2 h-3 w-3 rounded-full bg-primary border-2 border-background" />
+                <div className="rounded-2xl border bg-background/60 p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Input value={ev.title} onChange={(e) => updateEvent(ev.id, { title: e.target.value })} className="h-8 rounded-2xl font-medium" placeholder="Event" />
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-2xl" disabled={i === 0} onClick={() => moveEvent(ev.id, -1)}><ChevronUp className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-2xl" disabled={i === timeline.length - 1} onClick={() => moveEvent(ev.id, 1)}><ChevronDown className="h-3.5 w-3.5" /></Button>
+                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-2xl hover:text-destructive" onClick={() => removeEvent(ev.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  </div>
+                  <Input value={ev.event_date} onChange={(e) => updateEvent(ev.id, { event_date: e.target.value })} placeholder="When (e.g. Year 312)" className="h-8 rounded-2xl text-xs" />
+                  <Textarea value={ev.description} onChange={(e) => updateEvent(ev.id, { description: e.target.value })} placeholder="What happens" className="rounded-2xl text-xs min-h-[50px]" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </TabsContent>
+      </Tabs>
+
+      <Sheet open={openSharing} onOpenChange={setOpenSharing}>
+        <SheetContent side="right" className="w-[92vw] sm:max-w-md overflow-y-auto">
+          <SharingPanel notebookId={notebook.id} />
         </SheetContent>
       </Sheet>
-
-      {/* Chat sheet */}
-      <Sheet open={!!openChatFor} onOpenChange={(o) => { if (!o) setOpenChatFor(null); }}>
+      <Sheet open={openChat} onOpenChange={setOpenChat}>
         <SheetContent side="right" className="w-[92vw] sm:max-w-md flex flex-col p-0">
-          {openChatFor && (
-            <ChatPanel
-              notebookId={openChatFor}
-              notebookTitle={notebooks.find((n) => n.id === openChatFor)?.title ?? "Notebook"}
-              currentUserId={user.id}
-              currentUsername={profile?.username ?? "you"}
-              canModerate={isAdmin || isModerator}
-            />
-          )}
+          <ChatPanel
+            notebookId={notebook.id}
+            notebookTitle={title || "Notebook"}
+            currentUserId={currentUserId}
+            currentUsername={currentUsername}
+            canModerate={canModerate}
+          />
         </SheetContent>
       </Sheet>
     </div>
   );
 }
 
-function SharingPanel({ notebookId, ownerId }: { notebookId: string; ownerId: string }) {
+function SharingPanel({ notebookId }: { notebookId: string }) {
   const [members, setMembers] = useState<Member[]>([]);
   const [username, setUsername] = useState("");
   const [canEdit, setCanEdit] = useState(false);
@@ -320,11 +501,7 @@ function SharingPanel({ notebookId, ownerId }: { notebookId: string; ownerId: st
     void load();
     const ch = supabase
       .channel(`members:${notebookId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "notebook_members", filter: `notebook_id=eq.${notebookId}` },
-        () => { void load(); },
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "notebook_members", filter: `notebook_id=eq.${notebookId}` }, () => { void load(); })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -338,52 +515,19 @@ function SharingPanel({ notebookId, ownerId }: { notebookId: string; ownerId: st
       const r = await invite({ data: { notebookId, username: username.trim(), canEdit } });
       if (!r.ok) { toast.error(r.error); return; }
       toast.success(`Invited @${r.username}`);
-      setUsername("");
-      setCanEdit(false);
-      void load();
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const toggleEdit = async (m: Member) => {
-    const { error } = await supabase
-      .from("notebook_members")
-      .update({ can_edit: !m.can_edit })
-      .eq("notebook_id", m.notebook_id)
-      .eq("user_id", m.user_id);
-    if (error) toast.error(error.message);
-    else void load();
-  };
-
-  const removeMember = async (m: Member) => {
-    const { error } = await supabase
-      .from("notebook_members")
-      .delete()
-      .eq("notebook_id", m.notebook_id)
-      .eq("user_id", m.user_id);
-    if (error) toast.error(error.message);
-    else void load();
+      setUsername(""); setCanEdit(false); void load();
+    } finally { setBusy(false); }
   };
 
   return (
     <>
       <SheetHeader>
-        <SheetTitle className="flex items-center gap-2">
-          <Users className="h-4 w-4" /> Share notebook
-        </SheetTitle>
+        <SheetTitle className="flex items-center gap-2"><Users className="h-4 w-4" /> Share notebook</SheetTitle>
       </SheetHeader>
       <form onSubmit={submit} className="mt-4 space-y-2">
         <Label htmlFor="invite-user" className="text-xs">Invite by username</Label>
         <div className="flex gap-2">
-          <Input
-            id="invite-user"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            placeholder="username"
-            autoCapitalize="off"
-            autoCorrect="off"
-          />
+          <Input id="invite-user" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="username" autoCapitalize="off" autoCorrect="off" />
           <Button type="submit" disabled={busy}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
           </Button>
@@ -393,7 +537,6 @@ function SharingPanel({ notebookId, ownerId }: { notebookId: string; ownerId: st
           Can edit the notebook
         </label>
       </form>
-
       <div className="mt-6 space-y-2">
         <p className="text-xs font-medium text-muted-foreground">People with access</p>
         {members.length === 0 && <p className="text-xs text-muted-foreground/70">Nobody invited yet.</p>}
@@ -401,65 +544,40 @@ function SharingPanel({ notebookId, ownerId }: { notebookId: string; ownerId: st
           <Card key={m.user_id} className="p-3 flex items-center gap-2">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">@{m.profile?.username ?? "user"}</p>
-              <p className="text-[10px] text-muted-foreground">
-                {m.can_edit ? "Editor — can change the notebook" : "Viewer — read + chat only"}
-              </p>
+              <p className="text-[10px] text-muted-foreground">{m.can_edit ? "Editor" : "Viewer"}</p>
             </div>
-            <Button
-              size="sm"
-              variant={m.can_edit ? "default" : "outline"}
-              className="text-[10px] h-7"
-              onClick={() => toggleEdit(m)}
-            >
+            <Button size="sm" variant={m.can_edit ? "default" : "outline"} className="text-[10px] h-7"
+              onClick={async () => { await supabase.from("notebook_members").update({ can_edit: !m.can_edit }).eq("notebook_id", m.notebook_id).eq("user_id", m.user_id); void load(); }}>
               {m.can_edit ? "Editor" : "Viewer"}
             </Button>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-7 w-7 text-muted-foreground hover:text-destructive"
-              onClick={() => removeMember(m)}
-              aria-label="Remove"
-            >
+            <Button size="icon" variant="ghost" className="h-7 w-7 hover:text-destructive"
+              onClick={async () => { await supabase.from("notebook_members").delete().eq("notebook_id", m.notebook_id).eq("user_id", m.user_id); void load(); }}>
               <X className="h-3.5 w-3.5" />
             </Button>
           </Card>
         ))}
       </div>
-      <p className="text-[10px] text-muted-foreground mt-4">
-        Only you (the owner) can invite or remove people. {ownerId ? "" : ""}
-      </p>
     </>
   );
 }
 
 function ChatPanel({
-  notebookId,
-  notebookTitle,
-  currentUserId,
-  currentUsername,
-  canModerate,
+  notebookId, notebookTitle, currentUserId, currentUsername, canModerate,
 }: {
-  notebookId: string;
-  notebookTitle: string;
-  currentUserId: string;
-  currentUsername: string;
-  canModerate: boolean;
+  notebookId: string; notebookTitle: string; currentUserId: string;
+  currentUsername: string; canModerate: boolean;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
   const [sending, setSending] = useState(false);
   const [userMap, setUserMap] = useState<Record<string, string>>({});
-  const [roleMap, setRoleMap] = useState<Record<string, Array<"admin" | "moderator" | "user">>>({});
   const send = useServerFn(sendModeratedMessage);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const fetchUsernames = async (ids: string[]) => {
     const missing = Array.from(new Set(ids)).filter((id) => !userMap[id]);
     if (missing.length === 0) return;
-    const [{ data }, { data: rd }] = await Promise.all([
-      supabase.from("profiles").select("id, username").in("id", missing),
-      supabase.from("user_roles").select("user_id, role").in("user_id", missing),
-    ]);
+    const { data } = await supabase.from("profiles").select("id, username").in("id", missing);
     if (data) {
       setUserMap((prev) => {
         const next = { ...prev };
@@ -467,26 +585,11 @@ function ChatPanel({
         return next;
       });
     }
-    if (rd) {
-      setRoleMap((prev) => {
-        const next = { ...prev };
-        for (const r of rd as Array<{ user_id: string; role: "admin" | "moderator" | "user" }>) {
-          const arr = next[r.user_id] ?? [];
-          if (!arr.includes(r.role)) next[r.user_id] = [...arr, r.role];
-        }
-        return next;
-      });
-    }
   };
 
   useEffect(() => {
     let alive = true;
-    supabase
-      .from("notebook_messages")
-      .select("*")
-      .eq("notebook_id", notebookId)
-      .order("created_at", { ascending: true })
-      .limit(200)
+    supabase.from("notebook_messages").select("*").eq("notebook_id", notebookId).order("created_at").limit(200)
       .then(({ data }) => {
         if (!alive) return;
         const rows = (data as Message[]) ?? [];
@@ -495,15 +598,11 @@ function ChatPanel({
       });
     const ch = supabase
       .channel(`messages:${notebookId}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notebook_messages", filter: `notebook_id=eq.${notebookId}` },
-        (payload) => {
-          const row = payload.new as Message;
-          setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]));
-          void fetchUsernames([row.user_id]);
-        },
-      )
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notebook_messages", filter: `notebook_id=eq.${notebookId}` }, (payload) => {
+        const row = payload.new as Message;
+        setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]));
+        void fetchUsernames([row.user_id]);
+      })
       .subscribe();
     return () => { alive = false; supabase.removeChannel(ch); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -520,24 +619,9 @@ function ChatPanel({
     setSending(true);
     try {
       const r = await send({ data: { notebookId, body } });
-      if (!r.ok) {
-        toast.error(`Blocked: ${r.error}`);
-        return;
-      }
+      if (!r.ok) { toast.error(`Blocked: ${r.error}`); return; }
       setDraft("");
-    } catch {
-      toast.error("Could not send message.");
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const grouped = useMemo(() => messages, [messages]);
-
-  const deleteMessage = async (id: string) => {
-    const { error } = await supabase.from("notebook_messages").delete().eq("id", id);
-    if (error) { toast.error(error.message); return; }
-    setMessages((prev) => prev.filter((m) => m.id !== id));
+    } finally { setSending(false); }
   };
 
   return (
@@ -547,65 +631,26 @@ function ChatPanel({
           <MessageCircle className="h-4 w-4" /> {notebookTitle}
         </SheetTitle>
         <p className="text-[10px] text-muted-foreground flex items-center gap-1">
-          <ShieldCheck className="h-3 w-3" /> Moderated by AI — slurs and harassment are blocked.
+          <ShieldCheck className="h-3 w-3" /> Moderated by AI.
         </p>
       </SheetHeader>
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-        {grouped.length === 0 && (
-          <p className="text-center text-xs text-muted-foreground py-8">No messages yet. Say hi 👋</p>
-        )}
-        {grouped.map((m) => {
+        {messages.length === 0 && <p className="text-center text-xs text-muted-foreground py-8">No messages yet. Say hi 👋</p>}
+        {messages.map((m) => {
           const mine = m.user_id === currentUserId;
           const name = mine ? currentUsername : (userMap[m.user_id] ?? "user");
-          const authorRoles = roleMap[m.user_id] ?? [];
-          const isAuthorMod = authorRoles.includes("moderator") || authorRoles.includes("admin");
-          const canDelete = mine || canModerate;
           return (
             <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-              <div className="group max-w-[80%] flex items-start gap-1">
-                <div className={`rounded-2xl px-3 py-2 text-sm ${mine ? "bg-primary text-primary-foreground" : "bg-accent"}`}>
-                  {!mine && (
-                    <p className="text-[10px] font-semibold opacity-70 mb-0.5 flex items-center gap-1">
-                      @{name}
-                      {isAuthorMod && (
-                        <span
-                          className="inline-flex items-center gap-0.5 rounded-sm px-1 py-[1px] text-[9px] font-bold uppercase tracking-wide text-white"
-                          style={{
-                            background: "linear-gradient(135deg, #ff1a1a, #8a0000)",
-                            boxShadow: "0 0 6px rgba(255, 40, 40, 0.7)",
-                          }}
-                          title={authorRoles.includes("admin") ? "Admin" : "Moderator"}
-                        >
-                          <Shield className="h-2.5 w-2.5" />
-                          {authorRoles.includes("admin") ? "Admin" : "Mod"}
-                        </span>
-                      )}
-                    </p>
-                  )}
-                  <p className="whitespace-pre-wrap break-words">{m.body}</p>
-                </div>
-                {canDelete && (
-                  <button
-                    onClick={() => deleteMessage(m.id)}
-                    aria-label="Delete message"
-                    className="opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-destructive p-1"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                )}
+              <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-primary text-primary-foreground" : "bg-accent"}`}>
+                {!mine && <p className="text-[10px] font-semibold opacity-70 mb-0.5">@{name}</p>}
+                <p className="whitespace-pre-wrap break-words">{m.body}</p>
               </div>
             </div>
           );
         })}
       </div>
       <form onSubmit={submit} className="border-t p-3 flex gap-2">
-        <Input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          placeholder="Message…"
-          maxLength={2000}
-          disabled={sending}
-        />
+        <Input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Message…" maxLength={2000} disabled={sending} />
         <Button type="submit" disabled={sending || !draft.trim()} size="icon">
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
