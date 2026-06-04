@@ -1055,6 +1055,7 @@ type FeedReelProps = {
   runFix: (text: string) => Promise<string | null>;
   draftFixing: boolean;
   setDraftFixing: (b: boolean) => void;
+  currentUserId: string | null;
 };
 
 function FeedReel(props: FeedReelProps) {
@@ -1063,41 +1064,104 @@ function FeedReel(props: FeedReelProps) {
     broadcast, setBroadcast, adminMode,
     draft, setDraft, draftTitle, setDraftTitle,
     draftImage, setDraftImage, fileRef, onPickImage,
-    submitPost, runFix, draftFixing, setDraftFixing,
+    submitPost, runFix, draftFixing, setDraftFixing, currentUserId,
   } = props;
 
-  const [likes, setLikes] = useState<Record<number, number>>({});
-  const [liked, setLiked] = useState<Record<number, boolean>>({});
-  const [comments, setComments] = useState<Record<number, Comment[]>>({});
-  const [feedHydrated, setFeedHydrated] = useState(false);
-  const [openCommentsFor, setOpenCommentsFor] = useState<number | null>(null);
+  const [likes, setLikes] = useState<Record<string, number>>({});
+  const [liked, setLiked] = useState<Record<string, boolean>>({});
+  const [comments, setComments] = useState<Record<string, Comment[]>>({});
+  const [openCommentsFor, setOpenCommentsFor] = useState<string | null>(null);
   const [commentDraft, setCommentDraft] = useState("");
-  const [activePostId, setActivePostId] = useState<number | null>(null);
+  const [activePostId, setActivePostId] = useState<string | null>(null);
 
-  // Hydrate likes/comments from localStorage (once, on mount)
+  // One-time legacy cleanup of pre-cloud local likes/comments.
   useEffect(() => {
     try {
-      const rl = window.localStorage.getItem("dd:likes");
-      if (rl) setLikes(JSON.parse(rl));
-      const rk = window.localStorage.getItem("dd:liked");
-      if (rk) setLiked(JSON.parse(rk));
-      const rc = window.localStorage.getItem("dd:comments");
-      if (rc) setComments(JSON.parse(rc));
+      window.localStorage.removeItem("dd:likes");
+      window.localStorage.removeItem("dd:liked");
+      window.localStorage.removeItem("dd:comments");
     } catch {}
-    setFeedHydrated(true);
   }, []);
+
+  // Load cloud likes (counts + who I liked) whenever the post set changes.
   useEffect(() => {
-    if (!feedHydrated) return;
-    try { window.localStorage.setItem("dd:likes", JSON.stringify(likes)); } catch {}
-  }, [likes, feedHydrated]);
+    if (posts.length === 0) { setLikes({}); setLiked({}); return; }
+    let alive = true;
+    const ids = posts.map((p) => p.id);
+    void (async () => {
+      const { data } = await supabase
+        .from("feed_post_likes")
+        .select("post_id, user_id")
+        .in("post_id", ids);
+      if (!alive) return;
+      const counts: Record<string, number> = {};
+      const mine: Record<string, boolean> = {};
+      for (const r of (data as Array<{ post_id: string; user_id: string }>) ?? []) {
+        counts[r.post_id] = (counts[r.post_id] ?? 0) + 1;
+        if (r.user_id === currentUserId) mine[r.post_id] = true;
+      }
+      setLikes(counts);
+      setLiked(mine);
+    })();
+    return () => { alive = false; };
+  }, [posts, currentUserId]);
+
+  // Realtime likes — keep counts and self-liked map in sync.
   useEffect(() => {
-    if (!feedHydrated) return;
-    try { window.localStorage.setItem("dd:liked", JSON.stringify(liked)); } catch {}
-  }, [liked, feedHydrated]);
+    const ch = supabase
+      .channel("feed_post_likes:all")
+      .on("postgres_changes", { event: "*", schema: "public", table: "feed_post_likes" }, (payload) => {
+        if (payload.eventType === "INSERT") {
+          const r = payload.new as { post_id: string; user_id: string };
+          setLikes((c) => ({ ...c, [r.post_id]: (c[r.post_id] ?? 0) + 1 }));
+          if (r.user_id === currentUserId) setLiked((l) => ({ ...l, [r.post_id]: true }));
+        } else if (payload.eventType === "DELETE") {
+          const r = payload.old as { post_id: string; user_id: string };
+          setLikes((c) => ({ ...c, [r.post_id]: Math.max(0, (c[r.post_id] ?? 0) - 1) }));
+          if (r.user_id === currentUserId) setLiked((l) => { const n = { ...l }; delete n[r.post_id]; return n; });
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [currentUserId]);
+
+  // Load comments whenever the post set changes.
   useEffect(() => {
-    if (!feedHydrated) return;
-    try { window.localStorage.setItem("dd:comments", JSON.stringify(comments)); } catch {}
-  }, [comments, feedHydrated]);
+    if (posts.length === 0) { setComments({}); return; }
+    let alive = true;
+    const ids = posts.map((p) => p.id);
+    void (async () => {
+      const { data } = await supabase
+        .from("feed_post_comments")
+        .select("id, post_id, author_name, body, created_at")
+        .in("post_id", ids)
+        .order("created_at");
+      if (!alive) return;
+      const grouped: Record<string, Comment[]> = {};
+      for (const r of (data as Array<{ id: string; post_id: string; author_name: string; body: string; created_at: string }>) ?? []) {
+        const arr = grouped[r.post_id] ?? (grouped[r.post_id] = []);
+        arr.push({ id: r.id, author: r.author_name, text: r.body, ts: new Date(r.created_at).getTime() });
+      }
+      setComments(grouped);
+    })();
+    return () => { alive = false; };
+  }, [posts]);
+
+  // Realtime comments
+  useEffect(() => {
+    const ch = supabase
+      .channel("feed_post_comments:all")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "feed_post_comments" }, (payload) => {
+        const r = payload.new as { id: string; post_id: string; author_name: string; body: string; created_at: string };
+        setComments((prev) => {
+          const arr = prev[r.post_id] ?? [];
+          if (arr.some((c) => c.id === r.id)) return prev;
+          return { ...prev, [r.post_id]: [...arr, { id: r.id, author: r.author_name, text: r.body, ts: new Date(r.created_at).getTime() }] };
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
 
   const q = searchQuery.trim().toLowerCase();
   const filtered = q
@@ -1109,20 +1173,28 @@ function FeedReel(props: FeedReelProps) {
       )
     : posts;
 
-  const toggleLike = (id: number) => {
-    setLiked((l) => {
-      const wasLiked = !!l[id];
-      setLikes((c) => ({ ...c, [id]: Math.max(0, (c[id] ?? 0) + (wasLiked ? -1 : 1)) }));
-      return { ...l, [id]: !wasLiked };
-    });
+  const toggleLike = async (id: string) => {
+    if (!currentUserId) { toast.error("Sign in to like."); return; }
+    const wasLiked = !!liked[id];
+    // Optimistic
+    setLiked((l) => ({ ...l, [id]: !wasLiked }));
+    setLikes((c) => ({ ...c, [id]: Math.max(0, (c[id] ?? 0) + (wasLiked ? -1 : 1)) }));
+    if (wasLiked) {
+      await supabase.from("feed_post_likes").delete().eq("post_id", id).eq("user_id", currentUserId);
+    } else {
+      await supabase.from("feed_post_likes").insert({ post_id: id, user_id: currentUserId });
+    }
   };
 
-  const addComment = (id: number) => {
+  const addComment = async (id: string) => {
     const t = commentDraft.trim();
     if (!t) return;
-    const entry: Comment = { author: currentUsername, text: t, ts: Date.now() };
-    setComments((c) => ({ ...c, [id]: [...(c[id] ?? []), entry] }));
+    if (!currentUserId) { toast.error("Sign in to comment."); return; }
     setCommentDraft("");
+    const { error } = await supabase.from("feed_post_comments").insert({
+      post_id: id, author_id: currentUserId, author_name: currentUsername, body: t,
+    });
+    if (error) toast.error(error.message);
   };
 
   // Shared glass panel classes
