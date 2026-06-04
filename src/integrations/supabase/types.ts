@@ -14,6 +14,138 @@ export type Database = {
   }
   public: {
     Tables: {
+      feed_post_comments: {
+        Row: {
+          author_id: string
+          author_name: string
+          body: string
+          created_at: string
+          id: string
+          post_id: string
+        }
+        Insert: {
+          author_id: string
+          author_name: string
+          body: string
+          created_at?: string
+          id?: string
+          post_id: string
+        }
+        Update: {
+          author_id?: string
+          author_name?: string
+          body?: string
+          created_at?: string
+          id?: string
+          post_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_post_comments_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "feed_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_post_likes: {
+        Row: {
+          created_at: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_post_likes_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "feed_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      feed_posts: {
+        Row: {
+          author_id: string
+          author_name: string
+          body: string
+          created_at: string
+          id: string
+          image: string | null
+          title: string | null
+          verified: boolean
+        }
+        Insert: {
+          author_id: string
+          author_name: string
+          body?: string
+          created_at?: string
+          id?: string
+          image?: string | null
+          title?: string | null
+          verified?: boolean
+        }
+        Update: {
+          author_id?: string
+          author_name?: string
+          body?: string
+          created_at?: string
+          id?: string
+          image?: string | null
+          title?: string | null
+          verified?: boolean
+        }
+        Relationships: []
+      }
+      notebook_characters: {
+        Row: {
+          backstory: string
+          created_at: string
+          id: string
+          name: string
+          notebook_id: string
+          role: string
+          traits: string
+        }
+        Insert: {
+          backstory?: string
+          created_at?: string
+          id?: string
+          name?: string
+          notebook_id: string
+          role?: string
+          traits?: string
+        }
+        Update: {
+          backstory?: string
+          created_at?: string
+          id?: string
+          name?: string
+          notebook_id?: string
+          role?: string
+          traits?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notebook_characters_notebook_id_fkey"
+            columns: ["notebook_id"]
+            isOneToOne: false
+            referencedRelation: "notebooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notebook_members: {
         Row: {
           can_edit: boolean
@@ -68,6 +200,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "notebook_messages_notebook_id_fkey"
+            columns: ["notebook_id"]
+            isOneToOne: false
+            referencedRelation: "notebooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notebook_timeline_events: {
+        Row: {
+          created_at: string
+          description: string
+          event_date: string
+          event_order: number
+          id: string
+          notebook_id: string
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string
+          event_date?: string
+          event_order?: number
+          id?: string
+          notebook_id: string
+          title?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          event_date?: string
+          event_order?: number
+          id?: string
+          notebook_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notebook_timeline_events_notebook_id_fkey"
             columns: ["notebook_id"]
             isOneToOne: false
             referencedRelation: "notebooks"
