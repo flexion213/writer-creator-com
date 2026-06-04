@@ -38,8 +38,17 @@ export const Route = createFileRoute("/")({
   }),
 });
 
-type Post = { id: number; author: string; verified: boolean; title?: string; text: string; image?: string };
-type Comment = { author: string; text: string; ts: number };
+type Post = {
+  id: string;
+  author_id: string;
+  author: string;
+  verified: boolean;
+  title?: string;
+  text: string;
+  image?: string;
+  created_at: string;
+};
+type Comment = { id: string; author: string; text: string; ts: number };
 type Section = "feed" | "notebooks" | "suggestions" | "drawing";
 type Notebook = { id: number; title: string; body: string; updated: number };
 type SuggestionDrafts = {
@@ -65,45 +74,6 @@ const emptySuggestionDrafts: SuggestionDrafts = {
 };
 
 const initialPosts: Post[] = [];
-
-const BOT_AUTHOR_PATTERNS = [
-  /ada lovelace/i,
-  /linus/i,
-  /head dev/i,
-  /anonymous/i,
-  /bot/i,
-  /mock/i,
-  /test user/i,
-];
-
-function isRealPostCandidate(post: unknown): post is Post {
-  if (!post || typeof post !== "object") return false;
-  const candidate = post as Partial<Post>;
-  if (typeof candidate.id !== "number") return false;
-  if (typeof candidate.author !== "string") return false;
-  if (typeof candidate.text !== "string") return false;
-
-  const author = candidate.author.trim();
-  if (!author) return false;
-  if (BOT_AUTHOR_PATTERNS.some((pattern) => pattern.test(author))) return false;
-
-  return true;
-}
-
-function sanitizeStoredPosts(posts: unknown): Post[] {
-  if (!Array.isArray(posts)) return [];
-
-  return posts
-    .filter(isRealPostCandidate)
-    .map((post) => ({
-      id: post.id,
-      author: post.author.trim(),
-      verified: !!post.verified,
-      title: typeof post.title === "string" && post.title.trim() ? post.title.trim() : undefined,
-      text: post.text,
-      image: typeof post.image === "string" && post.image.trim() ? post.image : undefined,
-    }));
-}
 
 const NAV: { id: Section; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "feed", label: "Global Feed", icon: Globe },
@@ -144,12 +114,6 @@ function Dashboard() {
   // One-time hydration from localStorage (client only, after mount).
   useEffect(() => {
     try {
-      const rawPosts = window.localStorage.getItem("dd:posts");
-      if (rawPosts) {
-        const sanitizedPosts = sanitizeStoredPosts(JSON.parse(rawPosts));
-        setPosts(sanitizedPosts);
-        window.localStorage.setItem("dd:posts", JSON.stringify(sanitizedPosts));
-      }
       const rawDraft = window.localStorage.getItem("dd:post-draft");
       if (rawDraft) setDraft(rawDraft);
       const rawImg = window.localStorage.getItem("dd:post-draft-image");
@@ -170,8 +134,9 @@ function Dashboard() {
 
   useEffect(() => {
     if (!hydrated) return;
-    try { window.localStorage.setItem("dd:posts", JSON.stringify(posts)); } catch {}
-  }, [posts, hydrated]);
+    // Clean up legacy local-only feed; posts now live in cloud.
+    try { window.localStorage.removeItem("dd:posts"); } catch {}
+  }, [hydrated]);
   useEffect(() => {
     if (!hydrated) return;
     try { window.localStorage.setItem("dd:notebooks", JSON.stringify(notebooks)); } catch {}
@@ -228,23 +193,73 @@ function Dashboard() {
     reader.readAsDataURL(f);
   };
 
-  const submitPost = () => {
+  const submitPost = async () => {
     const text = draft.trim();
     const title = draftTitle.trim();
     if (!text && !draftImage && !title) return;
-    setPosts((p) => [{
-      id: Date.now(),
-      author: adminMode ? "Head Dev" : currentUsername,
+    if (!user) { toast.error("Sign in to post."); return; }
+    const { error } = await supabase.from("feed_posts").insert({
+      author_id: user.id,
+      author_name: adminMode ? "Head Dev" : currentUsername,
       verified: adminMode,
-      title: title || undefined,
-      text,
-      image: draftImage,
-    }, ...p]);
+      title: title || null,
+      body: text,
+      image: draftImage ?? null,
+    });
+    if (error) { toast.error(error.message); return; }
     setDraft("");
     setDraftTitle("");
     setDraftImage(undefined);
     if (fileRef.current) fileRef.current.value = "";
   };
+
+  // Cloud feed: load + realtime
+  useEffect(() => {
+    if (!user) { setPosts([]); return; }
+    let alive = true;
+    supabase
+      .from("feed_posts")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(200)
+      .then(({ data }) => {
+        if (!alive) return;
+        setPosts(
+          ((data as Array<{
+            id: string; author_id: string; author_name: string; verified: boolean;
+            title: string | null; body: string; image: string | null; created_at: string;
+          }>) ?? []).map((r) => ({
+            id: r.id,
+            author_id: r.author_id,
+            author: r.author_name,
+            verified: r.verified,
+            title: r.title ?? undefined,
+            text: r.body,
+            image: r.image ?? undefined,
+            created_at: r.created_at,
+          })),
+        );
+      });
+    const ch = supabase
+      .channel("feed_posts:all")
+      .on("postgres_changes", { event: "*", schema: "public", table: "feed_posts" }, (payload) => {
+        if (payload.eventType === "INSERT") {
+          const r = payload.new as {
+            id: string; author_id: string; author_name: string; verified: boolean;
+            title: string | null; body: string; image: string | null; created_at: string;
+          };
+          setPosts((prev) => prev.some((p) => p.id === r.id) ? prev : [{
+            id: r.id, author_id: r.author_id, author: r.author_name, verified: r.verified,
+            title: r.title ?? undefined, text: r.body, image: r.image ?? undefined, created_at: r.created_at,
+          }, ...prev]);
+        } else if (payload.eventType === "DELETE") {
+          const r = payload.old as { id: string };
+          setPosts((prev) => prev.filter((p) => p.id !== r.id));
+        }
+      })
+      .subscribe();
+    return () => { alive = false; supabase.removeChannel(ch); };
+  }, [user]);
 
   const go = (s: Section) => { setSection(s); setNavOpen(false); };
   const currentLabel = NAV.find((n) => n.id === section)?.label ?? "Global Feed";
@@ -294,6 +309,7 @@ function Dashboard() {
         <FeedReel
           posts={posts}
           currentUsername={currentUsername}
+          currentUserId={user?.id ?? null}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           onOpenMenu={() => setNavOpen(true)}
@@ -315,7 +331,11 @@ function Dashboard() {
         />
       )}
 
-      {section !== "feed" && (
+      {section === "drawing" && (
+        <DrawingStudio adminMode={adminMode} onOpenMenu={() => setNavOpen(true)} />
+      )}
+
+      {(section === "notebooks" || section === "suggestions") && (
       <main className="mx-auto max-w-md px-4 py-4 space-y-4">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" aria-label="Open menu" className="h-9 w-9" onClick={() => setNavOpen(true)}>
@@ -352,7 +372,6 @@ function Dashboard() {
           <CloudNotebooks runFix={runFix} />
         )}
         {section === "suggestions" && <Suggestions suggestions={suggestions} setSuggestions={setSuggestions} />}
-        {section === "drawing" && <DrawingStudio adminMode={adminMode} />}
       </main>
       )}
 
@@ -663,8 +682,23 @@ const BRUSHES: { id: BrushId; label: string; icon: React.ComponentType<{ classNa
 
 const PREMIUM_BRUSHES: BrushId[] = ["neon", "spray"];
 
-function DrawingStudio({ adminMode }: { adminMode: boolean }) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
+function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMenu: () => void }) {
+  type Layer = { id: string; name: string; visible: boolean };
+  const CANVAS_W = 1400;
+  const CANVAS_H = 1800;
+
+  const layerRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
+  const setLayerRef = (id: string) => (el: HTMLCanvasElement | null) => {
+    if (el) layerRefs.current.set(id, el);
+    else layerRefs.current.delete(id);
+  };
+
+  const [layers, setLayers] = useState<Layer[]>([{ id: "base", name: "Layer 1", visible: true }]);
+  const [activeLayerId, setActiveLayerId] = useState<string>("base");
+  const [showSide, setShowSide] = useState(false);
+
+  const activeCanvas = () => layerRefs.current.get(activeLayerId) ?? null;
+
   const [hsva, setHsva] = useState<HsvaColor>(() => {
     if (typeof window === "undefined") return hexToHsva("#FFFFD7");
     const saved = window.localStorage.getItem("dd:drawing-color");
@@ -691,20 +725,14 @@ function DrawingStudio({ adminMode }: { adminMode: boolean }) {
 
   const drawing = useRef(false);
   const lastPt = useRef<{ x: number; y: number } | null>(null);
-  const history = useRef<ImageData[]>([]);
-  const future = useRef<ImageData[]>([]);
+  // History tracked per active layer
+  const history = useRef<Map<string, ImageData[]>>(new Map());
+  const future = useRef<Map<string, ImageData[]>>(new Map());
   const sprayTimer = useRef<number | null>(null);
 
-  const fillBg = useCallback(() => {
-    const c = canvasRef.current; if (!c) return;
-    const ctx = c.getContext("2d"); if (!ctx) return;
-    ctx.fillStyle = "#0a0a0a";
-    ctx.fillRect(0, 0, c.width, c.height);
-  }, []);
-
-  const persist = useCallback(() => {
-    const c = canvasRef.current; if (!c) return;
-    try { window.localStorage.setItem("dd:canvas", c.toDataURL("image/png")); } catch {}
+  const persistLayer = useCallback((id: string) => {
+    const c = layerRefs.current.get(id); if (!c) return;
+    try { window.localStorage.setItem(`dd:canvas:${id}`, c.toDataURL("image/png")); } catch {}
   }, []);
 
   useEffect(() => {
@@ -717,22 +745,21 @@ function DrawingStudio({ adminMode }: { adminMode: boolean }) {
     } catch {}
   }, [brush, hsva, opacity, showColor, size]);
 
-  // Load saved drawing or paint background on mount
+  // Restore each layer's saved bitmap on mount/when layers change
   useEffect(() => {
-    const c = canvasRef.current; if (!c) return;
-    const ctx = c.getContext("2d"); if (!ctx) return;
-    const saved = typeof window !== "undefined" ? window.localStorage.getItem("dd:canvas") : null;
-    if (saved) {
-      const img = new Image();
-      img.onload = () => { ctx.drawImage(img, 0, 0, c.width, c.height); };
-      img.src = saved;
-    } else {
-      fillBg();
+    for (const layer of layers) {
+      const c = layerRefs.current.get(layer.id); if (!c) continue;
+      const ctx = c.getContext("2d"); if (!ctx) continue;
+      const saved = typeof window !== "undefined" ? window.localStorage.getItem(`dd:canvas:${layer.id}`) : null;
+      if (saved) {
+        const img = new Image();
+        img.onload = () => ctx.drawImage(img, 0, 0, c.width, c.height);
+        img.src = saved;
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [layers.length]);
 
-  // Sync brush defaults
   const selectBrush = (id: BrushId) => {
     if (PREMIUM_BRUSHES.includes(id) && !adminMode) {
       toast.error("Premium brush — unlock for €3 (coming soon).");
@@ -745,32 +772,44 @@ function DrawingStudio({ adminMode }: { adminMode: boolean }) {
   };
 
   const snapshot = () => {
-    const c = canvasRef.current!;
+    const c = activeCanvas(); if (!c) return;
     const ctx = c.getContext("2d")!;
-    history.current.push(ctx.getImageData(0, 0, c.width, c.height));
-    if (history.current.length > 25) history.current.shift();
-    future.current = [];
+    const h = history.current.get(activeLayerId) ?? [];
+    h.push(ctx.getImageData(0, 0, c.width, c.height));
+    if (h.length > 25) h.shift();
+    history.current.set(activeLayerId, h);
+    future.current.set(activeLayerId, []);
   };
 
   const undo = () => {
-    const c = canvasRef.current!;
+    const c = activeCanvas(); if (!c) return;
     const ctx = c.getContext("2d")!;
-    const last = history.current.pop();
+    const h = history.current.get(activeLayerId) ?? [];
+    const last = h.pop();
     if (!last) return;
-    future.current.push(ctx.getImageData(0, 0, c.width, c.height));
+    const f = future.current.get(activeLayerId) ?? [];
+    f.push(ctx.getImageData(0, 0, c.width, c.height));
+    future.current.set(activeLayerId, f);
+    history.current.set(activeLayerId, h);
     ctx.putImageData(last, 0, 0);
+    persistLayer(activeLayerId);
   };
   const redo = () => {
-    const c = canvasRef.current!;
+    const c = activeCanvas(); if (!c) return;
     const ctx = c.getContext("2d")!;
-    const next = future.current.pop();
+    const f = future.current.get(activeLayerId) ?? [];
+    const next = f.pop();
     if (!next) return;
-    history.current.push(ctx.getImageData(0, 0, c.width, c.height));
+    const h = history.current.get(activeLayerId) ?? [];
+    h.push(ctx.getImageData(0, 0, c.width, c.height));
+    history.current.set(activeLayerId, h);
+    future.current.set(activeLayerId, f);
     ctx.putImageData(next, 0, 0);
+    persistLayer(activeLayerId);
   };
 
   const pos = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const c = canvasRef.current!;
+    const c = e.currentTarget;
     const r = c.getBoundingClientRect();
     return { x: (e.clientX - r.left) * (c.width / r.width), y: (e.clientY - r.top) * (c.height / r.height) };
   };
@@ -811,9 +850,7 @@ function DrawingStudio({ adminMode }: { adminMode: boolean }) {
         ctx.lineCap = "butt";
         break;
       case "eraser":
-        ctx.globalCompositeOperation = "source-over";
-        ctx.strokeStyle = "#0a0a0a";
-        ctx.fillStyle = "#0a0a0a";
+        ctx.globalCompositeOperation = "destination-out";
         ctx.globalAlpha = 1;
         break;
     }
@@ -876,9 +913,10 @@ function DrawingStudio({ adminMode }: { adminMode: boolean }) {
 
   const start = (e: React.PointerEvent<HTMLCanvasElement>) => {
     (e.target as Element).setPointerCapture?.(e.pointerId);
+    const c = activeCanvas(); if (!c) return;
     drawing.current = true;
     snapshot();
-    const ctx = canvasRef.current!.getContext("2d")!;
+    const ctx = c.getContext("2d")!;
     applyStroke(ctx);
     const p = pos(e);
     lastPt.current = p;
@@ -887,7 +925,8 @@ function DrawingStudio({ adminMode }: { adminMode: boolean }) {
   };
   const move = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!drawing.current || !lastPt.current) return;
-    const ctx = canvasRef.current!.getContext("2d")!;
+    const c = activeCanvas(); if (!c) return;
+    const ctx = c.getContext("2d")!;
     applyStroke(ctx);
     const p = pos(e);
     drawSegment(ctx, lastPt.current, p);
@@ -897,123 +936,210 @@ function DrawingStudio({ adminMode }: { adminMode: boolean }) {
     drawing.current = false;
     lastPt.current = null;
     if (sprayTimer.current) { window.clearInterval(sprayTimer.current); sprayTimer.current = null; }
-    persist();
+    persistLayer(activeLayerId);
   };
 
-  const clear = () => { snapshot(); fillBg(); persist(); };
+  const clearActive = () => {
+    const c = activeCanvas(); if (!c) return;
+    snapshot();
+    const ctx = c.getContext("2d")!;
+    ctx.clearRect(0, 0, c.width, c.height);
+    persistLayer(activeLayerId);
+  };
 
   const save = () => {
-    const c = canvasRef.current!;
+    // Flatten all visible layers to a single PNG and download.
+    const out = document.createElement("canvas");
+    out.width = CANVAS_W; out.height = CANVAS_H;
+    const octx = out.getContext("2d")!;
+    octx.fillStyle = "#0a0a0a"; octx.fillRect(0, 0, out.width, out.height);
+    for (const layer of layers) {
+      if (!layer.visible) continue;
+      const c = layerRefs.current.get(layer.id); if (!c) continue;
+      octx.drawImage(c, 0, 0);
+    }
     const link = document.createElement("a");
     link.download = `drawing-${Date.now()}.png`;
-    link.href = c.toDataURL("image/png");
+    link.href = out.toDataURL("image/png");
     link.click();
+  };
+
+  const addLayer = () => {
+    if (layers.length >= 8) { toast.error("Layer limit reached (8)."); return; }
+    const id = `layer-${Date.now()}`;
+    setLayers((ls) => [...ls, { id, name: `Layer ${ls.length + 1}`, visible: true }]);
+    setActiveLayerId(id);
+  };
+  const removeLayer = (id: string) => {
+    if (layers.length <= 1) { toast.error("Need at least one layer."); return; }
+    try { window.localStorage.removeItem(`dd:canvas:${id}`); } catch {}
+    setLayers((ls) => {
+      const next = ls.filter((l) => l.id !== id);
+      if (activeLayerId === id) setActiveLayerId(next[0].id);
+      return next;
+    });
+  };
+  const toggleLayer = (id: string) => {
+    setLayers((ls) => ls.map((l) => l.id === id ? { ...l, visible: !l.visible } : l));
   };
 
   const swatches = ["#FFFFD7","#FFFFFF","#000000","#EF4444","#F97316","#EAB308","#22C55E","#06B6D4","#3B82F6","#A855F7","#EC4899","#78350F"];
   const currentHex = hsvaToHex(hsva);
 
   return (
-    <Card className="p-3 space-y-3">
-      {/* Brush palette */}
-      <div className="grid grid-cols-5 gap-1.5">
-        {BRUSHES.map((b) => {
-          const Icon = b.icon;
-          const active = brush === b.id;
-          const locked = PREMIUM_BRUSHES.includes(b.id) && !adminMode;
-          return (
-            <button
-              key={b.id}
-              onClick={() => selectBrush(b.id)}
-              title={locked ? `${b.label} — Premium (€3)` : b.label}
-              className={`relative flex flex-col items-center gap-0.5 rounded-lg p-2 text-[10px] transition-colors ${
-                active ? "bg-accent text-accent-foreground ring-1 ring-primary/60" : "bg-accent/30 hover:bg-accent/60"
-              } ${locked ? "opacity-60" : ""}`}
-            >
-              <Icon className="h-4 w-4" />
-              <span className="leading-none">{b.label}</span>
-              {locked && (
-                <span className="absolute -top-1 -right-1 rounded-full bg-primary text-primary-foreground text-[8px] px-1 leading-none py-0.5">
-                  €3
-                </span>
-              )}
-            </button>
-          );
-        })}
+    <div className="fixed inset-0 z-30 flex flex-col bg-[#0a0a0a] text-white">
+      {/* Top mini bar */}
+      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-black/40 backdrop-blur shrink-0">
+        <Button variant="ghost" size="icon" aria-label="Open menu" className="h-9 w-9 text-white" onClick={onOpenMenu}>
+          <Menu className="h-5 w-5" />
+        </Button>
+        <span className="text-sm font-semibold flex-1">Drawing Studio</span>
+        <Button variant="ghost" size="icon" className="h-9 w-9 text-white" onClick={() => setShowSide((s) => !s)} aria-label="Toggle side panel">
+          <Sparkles className="h-4 w-4" />
+        </Button>
       </div>
 
-      {/* Color + sliders */}
-      <div className="flex items-start gap-3">
-        <button
-          onClick={() => setShowColor((s) => !s)}
-          className="h-12 w-12 shrink-0 rounded-full border-2 border-border shadow-inner"
-          style={{ background: currentHex }}
-          aria-label="Toggle color wheel"
-        />
-        <div className="flex-1 space-y-2">
-          <div>
-            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-              <span>Size</span><span>{size}px</span>
-            </div>
-            <input type="range" min={1} max={80} value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-full accent-primary" />
-          </div>
-          <div>
-            <div className="flex items-center justify-between text-[10px] text-muted-foreground">
-              <span>Opacity</span><span>{Math.round(opacity * 100)}%</span>
-            </div>
-            <input type="range" min={5} max={100} value={Math.round(opacity * 100)} onChange={(e) => setOpacity(Number(e.target.value) / 100)} className="w-full accent-primary" />
-          </div>
-        </div>
-      </div>
-
-      {/* Color wheel panel */}
-      {showColor && (
-        <div className="rounded-lg border bg-card/60 p-3 space-y-2">
-          <div className="flex justify-center">
-            <Wheel color={hsva} onChange={(c) => setHsva({ ...hsva, ...c.hsva })} width={180} height={180} />
-          </div>
-          <ShadeSlider hsva={hsva} onChange={(s) => setHsva({ ...hsva, ...s })} style={{ width: "100%" }} />
-          <Alpha hsva={hsva} onChange={(a) => setHsva({ ...hsva, ...a })} style={{ width: "100%", height: 14 }} />
-          <div className="grid grid-cols-6 gap-1.5 pt-1">
-            {swatches.map((s) => (
-              <button
-                key={s}
-                onClick={() => setHsva(hexToHsva(s))}
-                className="h-7 rounded-md border border-border"
-                style={{ background: s }}
-                aria-label={s}
+      {/* Canvas area (fills remaining space) */}
+      <div className="flex-1 min-h-0 relative overflow-hidden bg-[#0a0a0a]">
+        <div className="absolute inset-0 flex items-center justify-center p-2">
+          <div
+            className="relative shadow-2xl rounded-md overflow-hidden bg-[#0a0a0a] border border-white/10"
+            style={{ aspectRatio: `${CANVAS_W} / ${CANVAS_H}`, maxHeight: "100%", maxWidth: "100%" }}
+          >
+            {layers.map((layer) => (
+              <canvas
+                key={layer.id}
+                ref={setLayerRef(layer.id)}
+                width={CANVAS_W}
+                height={CANVAS_H}
+                onPointerDown={layer.id === activeLayerId ? start : undefined}
+                onPointerMove={layer.id === activeLayerId ? move : undefined}
+                onPointerUp={layer.id === activeLayerId ? end : undefined}
+                onPointerLeave={layer.id === activeLayerId ? end : undefined}
+                onPointerCancel={layer.id === activeLayerId ? end : undefined}
+                className="absolute inset-0 w-full h-full touch-none"
+                style={{
+                  pointerEvents: layer.id === activeLayerId ? "auto" : "none",
+                  visibility: layer.visible ? "visible" : "hidden",
+                  zIndex: layers.indexOf(layer),
+                }}
               />
             ))}
           </div>
         </div>
-      )}
 
-      {/* Action bar */}
-      <div className="flex items-center justify-between gap-1">
-        <div className="flex gap-1">
-          <Button size="sm" variant="outline" onClick={undo}><Undo2 className="h-3.5 w-3.5" /></Button>
-          <Button size="sm" variant="outline" onClick={redo}><Redo2 className="h-3.5 w-3.5" /></Button>
-        </div>
-        <div className="flex gap-1">
-          <Button size="sm" variant="outline" onClick={save}><Download className="h-3.5 w-3.5 mr-1" /> Save</Button>
-          <Button size="sm" variant="outline" onClick={clear}><Trash2 className="h-3.5 w-3.5 mr-1" /> Clear</Button>
-        </div>
+        {/* Side utilities panel */}
+        {showSide && (
+          <aside className="absolute top-2 right-2 bottom-2 w-64 max-w-[80vw] rounded-2xl bg-black/70 backdrop-blur-xl border border-white/10 p-3 space-y-3 overflow-y-auto z-10">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-widest text-white/70">Layers</span>
+              <Button size="icon" variant="ghost" className="h-7 w-7 text-white" onClick={addLayer} aria-label="Add layer">
+                <Plus className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <div className="space-y-1">
+              {[...layers].reverse().map((layer) => {
+                const active = layer.id === activeLayerId;
+                return (
+                  <div
+                    key={layer.id}
+                    className={`flex items-center gap-2 rounded-xl px-2 py-1.5 text-sm cursor-pointer ${active ? "bg-white/15 ring-1 ring-white/30" : "hover:bg-white/5"}`}
+                    onClick={() => setActiveLayerId(layer.id)}
+                  >
+                    <button
+                      onClick={(e) => { e.stopPropagation(); toggleLayer(layer.id); }}
+                      className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-white/10"
+                      aria-label={layer.visible ? "Hide layer" : "Show layer"}
+                      title={layer.visible ? "Hide" : "Show"}
+                    >
+                      <span className={`block h-2 w-2 rounded-full ${layer.visible ? "bg-emerald-400" : "bg-white/20"}`} />
+                    </button>
+                    <span className="flex-1 truncate">{layer.name}</span>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeLayer(layer.id); }}
+                      className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-rose-500/20 hover:text-rose-300"
+                      aria-label="Delete layer"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="border-t border-white/10 pt-3 space-y-2">
+              <span className="text-xs font-semibold uppercase tracking-widest text-white/70">Actions</span>
+              <div className="grid grid-cols-2 gap-2">
+                <Button size="sm" variant="secondary" className="rounded-xl" onClick={undo}><Undo2 className="h-3.5 w-3.5 mr-1" /> Undo</Button>
+                <Button size="sm" variant="secondary" className="rounded-xl" onClick={redo}><Redo2 className="h-3.5 w-3.5 mr-1" /> Redo</Button>
+                <Button size="sm" variant="secondary" className="rounded-xl" onClick={save}><Download className="h-3.5 w-3.5 mr-1" /> Save</Button>
+                <Button size="sm" variant="secondary" className="rounded-xl" onClick={clearActive}><Trash2 className="h-3.5 w-3.5 mr-1" /> Clear</Button>
+              </div>
+            </div>
+
+            {showColor && (
+              <div className="border-t border-white/10 pt-3 space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-widest text-white/70">Color</span>
+                <div className="flex justify-center">
+                  <Wheel color={hsva} onChange={(c) => setHsva({ ...hsva, ...c.hsva })} width={180} height={180} />
+                </div>
+                <ShadeSlider hsva={hsva} onChange={(s) => setHsva({ ...hsva, ...s })} style={{ width: "100%" }} />
+                <Alpha hsva={hsva} onChange={(a) => setHsva({ ...hsva, ...a })} style={{ width: "100%", height: 14 }} />
+                <div className="grid grid-cols-6 gap-1.5">
+                  {swatches.map((s) => (
+                    <button key={s} onClick={() => setHsva(hexToHsva(s))}
+                      className="h-7 rounded-md border border-white/10" style={{ background: s }} aria-label={s} />
+                  ))}
+                </div>
+              </div>
+            )}
+          </aside>
+        )}
       </div>
 
-      <canvas
-        ref={canvasRef}
-        width={1400}
-        height={1800}
-        onPointerDown={start}
-        onPointerMove={move}
-        onPointerUp={end}
-        onPointerLeave={end}
-        onPointerCancel={end}
-        className="w-full rounded-md border border-border touch-none bg-[#0a0a0a]"
-        style={{ aspectRatio: "1400 / 1800" }}
-      />
-      <p className="text-[10px] text-muted-foreground text-center">Drag to draw · auto-saved on this device</p>
-    </Card>
+      {/* Bottom toolbar dock */}
+      <div className="shrink-0 border-t border-white/10 bg-black/70 backdrop-blur-xl p-3 space-y-2">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+          <button
+            onClick={() => setShowColor((s) => !s)}
+            className="h-10 w-10 shrink-0 rounded-full border-2 border-white/20 shadow-inner"
+            style={{ background: currentHex }}
+            aria-label="Toggle color"
+          />
+          {BRUSHES.map((b) => {
+            const Icon = b.icon;
+            const active = brush === b.id;
+            const locked = PREMIUM_BRUSHES.includes(b.id) && !adminMode;
+            return (
+              <button
+                key={b.id}
+                onClick={() => selectBrush(b.id)}
+                title={locked ? `${b.label} — Premium (€3)` : b.label}
+                className={`relative shrink-0 flex flex-col items-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[10px] transition-colors ${
+                  active ? "bg-white/15 ring-1 ring-white/40" : "bg-white/5 hover:bg-white/10"
+                } ${locked ? "opacity-60" : ""}`}
+              >
+                <Icon className="h-4 w-4" />
+                <span className="leading-none">{b.label}</span>
+                {locked && (
+                  <span className="absolute -top-1 -right-1 rounded-full bg-primary text-primary-foreground text-[8px] px-1 leading-none py-0.5">€3</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex items-center gap-3 text-[10px] text-white/70">
+          <div className="flex-1">
+            <div className="flex items-center justify-between"><span>Size</span><span>{size}px</span></div>
+            <input type="range" min={1} max={80} value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-full accent-white" />
+          </div>
+          <div className="flex-1">
+            <div className="flex items-center justify-between"><span>Opacity</span><span>{Math.round(opacity * 100)}%</span></div>
+            <input type="range" min={5} max={100} value={Math.round(opacity * 100)} onChange={(e) => setOpacity(Number(e.target.value) / 100)} className="w-full accent-white" />
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -1040,6 +1166,7 @@ type FeedReelProps = {
   runFix: (text: string) => Promise<string | null>;
   draftFixing: boolean;
   setDraftFixing: (b: boolean) => void;
+  currentUserId: string | null;
 };
 
 function FeedReel(props: FeedReelProps) {
@@ -1048,41 +1175,104 @@ function FeedReel(props: FeedReelProps) {
     broadcast, setBroadcast, adminMode,
     draft, setDraft, draftTitle, setDraftTitle,
     draftImage, setDraftImage, fileRef, onPickImage,
-    submitPost, runFix, draftFixing, setDraftFixing,
+    submitPost, runFix, draftFixing, setDraftFixing, currentUserId,
   } = props;
 
-  const [likes, setLikes] = useState<Record<number, number>>({});
-  const [liked, setLiked] = useState<Record<number, boolean>>({});
-  const [comments, setComments] = useState<Record<number, Comment[]>>({});
-  const [feedHydrated, setFeedHydrated] = useState(false);
-  const [openCommentsFor, setOpenCommentsFor] = useState<number | null>(null);
+  const [likes, setLikes] = useState<Record<string, number>>({});
+  const [liked, setLiked] = useState<Record<string, boolean>>({});
+  const [comments, setComments] = useState<Record<string, Comment[]>>({});
+  const [openCommentsFor, setOpenCommentsFor] = useState<string | null>(null);
   const [commentDraft, setCommentDraft] = useState("");
-  const [activePostId, setActivePostId] = useState<number | null>(null);
+  const [activePostId, setActivePostId] = useState<string | null>(null);
 
-  // Hydrate likes/comments from localStorage (once, on mount)
+  // One-time legacy cleanup of pre-cloud local likes/comments.
   useEffect(() => {
     try {
-      const rl = window.localStorage.getItem("dd:likes");
-      if (rl) setLikes(JSON.parse(rl));
-      const rk = window.localStorage.getItem("dd:liked");
-      if (rk) setLiked(JSON.parse(rk));
-      const rc = window.localStorage.getItem("dd:comments");
-      if (rc) setComments(JSON.parse(rc));
+      window.localStorage.removeItem("dd:likes");
+      window.localStorage.removeItem("dd:liked");
+      window.localStorage.removeItem("dd:comments");
     } catch {}
-    setFeedHydrated(true);
   }, []);
+
+  // Load cloud likes (counts + who I liked) whenever the post set changes.
   useEffect(() => {
-    if (!feedHydrated) return;
-    try { window.localStorage.setItem("dd:likes", JSON.stringify(likes)); } catch {}
-  }, [likes, feedHydrated]);
+    if (posts.length === 0) { setLikes({}); setLiked({}); return; }
+    let alive = true;
+    const ids = posts.map((p) => p.id);
+    void (async () => {
+      const { data } = await supabase
+        .from("feed_post_likes")
+        .select("post_id, user_id")
+        .in("post_id", ids);
+      if (!alive) return;
+      const counts: Record<string, number> = {};
+      const mine: Record<string, boolean> = {};
+      for (const r of (data as Array<{ post_id: string; user_id: string }>) ?? []) {
+        counts[r.post_id] = (counts[r.post_id] ?? 0) + 1;
+        if (r.user_id === currentUserId) mine[r.post_id] = true;
+      }
+      setLikes(counts);
+      setLiked(mine);
+    })();
+    return () => { alive = false; };
+  }, [posts, currentUserId]);
+
+  // Realtime likes — keep counts and self-liked map in sync.
   useEffect(() => {
-    if (!feedHydrated) return;
-    try { window.localStorage.setItem("dd:liked", JSON.stringify(liked)); } catch {}
-  }, [liked, feedHydrated]);
+    const ch = supabase
+      .channel("feed_post_likes:all")
+      .on("postgres_changes", { event: "*", schema: "public", table: "feed_post_likes" }, (payload) => {
+        if (payload.eventType === "INSERT") {
+          const r = payload.new as { post_id: string; user_id: string };
+          setLikes((c) => ({ ...c, [r.post_id]: (c[r.post_id] ?? 0) + 1 }));
+          if (r.user_id === currentUserId) setLiked((l) => ({ ...l, [r.post_id]: true }));
+        } else if (payload.eventType === "DELETE") {
+          const r = payload.old as { post_id: string; user_id: string };
+          setLikes((c) => ({ ...c, [r.post_id]: Math.max(0, (c[r.post_id] ?? 0) - 1) }));
+          if (r.user_id === currentUserId) setLiked((l) => { const n = { ...l }; delete n[r.post_id]; return n; });
+        }
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [currentUserId]);
+
+  // Load comments whenever the post set changes.
   useEffect(() => {
-    if (!feedHydrated) return;
-    try { window.localStorage.setItem("dd:comments", JSON.stringify(comments)); } catch {}
-  }, [comments, feedHydrated]);
+    if (posts.length === 0) { setComments({}); return; }
+    let alive = true;
+    const ids = posts.map((p) => p.id);
+    void (async () => {
+      const { data } = await supabase
+        .from("feed_post_comments")
+        .select("id, post_id, author_name, body, created_at")
+        .in("post_id", ids)
+        .order("created_at");
+      if (!alive) return;
+      const grouped: Record<string, Comment[]> = {};
+      for (const r of (data as Array<{ id: string; post_id: string; author_name: string; body: string; created_at: string }>) ?? []) {
+        const arr = grouped[r.post_id] ?? (grouped[r.post_id] = []);
+        arr.push({ id: r.id, author: r.author_name, text: r.body, ts: new Date(r.created_at).getTime() });
+      }
+      setComments(grouped);
+    })();
+    return () => { alive = false; };
+  }, [posts]);
+
+  // Realtime comments
+  useEffect(() => {
+    const ch = supabase
+      .channel("feed_post_comments:all")
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "feed_post_comments" }, (payload) => {
+        const r = payload.new as { id: string; post_id: string; author_name: string; body: string; created_at: string };
+        setComments((prev) => {
+          const arr = prev[r.post_id] ?? [];
+          if (arr.some((c) => c.id === r.id)) return prev;
+          return { ...prev, [r.post_id]: [...arr, { id: r.id, author: r.author_name, text: r.body, ts: new Date(r.created_at).getTime() }] };
+        });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, []);
 
   const q = searchQuery.trim().toLowerCase();
   const filtered = q
@@ -1094,20 +1284,28 @@ function FeedReel(props: FeedReelProps) {
       )
     : posts;
 
-  const toggleLike = (id: number) => {
-    setLiked((l) => {
-      const wasLiked = !!l[id];
-      setLikes((c) => ({ ...c, [id]: Math.max(0, (c[id] ?? 0) + (wasLiked ? -1 : 1)) }));
-      return { ...l, [id]: !wasLiked };
-    });
+  const toggleLike = async (id: string) => {
+    if (!currentUserId) { toast.error("Sign in to like."); return; }
+    const wasLiked = !!liked[id];
+    // Optimistic
+    setLiked((l) => ({ ...l, [id]: !wasLiked }));
+    setLikes((c) => ({ ...c, [id]: Math.max(0, (c[id] ?? 0) + (wasLiked ? -1 : 1)) }));
+    if (wasLiked) {
+      await supabase.from("feed_post_likes").delete().eq("post_id", id).eq("user_id", currentUserId);
+    } else {
+      await supabase.from("feed_post_likes").insert({ post_id: id, user_id: currentUserId });
+    }
   };
 
-  const addComment = (id: number) => {
+  const addComment = async (id: string) => {
     const t = commentDraft.trim();
     if (!t) return;
-    const entry: Comment = { author: currentUsername, text: t, ts: Date.now() };
-    setComments((c) => ({ ...c, [id]: [...(c[id] ?? []), entry] }));
+    if (!currentUserId) { toast.error("Sign in to comment."); return; }
     setCommentDraft("");
+    const { error } = await supabase.from("feed_post_comments").insert({
+      post_id: id, author_id: currentUserId, author_name: currentUsername, body: t,
+    });
+    if (error) toast.error(error.message);
   };
 
   // Shared glass panel classes
@@ -1365,8 +1563,8 @@ function FeedSlide({
   onActive,
 }: {
   children: React.ReactNode;
-  postId?: number | null;
-  onActive?: (id: number | null) => void;
+  postId?: string | null;
+  onActive?: (id: string | null) => void;
 }) {
   const ref = useRef<HTMLElement | null>(null);
   useEffect(() => {
