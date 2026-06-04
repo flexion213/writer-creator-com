@@ -309,6 +309,7 @@ function Dashboard() {
         <FeedReel
           posts={posts}
           currentUsername={currentUsername}
+          currentUserId={user?.id ?? null}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
           onOpenMenu={() => setNavOpen(true)}
