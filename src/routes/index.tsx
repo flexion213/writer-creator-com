@@ -38,8 +38,17 @@ export const Route = createFileRoute("/")({
   }),
 });
 
-type Post = { id: number; author: string; verified: boolean; title?: string; text: string; image?: string };
-type Comment = { author: string; text: string; ts: number };
+type Post = {
+  id: string;
+  author_id: string;
+  author: string;
+  verified: boolean;
+  title?: string;
+  text: string;
+  image?: string;
+  created_at: string;
+};
+type Comment = { id: string; author: string; text: string; ts: number };
 type Section = "feed" | "notebooks" | "suggestions" | "drawing";
 type Notebook = { id: number; title: string; body: string; updated: number };
 type SuggestionDrafts = {
