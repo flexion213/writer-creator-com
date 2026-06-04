@@ -114,12 +114,6 @@ function Dashboard() {
   // One-time hydration from localStorage (client only, after mount).
   useEffect(() => {
     try {
-      const rawPosts = window.localStorage.getItem("dd:posts");
-      if (rawPosts) {
-        const sanitizedPosts = sanitizeStoredPosts(JSON.parse(rawPosts));
-        setPosts(sanitizedPosts);
-        window.localStorage.setItem("dd:posts", JSON.stringify(sanitizedPosts));
-      }
       const rawDraft = window.localStorage.getItem("dd:post-draft");
       if (rawDraft) setDraft(rawDraft);
       const rawImg = window.localStorage.getItem("dd:post-draft-image");
@@ -140,8 +134,9 @@ function Dashboard() {
 
   useEffect(() => {
     if (!hydrated) return;
-    try { window.localStorage.setItem("dd:posts", JSON.stringify(posts)); } catch {}
-  }, [posts, hydrated]);
+    // Clean up legacy local-only feed; posts now live in cloud.
+    try { window.localStorage.removeItem("dd:posts"); } catch {}
+  }, [hydrated]);
   useEffect(() => {
     if (!hydrated) return;
     try { window.localStorage.setItem("dd:notebooks", JSON.stringify(notebooks)); } catch {}
@@ -198,23 +193,73 @@ function Dashboard() {
     reader.readAsDataURL(f);
   };
 
-  const submitPost = () => {
+  const submitPost = async () => {
     const text = draft.trim();
     const title = draftTitle.trim();
     if (!text && !draftImage && !title) return;
-    setPosts((p) => [{
-      id: Date.now(),
-      author: adminMode ? "Head Dev" : currentUsername,
+    if (!user) { toast.error("Sign in to post."); return; }
+    const { error } = await supabase.from("feed_posts").insert({
+      author_id: user.id,
+      author_name: adminMode ? "Head Dev" : currentUsername,
       verified: adminMode,
-      title: title || undefined,
-      text,
-      image: draftImage,
-    }, ...p]);
+      title: title || null,
+      body: text,
+      image: draftImage ?? null,
+    });
+    if (error) { toast.error(error.message); return; }
     setDraft("");
     setDraftTitle("");
     setDraftImage(undefined);
     if (fileRef.current) fileRef.current.value = "";
   };
+
+  // Cloud feed: load + realtime
+  useEffect(() => {
+    if (!user) { setPosts([]); return; }
+    let alive = true;
+    supabase
+      .from("feed_posts")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(200)
+      .then(({ data }) => {
+        if (!alive) return;
+        setPosts(
+          ((data as Array<{
+            id: string; author_id: string; author_name: string; verified: boolean;
+            title: string | null; body: string; image: string | null; created_at: string;
+          }>) ?? []).map((r) => ({
+            id: r.id,
+            author_id: r.author_id,
+            author: r.author_name,
+            verified: r.verified,
+            title: r.title ?? undefined,
+            text: r.body,
+            image: r.image ?? undefined,
+            created_at: r.created_at,
+          })),
+        );
+      });
+    const ch = supabase
+      .channel("feed_posts:all")
+      .on("postgres_changes", { event: "*", schema: "public", table: "feed_posts" }, (payload) => {
+        if (payload.eventType === "INSERT") {
+          const r = payload.new as {
+            id: string; author_id: string; author_name: string; verified: boolean;
+            title: string | null; body: string; image: string | null; created_at: string;
+          };
+          setPosts((prev) => prev.some((p) => p.id === r.id) ? prev : [{
+            id: r.id, author_id: r.author_id, author: r.author_name, verified: r.verified,
+            title: r.title ?? undefined, text: r.body, image: r.image ?? undefined, created_at: r.created_at,
+          }, ...prev]);
+        } else if (payload.eventType === "DELETE") {
+          const r = payload.old as { id: string };
+          setPosts((prev) => prev.filter((p) => p.id !== r.id));
+        }
+      })
+      .subscribe();
+    return () => { alive = false; supabase.removeChannel(ch); };
+  }, [user]);
 
   const go = (s: Section) => { setSection(s); setNavOpen(false); };
   const currentLabel = NAV.find((n) => n.id === section)?.label ?? "Global Feed";
