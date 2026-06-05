@@ -277,12 +277,35 @@ function NotebookFullscreen({
   const [body, setBody] = useState(notebook.body);
   const [saving, setSaving] = useState(false);
   const [fixing, setFixing] = useState(false);
-  const [tab, setTab] = useState<"write" | "characters" | "timeline">("write");
+  const [tab, setTab] = useState<"write" | "characters" | "timeline" | "lore">("write");
   const [characters, setCharacters] = useState<Character[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [lore, setLore] = useState<Lore[]>([]);
+  const [loreFilter, setLoreFilter] = useState<string>("All");
+  const [wordGoal, setWordGoal] = useState<number>(() => {
+    if (typeof window === "undefined") return 500;
+    const v = Number(window.localStorage.getItem(`nb:goal:${notebook.id}`) ?? 500);
+    return Number.isFinite(v) && v > 0 ? v : 500;
+  });
+  const [scratchOpen, setScratchOpen] = useState(false);
+  const [scratch, setScratch] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    return window.localStorage.getItem(`nb:scratch:${notebook.id}`) ?? "";
+  });
   const [openSharing, setOpenSharing] = useState(false);
   const [openChat, setOpenChat] = useState(false);
   const isOwner = notebook.owner_id === currentUserId;
+
+  // Persist scratchpad + goal per-notebook
+  useEffect(() => {
+    try { window.localStorage.setItem(`nb:scratch:${notebook.id}`, scratch); } catch {}
+  }, [scratch, notebook.id]);
+  useEffect(() => {
+    try { window.localStorage.setItem(`nb:goal:${notebook.id}`, String(wordGoal)); } catch {}
+  }, [wordGoal, notebook.id]);
+
+  const bodyWordCount = body.trim() ? body.trim().split(/\s+/).length : 0;
+  const goalPct = Math.min(100, Math.round((bodyWordCount / Math.max(1, wordGoal)) * 100));
 
   // Sync incoming changes
   useEffect(() => { setTitle(notebook.title); setBody(notebook.body); }, [notebook.id]);
@@ -290,12 +313,14 @@ function NotebookFullscreen({
   // Load characters + timeline
   useEffect(() => {
     void (async () => {
-      const [{ data: cd }, { data: td }] = await Promise.all([
+      const [{ data: cd }, { data: td }, { data: ld }] = await Promise.all([
         supabase.from("notebook_characters").select("*").eq("notebook_id", notebook.id),
         supabase.from("notebook_timeline_events").select("*").eq("notebook_id", notebook.id).order("event_order"),
+        supabase.from("notebook_lore").select("*").eq("notebook_id", notebook.id).order("created_at"),
       ]);
       setCharacters((cd as Character[]) ?? []);
       setTimeline((td as TimelineEvent[]) ?? []);
+      setLore((ld as Lore[]) ?? []);
     })();
   }, [notebook.id]);
 
@@ -351,6 +376,21 @@ function NotebookFullscreen({
     await Promise.all(reorder.map((e) =>
       supabase.from("notebook_timeline_events").update({ event_order: e.event_order }).eq("id", e.id)
     ));
+  };
+
+  const addLore = async (category: string) => {
+    const { data } = await supabase.from("notebook_lore").insert({
+      notebook_id: notebook.id, category, title: "Untitled",
+    }).select("*").single();
+    if (data) setLore((xs) => [...xs, data as Lore]);
+  };
+  const updateLore = async (id: string, patch: Partial<Lore>) => {
+    setLore((xs) => xs.map((x) => (x.id === id ? { ...x, ...patch } : x)));
+    await supabase.from("notebook_lore").update(patch).eq("id", id);
+  };
+  const removeLore = async (id: string) => {
+    setLore((xs) => xs.filter((x) => x.id !== id));
+    await supabase.from("notebook_lore").delete().eq("id", id);
   };
 
   return (
