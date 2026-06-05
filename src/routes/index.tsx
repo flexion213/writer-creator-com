@@ -47,6 +47,11 @@ type Post = {
   text: string;
   image?: string;
   created_at: string;
+  kind: "text" | "novel" | "comic";
+  cover?: string;
+  comicPages: string[];
+  projectId?: string | null;
+  hidden: boolean;
 };
 type Comment = { id: string; author: string; text: string; ts: number };
 type Section = "feed" | "notebooks" | "suggestions" | "drawing";
