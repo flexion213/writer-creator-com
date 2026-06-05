@@ -1613,24 +1613,71 @@ function FeedReel(props: FeedReelProps) {
       >
         {/* Composer slide */}
         <FeedSlide postId={null} onActive={setActivePostId}>
-          <div className={`${glass} w-full max-w-sm p-5`}>
-            <p className="text-xs uppercase tracking-widest text-white/60 mb-3">
-              Share a story
-            </p>
-            <Input
-              value={draftTitle}
-              onChange={(e) => setDraftTitle(e.target.value)}
-              placeholder="Title (optional)"
-              className="rounded-[20px] bg-white/5 border-white/10 text-white placeholder:text-white/40 font-semibold"
-              maxLength={120}
-            />
-            <Textarea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="What's the story?"
-              className="mt-2 min-h-28 resize-none rounded-[20px] bg-white/5 border-white/10 text-white placeholder:text-white/40"
-            />
-            {draftImage && (
+          <div
+            className={`${glass} w-full max-w-sm p-5 overflow-y-auto`}
+            style={{ maxHeight: "calc(100vh - 9rem)", overscrollBehavior: "contain" }}
+            onWheelCapture={(e) => e.stopPropagation()}
+            onTouchMoveCapture={(e) => e.stopPropagation()}
+          >
+            <p className="text-xs uppercase tracking-widest text-white/60 mb-3">Share a story</p>
+
+            {/* Mode toggle */}
+            <div className={`${glass} flex items-center gap-1 p-1 mb-3 text-xs`}>
+              {([
+                { id: "text", label: "Text", icon: Type },
+                { id: "novel", label: "Novel", icon: BookOpen },
+                { id: "comic", label: "Comic", icon: BookCopy },
+              ] as const).map((opt) => {
+                const Icon = opt.icon;
+                const active = composerKind === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => setComposerKind(opt.id)}
+                    className={`flex-1 flex items-center justify-center gap-1 h-8 rounded-[16px] transition ${
+                      active ? "bg-white text-black" : "text-white/80 hover:bg-white/10"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {composerKind !== "comic" && (
+              <>
+                <Input
+                  value={draftTitle}
+                  onChange={(e) => setDraftTitle(e.target.value)}
+                  placeholder={composerKind === "novel" ? "Chapter / story title" : "Title (optional)"}
+                  className="rounded-[20px] bg-white/5 border-white/10 text-white placeholder:text-white/40 font-semibold"
+                  maxLength={120}
+                />
+                <Textarea
+                  value={draft}
+                  onChange={(e) => {
+                    // Soft-enforce 500 words by trimming new input past the cap
+                    const next = e.target.value;
+                    const words = next.trim() ? next.trim().split(/\s+/) : [];
+                    if (words.length > 500) {
+                      setDraft(words.slice(0, 500).join(" "));
+                      toast.error("500-word limit reached.");
+                    } else setDraft(next);
+                  }}
+                  placeholder={composerKind === "novel" ? "Write your scene (max 500 words)…" : "What's the story?"}
+                  className="mt-2 min-h-28 resize-none rounded-[20px] bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                />
+                <div className="mt-1 flex items-center justify-between text-[10px]">
+                  <span className="text-white/40">Auto-saved as draft</span>
+                  <span className={overLimit ? "text-rose-400 font-semibold" : "text-white/60"}>
+                    {composerWordCount} / 500 words
+                  </span>
+                </div>
+              </>
+            )}
+
+            {composerKind === "text" && draftImage && (
               <div className="relative mt-2">
                 <img src={draftImage} alt="" className="rounded-[20px] max-h-48 w-full object-cover" />
                 <button
@@ -1642,47 +1689,111 @@ function FeedReel(props: FeedReelProps) {
                 </button>
               </div>
             )}
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={onPickImage}
-            />
+
+            {composerKind === "novel" && (
+              <div className="mt-3 space-y-2">
+                {cover && (
+                  <div className="relative">
+                    <img src={cover} alt="" className="rounded-[20px] max-h-56 w-full object-cover" />
+                    <button
+                      onClick={() => setCover(undefined)}
+                      className="absolute top-2 right-2 h-7 w-7 rounded-full bg-black/60 flex items-center justify-center"
+                      aria-label="Remove cover"
+                    ><X className="h-3.5 w-3.5 text-white" /></button>
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => coverRef.current?.click()}
+                    className={`${glass} h-9 px-3 flex items-center gap-1.5 text-xs text-white/90`}
+                  >
+                    <ImagePlus className="h-4 w-4" /> {cover ? "Replace cover" : "Add cover"}
+                  </button>
+                  <select
+                    value={projectId ?? ""}
+                    onChange={(e) => setProjectId(e.target.value || null)}
+                    className={`${glass} h-9 px-3 text-xs text-white/90 bg-transparent`}
+                  >
+                    <option value="" className="bg-black">Link to a project…</option>
+                    {myNotebooks.map((n) => (
+                      <option key={n.id} value={n.id} className="bg-black">{n.title || "Untitled"}</option>
+                    ))}
+                  </select>
+                </div>
+                <input ref={coverRef} type="file" accept="image/*" className="hidden" onChange={onPickCover} />
+              </div>
+            )}
+
+            {composerKind === "comic" && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-white/70">{comicPages.length} page{comicPages.length === 1 ? "" : "s"}</span>
+                  <button
+                    type="button"
+                    onClick={() => comicRef.current?.click()}
+                    className={`${glass} h-9 px-3 flex items-center gap-1.5 text-xs text-white/90`}
+                  >
+                    <Upload className="h-4 w-4" /> Add pages
+                  </button>
+                </div>
+                <input ref={comicRef} type="file" accept="image/*" multiple className="hidden" onChange={onPickComic} />
+                {comicPages.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {comicPages.map((p, i) => (
+                      <div key={i} className="relative aspect-[2/3] rounded-lg overflow-hidden border border-white/10">
+                        <img src={p} alt={`Page ${i + 1}`} className="w-full h-full object-cover" />
+                        <button
+                          onClick={() => setComicPages((cur) => cur.filter((_, idx) => idx !== i))}
+                          className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/70 flex items-center justify-center"
+                          aria-label="Remove page"
+                        ><X className="h-3 w-3 text-white" /></button>
+                        <span className="absolute bottom-1 left-1 text-[10px] bg-black/70 px-1.5 rounded text-white">{i + 1}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickImage} />
+
             <div className="flex items-center gap-2 mt-3">
+              {composerKind === "text" && (
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className={`${glass} h-10 px-3 flex items-center gap-1.5 text-xs text-white/90`}
+                >
+                  <ImagePlus className="h-4 w-4" /> Photo
+                </button>
+              )}
+              {composerKind !== "comic" && (
+                <button
+                  type="button"
+                  disabled={!draft.trim() || draftFixing}
+                  onClick={async () => {
+                    setDraftFixing(true);
+                    const fixed = await runFix(draft);
+                    if (fixed) setDraft(fixed);
+                    setDraftFixing(false);
+                  }}
+                  className={`${glass} h-10 px-3 flex items-center gap-1.5 text-xs text-white/90 disabled:opacity-40`}
+                >
+                  {draftFixing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                  Fix
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => fileRef.current?.click()}
-                className={`${glass} h-10 px-3 flex items-center gap-1.5 text-xs text-white/90`}
-              >
-                <ImagePlus className="h-4 w-4" /> Photo
-              </button>
-              <button
-                type="button"
-                disabled={!draft.trim() || draftFixing}
-                onClick={async () => {
-                  setDraftFixing(true);
-                  const fixed = await runFix(draft);
-                  if (fixed) setDraft(fixed);
-                  setDraftFixing(false);
-                }}
-                className={`${glass} h-10 px-3 flex items-center gap-1.5 text-xs text-white/90 disabled:opacity-40`}
-              >
-                {draftFixing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                Fix
-              </button>
-              <button
-                type="button"
-                onClick={submitPost}
-                disabled={!draft.trim() && !draftImage && !draftTitle.trim()}
+                onClick={submitFullPost}
+                disabled={posting || overLimit}
                 className="ml-auto h-10 px-4 rounded-[20px] bg-white text-black text-xs font-semibold flex items-center gap-1.5 disabled:opacity-40"
               >
-                <Send className="h-4 w-4" /> Post
+                {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Post
               </button>
             </div>
-            <p className="mt-4 text-center text-[11px] text-white/40">
-              Swipe up to explore stories
-            </p>
+            <p className="mt-4 text-center text-[11px] text-white/40">Swipe up to explore stories</p>
           </div>
         </FeedSlide>
 
