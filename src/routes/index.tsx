@@ -1954,12 +1954,20 @@ function FeedSlide({
   );
 }
 
-function FeedPostCard({ post, glass }: { post: Post; glass: string }) {
+function FeedPostCard({
+  post, glass, isReported, onReport, onOpenProject,
+}: {
+  post: Post;
+  glass: string;
+  isReported: boolean;
+  onReport: () => void;
+  onOpenProject?: () => void;
+}) {
   return (
     <article
       className={`${glass} relative w-full max-w-sm overflow-y-auto p-5 pr-20 animate-fade-in`}
       style={{
-        maxHeight: "calc(100vh - 8rem)",
+        maxHeight: "calc(100vh - 9rem)",
         overscrollBehavior: "contain",
         WebkitOverflowScrolling: "touch",
         scrollbarWidth: "thin",
@@ -1967,24 +1975,154 @@ function FeedPostCard({ post, glass }: { post: Post; glass: string }) {
       onWheelCapture={(e) => e.stopPropagation()}
       onTouchMoveCapture={(e) => e.stopPropagation()}
     >
-        <div className="flex items-center gap-1.5">
-          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-white/30 to-white/5 border border-white/10" />
-          <p className="text-sm font-medium text-white ml-1">{post.author}</p>
-          {post.verified && <BadgeCheck className="h-3.5 w-3.5 text-sky-400" />}
-        </div>
-        {post.title && (
-          <h2 className="mt-3 text-xl font-semibold leading-tight text-white">{post.title}</h2>
+      <div className="flex items-center gap-1.5">
+        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-white/30 to-white/5 border border-white/10" />
+        <p className="text-sm font-medium text-white ml-1">{post.author}</p>
+        {post.verified && <BadgeCheck className="h-3.5 w-3.5 text-sky-400" />}
+        {post.kind === "novel" && (
+          <span className="ml-2 text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/10 text-white/80">Novel</span>
         )}
-        {post.text && (
-          <p className="mt-2 text-[15px] leading-relaxed text-white/85 whitespace-pre-wrap">{post.text}</p>
+        {post.kind === "comic" && (
+          <span className="ml-2 text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/10 text-white/80">Comic</span>
         )}
-        {post.image && (
-          <img
-            src={post.image}
-            alt=""
-            className="mt-3 rounded-[20px] w-full max-h-[45vh] object-cover border border-white/10"
-          />
-        )}
+        <button
+          type="button"
+          onClick={onReport}
+          aria-label={isReported ? "Reported" : "Report"}
+          title={isReported ? "Reported" : "Report"}
+          className={`ml-auto h-7 w-7 rounded-full flex items-center justify-center transition ${
+            isReported ? "bg-rose-500/30 text-rose-200" : "bg-white/5 text-white/60 hover:bg-white/10"
+          }`}
+        >
+          <Flag className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {post.kind === "novel" && post.cover && (
+        <img
+          src={post.cover}
+          alt=""
+          className="mt-3 rounded-[20px] w-full max-h-[42vh] object-cover border border-white/10"
+        />
+      )}
+
+      {post.title && (
+        <h2 className="mt-3 text-xl font-semibold leading-tight text-white">{post.title}</h2>
+      )}
+      {post.text && post.kind !== "comic" && (
+        <p className="mt-2 text-[15px] leading-relaxed text-white/85 whitespace-pre-wrap">{post.text}</p>
+      )}
+
+      {post.kind === "text" && post.image && (
+        <img
+          src={post.image}
+          alt=""
+          className="mt-3 rounded-[20px] w-full max-h-[45vh] object-cover border border-white/10"
+        />
+      )}
+
+      {post.kind === "novel" && post.projectId && onOpenProject && (
+        <button
+          type="button"
+          onClick={onOpenProject}
+          className="mt-4 w-full h-10 rounded-[20px] bg-white text-black text-xs font-semibold flex items-center justify-center gap-1.5"
+        >
+          <LinkIcon className="h-3.5 w-3.5" /> Open project
+        </button>
+      )}
+
+      {post.kind === "comic" && post.comicPages.length > 0 && (
+        <ComicViewer pages={post.comicPages} />
+      )}
     </article>
+  );
+}
+
+function ComicViewer({ pages }: { pages: string[] }) {
+  const [zoomed, setZoomed] = useState<number | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  return (
+    <>
+      <div
+        ref={scrollRef}
+        className="mt-3 -mx-1 px-1 overflow-x-auto flex gap-2 snap-x snap-mandatory"
+        style={{
+          scrollbarWidth: "thin",
+          WebkitOverflowScrolling: "touch",
+          overscrollBehaviorX: "contain",
+        }}
+        onWheelCapture={(e) => e.stopPropagation()}
+        onTouchMoveCapture={(e) => e.stopPropagation()}
+      >
+        {pages.map((src, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => setZoomed(i)}
+            className="relative shrink-0 snap-start rounded-[16px] overflow-hidden border border-white/10 bg-black/40"
+            style={{ width: "78vw", maxWidth: 320, aspectRatio: "2 / 3" }}
+            aria-label={`Open page ${i + 1}`}
+          >
+            <img src={src} alt={`Page ${i + 1}`} className="w-full h-full object-contain" loading="lazy" />
+            <span className="absolute bottom-1.5 right-1.5 text-[10px] bg-black/70 px-1.5 py-0.5 rounded text-white">
+              {i + 1} / {pages.length}
+            </span>
+          </button>
+        ))}
+      </div>
+      {zoomed !== null && (
+        <ComicZoom pages={pages} startIndex={zoomed} onClose={() => setZoomed(null)} />
+      )}
+    </>
+  );
+}
+
+function ComicZoom({ pages, startIndex, onClose }: { pages: string[]; startIndex: number; onClose: () => void }) {
+  const [scale, setScale] = useState(1);
+  const [index, setIndex] = useState(startIndex);
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/95 flex flex-col" onClick={onClose}>
+      <div className="flex items-center justify-between p-3 text-white text-xs" onClick={(e) => e.stopPropagation()}>
+        <span>{index + 1} / {pages.length}</span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setScale((s) => Math.max(1, +(s - 0.25).toFixed(2)))}
+            className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center"
+            aria-label="Zoom out"
+          ><ZoomOut className="h-4 w-4" /></button>
+          <span className="w-10 text-center">{Math.round(scale * 100)}%</span>
+          <button
+            onClick={() => setScale((s) => Math.min(3, +(s + 0.25).toFixed(2)))}
+            className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center"
+            aria-label="Zoom in"
+          ><ZoomIn className="h-4 w-4" /></button>
+          <button onClick={onClose} className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center" aria-label="Close">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+      <div
+        className="flex-1 overflow-x-auto overflow-y-hidden snap-x snap-mandatory flex"
+        onClick={(e) => e.stopPropagation()}
+        onScroll={(e) => {
+          const t = e.currentTarget;
+          const w = t.clientWidth || 1;
+          const i = Math.round(t.scrollLeft / w);
+          if (i !== index) setIndex(i);
+        }}
+      >
+        {pages.map((src, i) => (
+          <div key={i} className="shrink-0 w-screen h-full snap-start flex items-center justify-center overflow-auto">
+            <img
+              src={src}
+              alt={`Page ${i + 1}`}
+              style={{ transform: `scale(${scale})`, transformOrigin: "center center", maxWidth: "100%", maxHeight: "100%" }}
+              className="select-none"
+              draggable={false}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }
