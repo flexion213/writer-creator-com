@@ -744,6 +744,9 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
 
   const drawing = useRef(false);
   const lastPt = useRef<{ x: number; y: number } | null>(null);
+  const pendingPts = useRef<Array<{ x: number; y: number }>>([]);
+  const rafId = useRef<number | null>(null);
+  const rectCache = useRef<{ left: number; top: number; w: number; h: number } | null>(null);
   // History tracked per active layer
   const history = useRef<Map<string, ImageData[]>>(new Map());
   const future = useRef<Map<string, ImageData[]>>(new Map());
@@ -827,10 +830,17 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     persistLayer(activeLayerId);
   };
 
-  const pos = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const c = e.currentTarget;
-    const r = c.getBoundingClientRect();
-    return { x: (e.clientX - r.left) * (c.width / r.width), y: (e.clientY - r.top) * (c.height / r.height) };
+  const computePos = (clientX: number, clientY: number, c: HTMLCanvasElement) => {
+    let r = rectCache.current;
+    if (!r) {
+      const b = c.getBoundingClientRect();
+      r = { left: b.left, top: b.top, w: b.width, h: b.height };
+      rectCache.current = r;
+    }
+    return {
+      x: (clientX - r.left) * (c.width / r.w),
+      y: (clientY - r.top) * (c.height / r.h),
+    };
   };
 
   const applyStroke = (ctx: CanvasRenderingContext2D) => {
@@ -930,32 +940,63 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     ctx.stroke();
   };
 
-  const start = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    (e.target as Element).setPointerCapture?.(e.pointerId);
+  const flushPoints = () => {
+    rafId.current = null;
+    if (!drawing.current) return;
     const c = activeCanvas(); if (!c) return;
+    const ctx = c.getContext("2d"); if (!ctx) return;
+    applyStroke(ctx);
+    const pts = pendingPts.current;
+    pendingPts.current = [];
+    for (const p of pts) {
+      const from = lastPt.current ?? p;
+      drawSegment(ctx, from, p);
+      lastPt.current = p;
+    }
+  };
+  const scheduleFlush = () => {
+    if (rafId.current != null) return;
+    rafId.current = window.requestAnimationFrame(flushPoints);
+  };
+
+  const start = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
+    const c = activeCanvas(); if (!c) return;
+    rectCache.current = null; // refresh in case layout changed
     drawing.current = true;
     snapshot();
     const ctx = c.getContext("2d")!;
     applyStroke(ctx);
-    const p = pos(e);
+    const p = computePos(e.clientX, e.clientY, c);
     lastPt.current = p;
     // initial dot
     drawSegment(ctx, p, { x: p.x + 0.01, y: p.y + 0.01 });
   };
   const move = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!drawing.current || !lastPt.current) return;
+    if (!drawing.current) return;
+    e.preventDefault();
     const c = activeCanvas(); if (!c) return;
-    const ctx = c.getContext("2d")!;
-    applyStroke(ctx);
-    const p = pos(e);
-    drawSegment(ctx, lastPt.current, p);
-    lastPt.current = p;
+    // Coalesced events for higher fidelity on supported browsers
+    const native = e.nativeEvent as PointerEvent & { getCoalescedEvents?: () => PointerEvent[] };
+    const events = native.getCoalescedEvents ? native.getCoalescedEvents() : null;
+    if (events && events.length > 0) {
+      for (const ev of events) pendingPts.current.push(computePos(ev.clientX, ev.clientY, c));
+    } else {
+      pendingPts.current.push(computePos(e.clientX, e.clientY, c));
+    }
+    scheduleFlush();
   };
   const end = () => {
+    if (!drawing.current) return;
     drawing.current = false;
     lastPt.current = null;
+    pendingPts.current = [];
+    if (rafId.current != null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
     if (sprayTimer.current) { window.clearInterval(sprayTimer.current); sprayTimer.current = null; }
-    persistLayer(activeLayerId);
+    // Persist on idle to avoid blocking the next stroke
+    window.setTimeout(() => persistLayer(activeLayerId), 0);
+    rectCache.current = null;
   };
 
   const clearActive = () => {
