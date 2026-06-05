@@ -1447,14 +1447,62 @@ function FeedReel(props: FeedReelProps) {
   }, []);
 
   const q = searchQuery.trim().toLowerCase();
-  const filtered = q
-    ? posts.filter(
-        (p) =>
-          p.author.toLowerCase().includes(q) ||
+  const filtered = posts
+    .filter((p) => (filter === "all" ? true : p.kind === filter))
+    .filter((p) =>
+      q
+        ? p.author.toLowerCase().includes(q) ||
           (p.title ?? "").toLowerCase().includes(q) ||
-          p.text.toLowerCase().includes(q),
-      )
-    : posts;
+          p.text.toLowerCase().includes(q)
+        : true,
+    );
+
+  const composerWordCount = draft.trim() ? draft.trim().split(/\s+/).length : 0;
+  const overLimit = composerWordCount > 500;
+
+  const submitFullPost = async () => {
+    if (!currentUserId) { toast.error("Sign in to post."); return; }
+    const text = draft.trim();
+    const title = draftTitle.trim();
+    if (composerKind === "comic") {
+      if (comicPages.length === 0) { toast.error("Add at least one comic page."); return; }
+    } else {
+      if (!text && !title && !draftImage) { toast.error("Write something or add a title."); return; }
+      if (overLimit) { toast.error("500-word limit reached."); return; }
+    }
+    setPosting(true);
+    const { error } = await supabase.from("feed_posts").insert({
+      author_id: currentUserId,
+      author_name: adminMode ? "Head Dev" : currentUsername,
+      verified: adminMode,
+      title: title || null,
+      body: text,
+      image: composerKind === "text" ? (draftImage ?? null) : null,
+      post_kind: composerKind,
+      cover_image: composerKind === "novel" ? (cover ?? null) : null,
+      comic_pages: composerKind === "comic" ? comicPages : [],
+      project_id: composerKind === "novel" ? projectId : null,
+      word_count: composerWordCount,
+    });
+    setPosting(false);
+    if (error) { toast.error(error.message); return; }
+    setDraft(""); setDraftTitle(""); setDraftImage(undefined);
+    setCover(undefined); setComicPages([]); setProjectId(null);
+    if (fileRef.current) fileRef.current.value = "";
+    toast.success("Posted.");
+  };
+
+  const reportPost = async (postId: string) => {
+    if (!currentUserId) { toast.error("Sign in to report."); return; }
+    if (reportedIds.has(postId)) { toast.info("Already reported — staff will review."); return; }
+    const reason = window.prompt("Briefly, what's wrong with this post?", "")?.trim() ?? "";
+    const { error } = await supabase.from("feed_post_reports").insert({
+      post_id: postId, reporter_id: currentUserId, reason,
+    });
+    if (error) { toast.error(error.message); return; }
+    setReportedIds((s) => new Set(s).add(postId));
+    toast.success("Reported — sent to the mod queue.");
+  };
 
   const toggleLike = async (id: string) => {
     if (!currentUserId) { toast.error("Sign in to like."); return; }
