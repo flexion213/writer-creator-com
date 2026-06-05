@@ -1555,9 +1555,10 @@ function FeedReel(props: FeedReelProps) {
     >
       {/* Top translucent overlay: menu + search */}
       <div
-        className="absolute top-0 left-0 right-0 z-40 flex items-center gap-2 px-3 pt-3"
+        className="absolute top-0 left-0 right-0 z-40 flex flex-col gap-2 px-3 pt-3"
         style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
       >
+        <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={onOpenMenu}
@@ -1574,6 +1575,30 @@ function FeedReel(props: FeedReelProps) {
             placeholder="Search #tags or @users"
             className="w-full h-full bg-transparent pl-10 pr-4 text-sm text-white placeholder:text-white/50 outline-none rounded-[20px]"
           />
+        </div>
+        </div>
+        {/* Filter dock */}
+        <div className={`${glass} self-start flex items-center gap-1 p-1 text-xs`}>
+          {([
+            { id: "all", label: "All", icon: Layers },
+            { id: "novel", label: "Novels", icon: BookOpen },
+            { id: "comic", label: "Comics", icon: BookCopy },
+          ] as const).map((opt) => {
+            const Icon = opt.icon;
+            const active = filter === opt.id;
+            return (
+              <button
+                key={opt.id}
+                onClick={() => setFilter(opt.id)}
+                className={`flex items-center gap-1 px-3 h-8 rounded-[16px] transition ${
+                  active ? "bg-white text-black" : "text-white/80 hover:bg-white/10"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {opt.label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
