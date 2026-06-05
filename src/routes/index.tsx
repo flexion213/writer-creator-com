@@ -782,6 +782,19 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layers.length]);
 
+  // Invalidate cached bounding rect on viewport changes
+  useEffect(() => {
+    const clear = () => { rectCache.current = null; };
+    window.addEventListener("resize", clear);
+    window.addEventListener("orientationchange", clear);
+    window.addEventListener("scroll", clear, true);
+    return () => {
+      window.removeEventListener("resize", clear);
+      window.removeEventListener("orientationchange", clear);
+      window.removeEventListener("scroll", clear, true);
+    };
+  }, []);
+
   const selectBrush = (id: BrushId) => {
     if (PREMIUM_BRUSHES.includes(id) && !adminMode) {
       toast.error("Premium brush — unlock for €3 (coming soon).");
