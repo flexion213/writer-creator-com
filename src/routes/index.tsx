@@ -22,6 +22,7 @@ import {
   Brush, PenTool, Highlighter, SprayCan, Sparkles, Droplet, Undo2, Redo2, Download, Trash2,
   ShieldAlert, Crown,
   Plus, Wand2, Loader2, Search, Heart, MessageCircle, Menu,
+  BookOpen, BookCopy, Flag, Type, Layers, Link as LinkIcon, ZoomIn, ZoomOut,
 } from "lucide-react";
 import Wheel from "@uiw/react-color-wheel";
 import ShadeSlider from "@uiw/react-color-shade-slider";
@@ -47,6 +48,11 @@ type Post = {
   text: string;
   image?: string;
   created_at: string;
+  kind: "text" | "novel" | "comic";
+  cover?: string;
+  comicPages: string[];
+  projectId?: string | null;
+  hidden: boolean;
 };
 type Comment = { id: string; author: string; text: string; ts: number };
 type Section = "feed" | "notebooks" | "suggestions" | "drawing";
@@ -228,6 +234,8 @@ function Dashboard() {
           ((data as Array<{
             id: string; author_id: string; author_name: string; verified: boolean;
             title: string | null; body: string; image: string | null; created_at: string;
+            post_kind: string | null; cover_image: string | null;
+            comic_pages: unknown; project_id: string | null; hidden: boolean | null;
           }>) ?? []).map((r) => ({
             id: r.id,
             author_id: r.author_id,
@@ -237,6 +245,11 @@ function Dashboard() {
             text: r.body,
             image: r.image ?? undefined,
             created_at: r.created_at,
+            kind: (r.post_kind === "novel" || r.post_kind === "comic" ? r.post_kind : "text") as Post["kind"],
+            cover: r.cover_image ?? undefined,
+            comicPages: Array.isArray(r.comic_pages) ? (r.comic_pages as string[]) : [],
+            projectId: r.project_id ?? null,
+            hidden: !!r.hidden,
           })),
         );
       });
@@ -247,10 +260,17 @@ function Dashboard() {
           const r = payload.new as {
             id: string; author_id: string; author_name: string; verified: boolean;
             title: string | null; body: string; image: string | null; created_at: string;
+            post_kind: string | null; cover_image: string | null;
+            comic_pages: unknown; project_id: string | null; hidden: boolean | null;
           };
           setPosts((prev) => prev.some((p) => p.id === r.id) ? prev : [{
             id: r.id, author_id: r.author_id, author: r.author_name, verified: r.verified,
             title: r.title ?? undefined, text: r.body, image: r.image ?? undefined, created_at: r.created_at,
+            kind: (r.post_kind === "novel" || r.post_kind === "comic" ? r.post_kind : "text") as Post["kind"],
+            cover: r.cover_image ?? undefined,
+            comicPages: Array.isArray(r.comic_pages) ? (r.comic_pages as string[]) : [],
+            projectId: r.project_id ?? null,
+            hidden: !!r.hidden,
           }, ...prev]);
         } else if (payload.eventType === "DELETE") {
           const r = payload.old as { id: string };
@@ -725,6 +745,9 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
 
   const drawing = useRef(false);
   const lastPt = useRef<{ x: number; y: number } | null>(null);
+  const pendingPts = useRef<Array<{ x: number; y: number }>>([]);
+  const rafId = useRef<number | null>(null);
+  const rectCache = useRef<{ left: number; top: number; w: number; h: number } | null>(null);
   // History tracked per active layer
   const history = useRef<Map<string, ImageData[]>>(new Map());
   const future = useRef<Map<string, ImageData[]>>(new Map());
@@ -759,6 +782,19 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [layers.length]);
+
+  // Invalidate cached bounding rect on viewport changes
+  useEffect(() => {
+    const clear = () => { rectCache.current = null; };
+    window.addEventListener("resize", clear);
+    window.addEventListener("orientationchange", clear);
+    window.addEventListener("scroll", clear, true);
+    return () => {
+      window.removeEventListener("resize", clear);
+      window.removeEventListener("orientationchange", clear);
+      window.removeEventListener("scroll", clear, true);
+    };
+  }, []);
 
   const selectBrush = (id: BrushId) => {
     if (PREMIUM_BRUSHES.includes(id) && !adminMode) {
@@ -808,10 +844,17 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     persistLayer(activeLayerId);
   };
 
-  const pos = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const c = e.currentTarget;
-    const r = c.getBoundingClientRect();
-    return { x: (e.clientX - r.left) * (c.width / r.width), y: (e.clientY - r.top) * (c.height / r.height) };
+  const computePos = (clientX: number, clientY: number, c: HTMLCanvasElement) => {
+    let r = rectCache.current;
+    if (!r) {
+      const b = c.getBoundingClientRect();
+      r = { left: b.left, top: b.top, w: b.width, h: b.height };
+      rectCache.current = r;
+    }
+    return {
+      x: (clientX - r.left) * (c.width / r.w),
+      y: (clientY - r.top) * (c.height / r.h),
+    };
   };
 
   const applyStroke = (ctx: CanvasRenderingContext2D) => {
@@ -911,32 +954,63 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     ctx.stroke();
   };
 
-  const start = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    (e.target as Element).setPointerCapture?.(e.pointerId);
+  const flushPoints = () => {
+    rafId.current = null;
+    if (!drawing.current) return;
     const c = activeCanvas(); if (!c) return;
+    const ctx = c.getContext("2d"); if (!ctx) return;
+    applyStroke(ctx);
+    const pts = pendingPts.current;
+    pendingPts.current = [];
+    for (const p of pts) {
+      const from = lastPt.current ?? p;
+      drawSegment(ctx, from, p);
+      lastPt.current = p;
+    }
+  };
+  const scheduleFlush = () => {
+    if (rafId.current != null) return;
+    rafId.current = window.requestAnimationFrame(flushPoints);
+  };
+
+  const start = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    e.preventDefault();
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
+    const c = activeCanvas(); if (!c) return;
+    rectCache.current = null; // refresh in case layout changed
     drawing.current = true;
     snapshot();
     const ctx = c.getContext("2d")!;
     applyStroke(ctx);
-    const p = pos(e);
+    const p = computePos(e.clientX, e.clientY, c);
     lastPt.current = p;
     // initial dot
     drawSegment(ctx, p, { x: p.x + 0.01, y: p.y + 0.01 });
   };
   const move = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    if (!drawing.current || !lastPt.current) return;
+    if (!drawing.current) return;
+    e.preventDefault();
     const c = activeCanvas(); if (!c) return;
-    const ctx = c.getContext("2d")!;
-    applyStroke(ctx);
-    const p = pos(e);
-    drawSegment(ctx, lastPt.current, p);
-    lastPt.current = p;
+    // Coalesced events for higher fidelity on supported browsers
+    const native = e.nativeEvent as PointerEvent & { getCoalescedEvents?: () => PointerEvent[] };
+    const events = native.getCoalescedEvents ? native.getCoalescedEvents() : null;
+    if (events && events.length > 0) {
+      for (const ev of events) pendingPts.current.push(computePos(ev.clientX, ev.clientY, c));
+    } else {
+      pendingPts.current.push(computePos(e.clientX, e.clientY, c));
+    }
+    scheduleFlush();
   };
   const end = () => {
+    if (!drawing.current) return;
     drawing.current = false;
     lastPt.current = null;
+    pendingPts.current = [];
+    if (rafId.current != null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
     if (sprayTimer.current) { window.clearInterval(sprayTimer.current); sprayTimer.current = null; }
-    persistLayer(activeLayerId);
+    // Persist on idle to avoid blocking the next stroke
+    window.setTimeout(() => persistLayer(activeLayerId), 0);
+    rectCache.current = null;
   };
 
   const clearActive = () => {
@@ -1178,6 +1252,104 @@ function FeedReel(props: FeedReelProps) {
     submitPost, runFix, draftFixing, setDraftFixing, currentUserId,
   } = props;
 
+  const navigate = useNavigate();
+  // Composer extensions
+  const [composerKind, setComposerKind] = useState<"text" | "novel" | "comic">(() => {
+    if (typeof window === "undefined") return "text";
+    const v = window.localStorage.getItem("dd:composer-kind");
+    return v === "novel" || v === "comic" ? v : "text";
+  });
+  const [cover, setCover] = useState<string | undefined>(() => {
+    if (typeof window === "undefined") return undefined;
+    return window.localStorage.getItem("dd:composer-cover") ?? undefined;
+  });
+  const [comicPages, setComicPages] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try { return JSON.parse(window.localStorage.getItem("dd:composer-comic") ?? "[]") as string[]; } catch { return []; }
+  });
+  const [projectId, setProjectId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return window.localStorage.getItem("dd:composer-project") || null;
+  });
+  const [myNotebooks, setMyNotebooks] = useState<Array<{ id: string; title: string }>>([]);
+  const coverRef = useRef<HTMLInputElement>(null);
+  const comicRef = useRef<HTMLInputElement>(null);
+  const [filter, setFilter] = useState<"all" | "novel" | "comic">("all");
+  const [posting, setPosting] = useState(false);
+  const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => { try { window.localStorage.setItem("dd:composer-kind", composerKind); } catch {} }, [composerKind]);
+  useEffect(() => {
+    try { cover ? window.localStorage.setItem("dd:composer-cover", cover) : window.localStorage.removeItem("dd:composer-cover"); } catch {}
+  }, [cover]);
+  useEffect(() => { try { window.localStorage.setItem("dd:composer-comic", JSON.stringify(comicPages)); } catch {} }, [comicPages]);
+  useEffect(() => {
+    try { projectId ? window.localStorage.setItem("dd:composer-project", projectId) : window.localStorage.removeItem("dd:composer-project"); } catch {}
+  }, [projectId]);
+
+  // Load notebooks I own for the "Link to Project" picker
+  useEffect(() => {
+    if (!currentUserId) { setMyNotebooks([]); return; }
+    void supabase.from("notebooks").select("id, title").eq("owner_id", currentUserId).order("updated_at", { ascending: false })
+      .then(({ data }) => setMyNotebooks((data as Array<{ id: string; title: string }>) ?? []));
+  }, [currentUserId]);
+
+  // Track which posts I've already reported (so the button reads "Reported")
+  useEffect(() => {
+    if (!currentUserId || posts.length === 0) return;
+    void supabase.from("feed_post_reports").select("post_id").eq("reporter_id", currentUserId).in("post_id", posts.map((p) => p.id))
+      .then(({ data }) => {
+        const s = new Set<string>();
+        for (const r of (data as Array<{ post_id: string }>) ?? []) s.add(r.post_id);
+        setReportedIds(s);
+      });
+  }, [currentUserId, posts]);
+
+  // Downscale an image File to a JPEG data URL bounded by maxW/maxH for mobile-safe payloads.
+  const fileToCompressedDataUrl = (file: File, maxW = 1600, maxH = 2400, quality = 0.82): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const ratio = Math.min(1, maxW / img.width, maxH / img.height);
+          const w = Math.round(img.width * ratio);
+          const h = Math.round(img.height * ratio);
+          const c = document.createElement("canvas");
+          c.width = w; c.height = h;
+          const ctx = c.getContext("2d"); if (!ctx) { reject(new Error("ctx")); return; }
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(c.toDataURL("image/jpeg", quality));
+        };
+        img.onerror = () => reject(new Error("img"));
+        img.src = String(reader.result);
+      };
+      reader.onerror = () => reject(new Error("read"));
+      reader.readAsDataURL(file);
+    });
+
+  const onPickCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    try { setCover(await fileToCompressedDataUrl(f, 800, 1200, 0.8)); }
+    catch { toast.error("Couldn't read that image."); }
+    finally { if (coverRef.current) coverRef.current.value = ""; }
+  };
+  const onPickComic = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    if (comicPages.length + files.length > 30) {
+      toast.error("Max 30 pages per comic post.");
+      if (comicRef.current) comicRef.current.value = "";
+      return;
+    }
+    try {
+      const next: string[] = [];
+      for (const f of files) next.push(await fileToCompressedDataUrl(f, 1400, 2000, 0.78));
+      setComicPages((cur) => [...cur, ...next]);
+    } catch { toast.error("One of those images failed to load."); }
+    finally { if (comicRef.current) comicRef.current.value = ""; }
+  };
+
   const [likes, setLikes] = useState<Record<string, number>>({});
   const [liked, setLiked] = useState<Record<string, boolean>>({});
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
@@ -1275,14 +1447,62 @@ function FeedReel(props: FeedReelProps) {
   }, []);
 
   const q = searchQuery.trim().toLowerCase();
-  const filtered = q
-    ? posts.filter(
-        (p) =>
-          p.author.toLowerCase().includes(q) ||
+  const filtered = posts
+    .filter((p) => (filter === "all" ? true : p.kind === filter))
+    .filter((p) =>
+      q
+        ? p.author.toLowerCase().includes(q) ||
           (p.title ?? "").toLowerCase().includes(q) ||
-          p.text.toLowerCase().includes(q),
-      )
-    : posts;
+          p.text.toLowerCase().includes(q)
+        : true,
+    );
+
+  const composerWordCount = draft.trim() ? draft.trim().split(/\s+/).length : 0;
+  const overLimit = composerWordCount > 500;
+
+  const submitFullPost = async () => {
+    if (!currentUserId) { toast.error("Sign in to post."); return; }
+    const text = draft.trim();
+    const title = draftTitle.trim();
+    if (composerKind === "comic") {
+      if (comicPages.length === 0) { toast.error("Add at least one comic page."); return; }
+    } else {
+      if (!text && !title && !draftImage) { toast.error("Write something or add a title."); return; }
+      if (overLimit) { toast.error("500-word limit reached."); return; }
+    }
+    setPosting(true);
+    const { error } = await supabase.from("feed_posts").insert({
+      author_id: currentUserId,
+      author_name: adminMode ? "Head Dev" : currentUsername,
+      verified: adminMode,
+      title: title || null,
+      body: text,
+      image: composerKind === "text" ? (draftImage ?? null) : null,
+      post_kind: composerKind,
+      cover_image: composerKind === "novel" ? (cover ?? null) : null,
+      comic_pages: composerKind === "comic" ? comicPages : [],
+      project_id: composerKind === "novel" ? projectId : null,
+      word_count: composerWordCount,
+    });
+    setPosting(false);
+    if (error) { toast.error(error.message); return; }
+    setDraft(""); setDraftTitle(""); setDraftImage(undefined);
+    setCover(undefined); setComicPages([]); setProjectId(null);
+    if (fileRef.current) fileRef.current.value = "";
+    toast.success("Posted.");
+  };
+
+  const reportPost = async (postId: string) => {
+    if (!currentUserId) { toast.error("Sign in to report."); return; }
+    if (reportedIds.has(postId)) { toast.info("Already reported — staff will review."); return; }
+    const reason = window.prompt("Briefly, what's wrong with this post?", "")?.trim() ?? "";
+    const { error } = await supabase.from("feed_post_reports").insert({
+      post_id: postId, reporter_id: currentUserId, reason,
+    });
+    if (error) { toast.error(error.message); return; }
+    setReportedIds((s) => new Set(s).add(postId));
+    toast.success("Reported — sent to the mod queue.");
+  };
 
   const toggleLike = async (id: string) => {
     if (!currentUserId) { toast.error("Sign in to like."); return; }
@@ -1335,9 +1555,10 @@ function FeedReel(props: FeedReelProps) {
     >
       {/* Top translucent overlay: menu + search */}
       <div
-        className="absolute top-0 left-0 right-0 z-40 flex items-center gap-2 px-3 pt-3"
+        className="absolute top-0 left-0 right-0 z-40 flex flex-col gap-2 px-3 pt-3"
         style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
       >
+        <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={onOpenMenu}
@@ -1355,6 +1576,30 @@ function FeedReel(props: FeedReelProps) {
             className="w-full h-full bg-transparent pl-10 pr-4 text-sm text-white placeholder:text-white/50 outline-none rounded-[20px]"
           />
         </div>
+        </div>
+        {/* Filter dock */}
+        <div className={`${glass} self-start flex items-center gap-1 p-1 text-xs`}>
+          {([
+            { id: "all", label: "All", icon: Layers },
+            { id: "novel", label: "Novels", icon: BookOpen },
+            { id: "comic", label: "Comics", icon: BookCopy },
+          ] as const).map((opt) => {
+            const Icon = opt.icon;
+            const active = filter === opt.id;
+            return (
+              <button
+                key={opt.id}
+                onClick={() => setFilter(opt.id)}
+                className={`flex items-center gap-1 px-3 h-8 rounded-[16px] transition ${
+                  active ? "bg-white text-black" : "text-white/80 hover:bg-white/10"
+                }`}
+              >
+                <Icon className="h-3.5 w-3.5" />
+                {opt.label}
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Snap container */}
@@ -1368,24 +1613,71 @@ function FeedReel(props: FeedReelProps) {
       >
         {/* Composer slide */}
         <FeedSlide postId={null} onActive={setActivePostId}>
-          <div className={`${glass} w-full max-w-sm p-5`}>
-            <p className="text-xs uppercase tracking-widest text-white/60 mb-3">
-              Share a story
-            </p>
-            <Input
-              value={draftTitle}
-              onChange={(e) => setDraftTitle(e.target.value)}
-              placeholder="Title (optional)"
-              className="rounded-[20px] bg-white/5 border-white/10 text-white placeholder:text-white/40 font-semibold"
-              maxLength={120}
-            />
-            <Textarea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="What's the story?"
-              className="mt-2 min-h-28 resize-none rounded-[20px] bg-white/5 border-white/10 text-white placeholder:text-white/40"
-            />
-            {draftImage && (
+          <div
+            className={`${glass} w-full max-w-sm p-5 overflow-y-auto`}
+            style={{ maxHeight: "calc(100vh - 9rem)", overscrollBehavior: "contain" }}
+            onWheelCapture={(e) => e.stopPropagation()}
+            onTouchMoveCapture={(e) => e.stopPropagation()}
+          >
+            <p className="text-xs uppercase tracking-widest text-white/60 mb-3">Share a story</p>
+
+            {/* Mode toggle */}
+            <div className={`${glass} flex items-center gap-1 p-1 mb-3 text-xs`}>
+              {([
+                { id: "text", label: "Text", icon: Type },
+                { id: "novel", label: "Novel", icon: BookOpen },
+                { id: "comic", label: "Comic", icon: BookCopy },
+              ] as const).map((opt) => {
+                const Icon = opt.icon;
+                const active = composerKind === opt.id;
+                return (
+                  <button
+                    key={opt.id}
+                    onClick={() => setComposerKind(opt.id)}
+                    className={`flex-1 flex items-center justify-center gap-1 h-8 rounded-[16px] transition ${
+                      active ? "bg-white text-black" : "text-white/80 hover:bg-white/10"
+                    }`}
+                  >
+                    <Icon className="h-3.5 w-3.5" />
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {composerKind !== "comic" && (
+              <>
+                <Input
+                  value={draftTitle}
+                  onChange={(e) => setDraftTitle(e.target.value)}
+                  placeholder={composerKind === "novel" ? "Chapter / story title" : "Title (optional)"}
+                  className="rounded-[20px] bg-white/5 border-white/10 text-white placeholder:text-white/40 font-semibold"
+                  maxLength={120}
+                />
+                <Textarea
+                  value={draft}
+                  onChange={(e) => {
+                    // Soft-enforce 500 words by trimming new input past the cap
+                    const next = e.target.value;
+                    const words = next.trim() ? next.trim().split(/\s+/) : [];
+                    if (words.length > 500) {
+                      setDraft(words.slice(0, 500).join(" "));
+                      toast.error("500-word limit reached.");
+                    } else setDraft(next);
+                  }}
+                  placeholder={composerKind === "novel" ? "Write your scene (max 500 words)…" : "What's the story?"}
+                  className="mt-2 min-h-28 resize-none rounded-[20px] bg-white/5 border-white/10 text-white placeholder:text-white/40"
+                />
+                <div className="mt-1 flex items-center justify-between text-[10px]">
+                  <span className="text-white/40">Auto-saved as draft</span>
+                  <span className={overLimit ? "text-rose-400 font-semibold" : "text-white/60"}>
+                    {composerWordCount} / 500 words
+                  </span>
+                </div>
+              </>
+            )}
+
+            {composerKind === "text" && draftImage && (
               <div className="relative mt-2">
                 <img src={draftImage} alt="" className="rounded-[20px] max-h-48 w-full object-cover" />
                 <button
@@ -1397,47 +1689,111 @@ function FeedReel(props: FeedReelProps) {
                 </button>
               </div>
             )}
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={onPickImage}
-            />
+
+            {composerKind === "novel" && (
+              <div className="mt-3 space-y-2">
+                {cover && (
+                  <div className="relative">
+                    <img src={cover} alt="" className="rounded-[20px] max-h-56 w-full object-cover" />
+                    <button
+                      onClick={() => setCover(undefined)}
+                      className="absolute top-2 right-2 h-7 w-7 rounded-full bg-black/60 flex items-center justify-center"
+                      aria-label="Remove cover"
+                    ><X className="h-3.5 w-3.5 text-white" /></button>
+                  </div>
+                )}
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => coverRef.current?.click()}
+                    className={`${glass} h-9 px-3 flex items-center gap-1.5 text-xs text-white/90`}
+                  >
+                    <ImagePlus className="h-4 w-4" /> {cover ? "Replace cover" : "Add cover"}
+                  </button>
+                  <select
+                    value={projectId ?? ""}
+                    onChange={(e) => setProjectId(e.target.value || null)}
+                    className={`${glass} h-9 px-3 text-xs text-white/90 bg-transparent`}
+                  >
+                    <option value="" className="bg-black">Link to a project…</option>
+                    {myNotebooks.map((n) => (
+                      <option key={n.id} value={n.id} className="bg-black">{n.title || "Untitled"}</option>
+                    ))}
+                  </select>
+                </div>
+                <input ref={coverRef} type="file" accept="image/*" className="hidden" onChange={onPickCover} />
+              </div>
+            )}
+
+            {composerKind === "comic" && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-white/70">{comicPages.length} page{comicPages.length === 1 ? "" : "s"}</span>
+                  <button
+                    type="button"
+                    onClick={() => comicRef.current?.click()}
+                    className={`${glass} h-9 px-3 flex items-center gap-1.5 text-xs text-white/90`}
+                  >
+                    <Upload className="h-4 w-4" /> Add pages
+                  </button>
+                </div>
+                <input ref={comicRef} type="file" accept="image/*" multiple className="hidden" onChange={onPickComic} />
+                {comicPages.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {comicPages.map((p, i) => (
+                      <div key={i} className="relative aspect-[2/3] rounded-lg overflow-hidden border border-white/10">
+                        <img src={p} alt={`Page ${i + 1}`} className="w-full h-full object-cover" />
+                        <button
+                          onClick={() => setComicPages((cur) => cur.filter((_, idx) => idx !== i))}
+                          className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/70 flex items-center justify-center"
+                          aria-label="Remove page"
+                        ><X className="h-3 w-3 text-white" /></button>
+                        <span className="absolute bottom-1 left-1 text-[10px] bg-black/70 px-1.5 rounded text-white">{i + 1}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickImage} />
+
             <div className="flex items-center gap-2 mt-3">
+              {composerKind === "text" && (
+                <button
+                  type="button"
+                  onClick={() => fileRef.current?.click()}
+                  className={`${glass} h-10 px-3 flex items-center gap-1.5 text-xs text-white/90`}
+                >
+                  <ImagePlus className="h-4 w-4" /> Photo
+                </button>
+              )}
+              {composerKind !== "comic" && (
+                <button
+                  type="button"
+                  disabled={!draft.trim() || draftFixing}
+                  onClick={async () => {
+                    setDraftFixing(true);
+                    const fixed = await runFix(draft);
+                    if (fixed) setDraft(fixed);
+                    setDraftFixing(false);
+                  }}
+                  className={`${glass} h-10 px-3 flex items-center gap-1.5 text-xs text-white/90 disabled:opacity-40`}
+                >
+                  {draftFixing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                  Fix
+                </button>
+              )}
               <button
                 type="button"
-                onClick={() => fileRef.current?.click()}
-                className={`${glass} h-10 px-3 flex items-center gap-1.5 text-xs text-white/90`}
-              >
-                <ImagePlus className="h-4 w-4" /> Photo
-              </button>
-              <button
-                type="button"
-                disabled={!draft.trim() || draftFixing}
-                onClick={async () => {
-                  setDraftFixing(true);
-                  const fixed = await runFix(draft);
-                  if (fixed) setDraft(fixed);
-                  setDraftFixing(false);
-                }}
-                className={`${glass} h-10 px-3 flex items-center gap-1.5 text-xs text-white/90 disabled:opacity-40`}
-              >
-                {draftFixing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
-                Fix
-              </button>
-              <button
-                type="button"
-                onClick={submitPost}
-                disabled={!draft.trim() && !draftImage && !draftTitle.trim()}
+                onClick={submitFullPost}
+                disabled={posting || overLimit}
                 className="ml-auto h-10 px-4 rounded-[20px] bg-white text-black text-xs font-semibold flex items-center gap-1.5 disabled:opacity-40"
               >
-                <Send className="h-4 w-4" /> Post
+                {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Post
               </button>
             </div>
-            <p className="mt-4 text-center text-[11px] text-white/40">
-              Swipe up to explore stories
-            </p>
+            <p className="mt-4 text-center text-[11px] text-white/40">Swipe up to explore stories</p>
           </div>
         </FeedSlide>
 
@@ -1476,7 +1832,13 @@ function FeedReel(props: FeedReelProps) {
         ) : (
           filtered.map((p) => (
             <FeedSlide key={p.id} postId={p.id} onActive={setActivePostId}>
-              <FeedPostCard post={p} glass={glass} />
+              <FeedPostCard
+                post={p}
+                glass={glass}
+                isReported={reportedIds.has(p.id)}
+                onReport={() => reportPost(p.id)}
+                onOpenProject={p.projectId ? () => navigate({ to: "/" }) : undefined}
+              />
             </FeedSlide>
           ))
         )}
@@ -1592,12 +1954,20 @@ function FeedSlide({
   );
 }
 
-function FeedPostCard({ post, glass }: { post: Post; glass: string }) {
+function FeedPostCard({
+  post, glass, isReported, onReport, onOpenProject,
+}: {
+  post: Post;
+  glass: string;
+  isReported: boolean;
+  onReport: () => void;
+  onOpenProject?: () => void;
+}) {
   return (
     <article
       className={`${glass} relative w-full max-w-sm overflow-y-auto p-5 pr-20 animate-fade-in`}
       style={{
-        maxHeight: "calc(100vh - 8rem)",
+        maxHeight: "calc(100vh - 9rem)",
         overscrollBehavior: "contain",
         WebkitOverflowScrolling: "touch",
         scrollbarWidth: "thin",
@@ -1605,24 +1975,154 @@ function FeedPostCard({ post, glass }: { post: Post; glass: string }) {
       onWheelCapture={(e) => e.stopPropagation()}
       onTouchMoveCapture={(e) => e.stopPropagation()}
     >
-        <div className="flex items-center gap-1.5">
-          <div className="h-8 w-8 rounded-full bg-gradient-to-br from-white/30 to-white/5 border border-white/10" />
-          <p className="text-sm font-medium text-white ml-1">{post.author}</p>
-          {post.verified && <BadgeCheck className="h-3.5 w-3.5 text-sky-400" />}
-        </div>
-        {post.title && (
-          <h2 className="mt-3 text-xl font-semibold leading-tight text-white">{post.title}</h2>
+      <div className="flex items-center gap-1.5">
+        <div className="h-8 w-8 rounded-full bg-gradient-to-br from-white/30 to-white/5 border border-white/10" />
+        <p className="text-sm font-medium text-white ml-1">{post.author}</p>
+        {post.verified && <BadgeCheck className="h-3.5 w-3.5 text-sky-400" />}
+        {post.kind === "novel" && (
+          <span className="ml-2 text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/10 text-white/80">Novel</span>
         )}
-        {post.text && (
-          <p className="mt-2 text-[15px] leading-relaxed text-white/85 whitespace-pre-wrap">{post.text}</p>
+        {post.kind === "comic" && (
+          <span className="ml-2 text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/10 text-white/80">Comic</span>
         )}
-        {post.image && (
-          <img
-            src={post.image}
-            alt=""
-            className="mt-3 rounded-[20px] w-full max-h-[45vh] object-cover border border-white/10"
-          />
-        )}
+        <button
+          type="button"
+          onClick={onReport}
+          aria-label={isReported ? "Reported" : "Report"}
+          title={isReported ? "Reported" : "Report"}
+          className={`ml-auto h-7 w-7 rounded-full flex items-center justify-center transition ${
+            isReported ? "bg-rose-500/30 text-rose-200" : "bg-white/5 text-white/60 hover:bg-white/10"
+          }`}
+        >
+          <Flag className="h-3.5 w-3.5" />
+        </button>
+      </div>
+
+      {post.kind === "novel" && post.cover && (
+        <img
+          src={post.cover}
+          alt=""
+          className="mt-3 rounded-[20px] w-full max-h-[42vh] object-cover border border-white/10"
+        />
+      )}
+
+      {post.title && (
+        <h2 className="mt-3 text-xl font-semibold leading-tight text-white">{post.title}</h2>
+      )}
+      {post.text && post.kind !== "comic" && (
+        <p className="mt-2 text-[15px] leading-relaxed text-white/85 whitespace-pre-wrap">{post.text}</p>
+      )}
+
+      {post.kind === "text" && post.image && (
+        <img
+          src={post.image}
+          alt=""
+          className="mt-3 rounded-[20px] w-full max-h-[45vh] object-cover border border-white/10"
+        />
+      )}
+
+      {post.kind === "novel" && post.projectId && onOpenProject && (
+        <button
+          type="button"
+          onClick={onOpenProject}
+          className="mt-4 w-full h-10 rounded-[20px] bg-white text-black text-xs font-semibold flex items-center justify-center gap-1.5"
+        >
+          <LinkIcon className="h-3.5 w-3.5" /> Open project
+        </button>
+      )}
+
+      {post.kind === "comic" && post.comicPages.length > 0 && (
+        <ComicViewer pages={post.comicPages} />
+      )}
     </article>
+  );
+}
+
+function ComicViewer({ pages }: { pages: string[] }) {
+  const [zoomed, setZoomed] = useState<number | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  return (
+    <>
+      <div
+        ref={scrollRef}
+        className="mt-3 -mx-1 px-1 overflow-x-auto flex gap-2 snap-x snap-mandatory"
+        style={{
+          scrollbarWidth: "thin",
+          WebkitOverflowScrolling: "touch",
+          overscrollBehaviorX: "contain",
+        }}
+        onWheelCapture={(e) => e.stopPropagation()}
+        onTouchMoveCapture={(e) => e.stopPropagation()}
+      >
+        {pages.map((src, i) => (
+          <button
+            key={i}
+            type="button"
+            onClick={() => setZoomed(i)}
+            className="relative shrink-0 snap-start rounded-[16px] overflow-hidden border border-white/10 bg-black/40"
+            style={{ width: "78vw", maxWidth: 320, aspectRatio: "2 / 3" }}
+            aria-label={`Open page ${i + 1}`}
+          >
+            <img src={src} alt={`Page ${i + 1}`} className="w-full h-full object-contain" loading="lazy" />
+            <span className="absolute bottom-1.5 right-1.5 text-[10px] bg-black/70 px-1.5 py-0.5 rounded text-white">
+              {i + 1} / {pages.length}
+            </span>
+          </button>
+        ))}
+      </div>
+      {zoomed !== null && (
+        <ComicZoom pages={pages} startIndex={zoomed} onClose={() => setZoomed(null)} />
+      )}
+    </>
+  );
+}
+
+function ComicZoom({ pages, startIndex, onClose }: { pages: string[]; startIndex: number; onClose: () => void }) {
+  const [scale, setScale] = useState(1);
+  const [index, setIndex] = useState(startIndex);
+  return (
+    <div className="fixed inset-0 z-[60] bg-black/95 flex flex-col" onClick={onClose}>
+      <div className="flex items-center justify-between p-3 text-white text-xs" onClick={(e) => e.stopPropagation()}>
+        <span>{index + 1} / {pages.length}</span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setScale((s) => Math.max(1, +(s - 0.25).toFixed(2)))}
+            className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center"
+            aria-label="Zoom out"
+          ><ZoomOut className="h-4 w-4" /></button>
+          <span className="w-10 text-center">{Math.round(scale * 100)}%</span>
+          <button
+            onClick={() => setScale((s) => Math.min(3, +(s + 0.25).toFixed(2)))}
+            className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center"
+            aria-label="Zoom in"
+          ><ZoomIn className="h-4 w-4" /></button>
+          <button onClick={onClose} className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center" aria-label="Close">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      </div>
+      <div
+        className="flex-1 overflow-x-auto overflow-y-hidden snap-x snap-mandatory flex"
+        onClick={(e) => e.stopPropagation()}
+        onScroll={(e) => {
+          const t = e.currentTarget;
+          const w = t.clientWidth || 1;
+          const i = Math.round(t.scrollLeft / w);
+          if (i !== index) setIndex(i);
+        }}
+      >
+        {pages.map((src, i) => (
+          <div key={i} className="shrink-0 w-screen h-full snap-start flex items-center justify-center overflow-auto">
+            <img
+              src={src}
+              alt={`Page ${i + 1}`}
+              style={{ transform: `scale(${scale})`, transformOrigin: "center center", maxWidth: "100%", maxHeight: "100%" }}
+              className="select-none"
+              draggable={false}
+            />
+          </div>
+        ))}
+      </div>
+    </div>
   );
 }

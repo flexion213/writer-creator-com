@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.auto_hide_reported_post() FROM PUBLIC, anon, authenticated;
