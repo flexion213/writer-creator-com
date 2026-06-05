@@ -1832,7 +1832,13 @@ function FeedReel(props: FeedReelProps) {
         ) : (
           filtered.map((p) => (
             <FeedSlide key={p.id} postId={p.id} onActive={setActivePostId}>
-              <FeedPostCard post={p} glass={glass} />
+              <FeedPostCard
+                post={p}
+                glass={glass}
+                isReported={reportedIds.has(p.id)}
+                onReport={() => reportPost(p.id)}
+                onOpenProject={p.projectId ? () => navigate({ to: "/" }) : undefined}
+              />
             </FeedSlide>
           ))
         )}
