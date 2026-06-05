@@ -419,13 +419,44 @@ function NotebookFullscreen({
       </header>
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="flex-1 flex flex-col min-h-0">
-        <TabsList className="mx-3 mt-3 grid grid-cols-3 rounded-2xl shrink-0">
+        <TabsList className="mx-3 mt-3 grid grid-cols-4 rounded-2xl shrink-0">
           <TabsTrigger value="write" className="rounded-2xl"><BookOpen className="h-3.5 w-3.5 mr-1" /> Write</TabsTrigger>
           <TabsTrigger value="characters" className="rounded-2xl"><Users className="h-3.5 w-3.5 mr-1" /> Characters</TabsTrigger>
           <TabsTrigger value="timeline" className="rounded-2xl"><Clock className="h-3.5 w-3.5 mr-1" /> Timeline</TabsTrigger>
+          <TabsTrigger value="lore" className="rounded-2xl"><Globe2 className="h-3.5 w-3.5 mr-1" /> Lore</TabsTrigger>
         </TabsList>
 
         <TabsContent value="write" className="flex-1 min-h-0 m-0 mt-3 px-3 pb-3 flex flex-col gap-2">
+          {/* Word goal progress bar */}
+          <div className="flex items-center gap-2 px-1">
+            <Target className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+              <div className="h-full bg-primary transition-all" style={{ width: `${goalPct}%` }} />
+            </div>
+            <span className="text-[10px] text-muted-foreground tabular-nums w-20 text-right">
+              {bodyWordCount} / {wordGoal}
+            </span>
+            <Input
+              type="number"
+              min={50}
+              max={50000}
+              value={wordGoal}
+              onChange={(e) => setWordGoal(Math.max(50, Number(e.target.value) || 500))}
+              className="h-7 w-20 rounded-xl text-[11px]"
+              aria-label="Daily word goal"
+            />
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 rounded-xl"
+              onClick={() => setScratchOpen(true)}
+              aria-label="Open scratchpad"
+              title="Scratchpad"
+            >
+              <StickyNote className="h-3.5 w-3.5" />
+            </Button>
+          </div>
+
           <Textarea
             value={body}
             onChange={(e) => setBody(e.target.value)}
@@ -508,6 +539,69 @@ function NotebookFullscreen({
             ))}
           </div>
         </TabsContent>
+
+        <TabsContent value="lore" className="flex-1 min-h-0 m-0 mt-3 px-3 pb-3 overflow-y-auto space-y-3">
+          <div className="flex items-center gap-1 overflow-x-auto pb-1">
+            {(["All", ...LORE_CATEGORIES] as const).map((cat) => {
+              const active = loreFilter === cat;
+              return (
+                <button
+                  key={cat}
+                  onClick={() => setLoreFilter(cat)}
+                  className={`shrink-0 px-3 h-8 rounded-full text-xs transition ${
+                    active ? "bg-primary text-primary-foreground" : "bg-muted/40 text-muted-foreground hover:bg-muted/70"
+                  }`}
+                >
+                  {cat}
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {LORE_CATEGORIES.map((cat) => (
+              <Button key={cat} size="sm" variant="outline" className="rounded-full" onClick={() => addLore(cat)}>
+                <Plus className="h-3 w-3 mr-1" /> {cat}
+              </Button>
+            ))}
+          </div>
+          {lore.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-6">
+              Build your world. Add locations, factions, power systems and more.
+            </p>
+          )}
+          <div className="grid grid-cols-1 gap-2">
+            {lore
+              .filter((l) => loreFilter === "All" || l.category === loreFilter)
+              .map((l) => (
+              <Card key={l.id} className="p-3 space-y-2 rounded-2xl">
+                <div className="flex items-center gap-2">
+                  <select
+                    value={l.category}
+                    onChange={(e) => updateLore(l.id, { category: e.target.value })}
+                    className="h-7 rounded-xl border bg-background text-xs px-2"
+                  >
+                    {LORE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                  </select>
+                  <Input
+                    value={l.title}
+                    onChange={(e) => updateLore(l.id, { title: e.target.value })}
+                    className="h-7 rounded-xl text-sm font-medium flex-1"
+                    placeholder="Name"
+                  />
+                  <Button size="icon" variant="ghost" className="h-7 w-7 hover:text-destructive" onClick={() => removeLore(l.id)}>
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+                <Textarea
+                  value={l.details}
+                  onChange={(e) => updateLore(l.id, { details: e.target.value })}
+                  placeholder="Describe it…"
+                  className="rounded-xl min-h-[70px] text-xs"
+                />
+              </Card>
+            ))}
+          </div>
+        </TabsContent>
       </Tabs>
 
       <Sheet open={openSharing} onOpenChange={setOpenSharing}>
@@ -523,6 +617,24 @@ function NotebookFullscreen({
             currentUserId={currentUserId}
             currentUsername={currentUsername}
             canModerate={canModerate}
+          />
+        </SheetContent>
+      </Sheet>
+
+      {/* Quick scratchpad — collapsible slide-out */}
+      <Sheet open={scratchOpen} onOpenChange={setScratchOpen}>
+        <SheetContent side="right" className="w-[90vw] sm:max-w-sm flex flex-col p-0">
+          <SheetHeader className="px-4 pt-4 pb-2 border-b">
+            <SheetTitle className="flex items-center gap-2 text-base">
+              <StickyNote className="h-4 w-4" /> Scratchpad
+            </SheetTitle>
+            <p className="text-[10px] text-muted-foreground">Quick notes, brainstorming, plot beats. Saved on this device.</p>
+          </SheetHeader>
+          <Textarea
+            value={scratch}
+            onChange={(e) => setScratch(e.target.value)}
+            placeholder="Jot anything…"
+            className="flex-1 m-3 rounded-2xl resize-none text-sm"
           />
         </SheetContent>
       </Sheet>
