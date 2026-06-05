@@ -1252,6 +1252,104 @@ function FeedReel(props: FeedReelProps) {
     submitPost, runFix, draftFixing, setDraftFixing, currentUserId,
   } = props;
 
+  const navigate = useNavigate();
+  // Composer extensions
+  const [composerKind, setComposerKind] = useState<"text" | "novel" | "comic">(() => {
+    if (typeof window === "undefined") return "text";
+    const v = window.localStorage.getItem("dd:composer-kind");
+    return v === "novel" || v === "comic" ? v : "text";
+  });
+  const [cover, setCover] = useState<string | undefined>(() => {
+    if (typeof window === "undefined") return undefined;
+    return window.localStorage.getItem("dd:composer-cover") ?? undefined;
+  });
+  const [comicPages, setComicPages] = useState<string[]>(() => {
+    if (typeof window === "undefined") return [];
+    try { return JSON.parse(window.localStorage.getItem("dd:composer-comic") ?? "[]") as string[]; } catch { return []; }
+  });
+  const [projectId, setProjectId] = useState<string | null>(() => {
+    if (typeof window === "undefined") return null;
+    return window.localStorage.getItem("dd:composer-project") || null;
+  });
+  const [myNotebooks, setMyNotebooks] = useState<Array<{ id: string; title: string }>>([]);
+  const coverRef = useRef<HTMLInputElement>(null);
+  const comicRef = useRef<HTMLInputElement>(null);
+  const [filter, setFilter] = useState<"all" | "novel" | "comic">("all");
+  const [posting, setPosting] = useState(false);
+  const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => { try { window.localStorage.setItem("dd:composer-kind", composerKind); } catch {} }, [composerKind]);
+  useEffect(() => {
+    try { cover ? window.localStorage.setItem("dd:composer-cover", cover) : window.localStorage.removeItem("dd:composer-cover"); } catch {}
+  }, [cover]);
+  useEffect(() => { try { window.localStorage.setItem("dd:composer-comic", JSON.stringify(comicPages)); } catch {} }, [comicPages]);
+  useEffect(() => {
+    try { projectId ? window.localStorage.setItem("dd:composer-project", projectId) : window.localStorage.removeItem("dd:composer-project"); } catch {}
+  }, [projectId]);
+
+  // Load notebooks I own for the "Link to Project" picker
+  useEffect(() => {
+    if (!currentUserId) { setMyNotebooks([]); return; }
+    void supabase.from("notebooks").select("id, title").eq("owner_id", currentUserId).order("updated_at", { ascending: false })
+      .then(({ data }) => setMyNotebooks((data as Array<{ id: string; title: string }>) ?? []));
+  }, [currentUserId]);
+
+  // Track which posts I've already reported (so the button reads "Reported")
+  useEffect(() => {
+    if (!currentUserId || posts.length === 0) return;
+    void supabase.from("feed_post_reports").select("post_id").eq("reporter_id", currentUserId).in("post_id", posts.map((p) => p.id))
+      .then(({ data }) => {
+        const s = new Set<string>();
+        for (const r of (data as Array<{ post_id: string }>) ?? []) s.add(r.post_id);
+        setReportedIds(s);
+      });
+  }, [currentUserId, posts]);
+
+  // Downscale an image File to a JPEG data URL bounded by maxW/maxH for mobile-safe payloads.
+  const fileToCompressedDataUrl = (file: File, maxW = 1600, maxH = 2400, quality = 0.82): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new Image();
+        img.onload = () => {
+          const ratio = Math.min(1, maxW / img.width, maxH / img.height);
+          const w = Math.round(img.width * ratio);
+          const h = Math.round(img.height * ratio);
+          const c = document.createElement("canvas");
+          c.width = w; c.height = h;
+          const ctx = c.getContext("2d"); if (!ctx) { reject(new Error("ctx")); return; }
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(c.toDataURL("image/jpeg", quality));
+        };
+        img.onerror = () => reject(new Error("img"));
+        img.src = String(reader.result);
+      };
+      reader.onerror = () => reject(new Error("read"));
+      reader.readAsDataURL(file);
+    });
+
+  const onPickCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0]; if (!f) return;
+    try { setCover(await fileToCompressedDataUrl(f, 800, 1200, 0.8)); }
+    catch { toast.error("Couldn't read that image."); }
+    finally { if (coverRef.current) coverRef.current.value = ""; }
+  };
+  const onPickComic = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    if (files.length === 0) return;
+    if (comicPages.length + files.length > 30) {
+      toast.error("Max 30 pages per comic post.");
+      if (comicRef.current) comicRef.current.value = "";
+      return;
+    }
+    try {
+      const next: string[] = [];
+      for (const f of files) next.push(await fileToCompressedDataUrl(f, 1400, 2000, 0.78));
+      setComicPages((cur) => [...cur, ...next]);
+    } catch { toast.error("One of those images failed to load."); }
+    finally { if (comicRef.current) comicRef.current.value = ""; }
+  };
+
   const [likes, setLikes] = useState<Record<string, number>>({});
   const [liked, setLiked] = useState<Record<string, boolean>>({});
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
