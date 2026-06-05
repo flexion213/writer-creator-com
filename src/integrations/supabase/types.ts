@@ -75,38 +75,99 @@ export type Database = {
           },
         ]
       }
+      feed_post_reports: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          reason: string
+          reporter_id: string
+          resolved: boolean
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          reason?: string
+          reporter_id: string
+          resolved?: boolean
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          reason?: string
+          reporter_id?: string
+          resolved?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "feed_post_reports_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "feed_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_posts: {
         Row: {
           author_id: string
           author_name: string
           body: string
+          comic_pages: Json
+          cover_image: string | null
           created_at: string
+          hidden: boolean
           id: string
           image: string | null
+          post_kind: string
+          project_id: string | null
           title: string | null
           verified: boolean
+          word_count: number
         }
         Insert: {
           author_id: string
           author_name: string
           body?: string
+          comic_pages?: Json
+          cover_image?: string | null
           created_at?: string
+          hidden?: boolean
           id?: string
           image?: string | null
+          post_kind?: string
+          project_id?: string | null
           title?: string | null
           verified?: boolean
+          word_count?: number
         }
         Update: {
           author_id?: string
           author_name?: string
           body?: string
+          comic_pages?: Json
+          cover_image?: string | null
           created_at?: string
+          hidden?: boolean
           id?: string
           image?: string | null
+          post_kind?: string
+          project_id?: string | null
           title?: string | null
           verified?: boolean
+          word_count?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "feed_posts_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "notebooks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notebook_characters: {
         Row: {
@@ -139,6 +200,41 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "notebook_characters_notebook_id_fkey"
+            columns: ["notebook_id"]
+            isOneToOne: false
+            referencedRelation: "notebooks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notebook_lore: {
+        Row: {
+          category: string
+          created_at: string
+          details: string
+          id: string
+          notebook_id: string
+          title: string
+        }
+        Insert: {
+          category?: string
+          created_at?: string
+          details?: string
+          id?: string
+          notebook_id: string
+          title?: string
+        }
+        Update: {
+          category?: string
+          created_at?: string
+          details?: string
+          id?: string
+          notebook_id?: string
+          title?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notebook_lore_notebook_id_fkey"
             columns: ["notebook_id"]
             isOneToOne: false
             referencedRelation: "notebooks"
