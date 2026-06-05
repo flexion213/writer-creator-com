@@ -233,6 +233,8 @@ function Dashboard() {
           ((data as Array<{
             id: string; author_id: string; author_name: string; verified: boolean;
             title: string | null; body: string; image: string | null; created_at: string;
+            post_kind: string | null; cover_image: string | null;
+            comic_pages: unknown; project_id: string | null; hidden: boolean | null;
           }>) ?? []).map((r) => ({
             id: r.id,
             author_id: r.author_id,
@@ -242,6 +244,11 @@ function Dashboard() {
             text: r.body,
             image: r.image ?? undefined,
             created_at: r.created_at,
+            kind: (r.post_kind === "novel" || r.post_kind === "comic" ? r.post_kind : "text") as Post["kind"],
+            cover: r.cover_image ?? undefined,
+            comicPages: Array.isArray(r.comic_pages) ? (r.comic_pages as string[]) : [],
+            projectId: r.project_id ?? null,
+            hidden: !!r.hidden,
           })),
         );
       });
@@ -252,10 +259,17 @@ function Dashboard() {
           const r = payload.new as {
             id: string; author_id: string; author_name: string; verified: boolean;
             title: string | null; body: string; image: string | null; created_at: string;
+            post_kind: string | null; cover_image: string | null;
+            comic_pages: unknown; project_id: string | null; hidden: boolean | null;
           };
           setPosts((prev) => prev.some((p) => p.id === r.id) ? prev : [{
             id: r.id, author_id: r.author_id, author: r.author_name, verified: r.verified,
             title: r.title ?? undefined, text: r.body, image: r.image ?? undefined, created_at: r.created_at,
+            kind: (r.post_kind === "novel" || r.post_kind === "comic" ? r.post_kind : "text") as Post["kind"],
+            cover: r.cover_image ?? undefined,
+            comicPages: Array.isArray(r.comic_pages) ? (r.comic_pages as string[]) : [],
+            projectId: r.project_id ?? null,
+            hidden: !!r.hidden,
           }, ...prev]);
         } else if (payload.eventType === "DELETE") {
           const r = payload.old as { id: string };
