@@ -22,6 +22,7 @@ import {
   Brush, PenTool, Highlighter, SprayCan, Sparkles, Droplet, Undo2, Redo2, Download, Trash2,
   ShieldAlert, Crown,
   Plus, Wand2, Loader2, Search, Heart, MessageCircle, Menu,
+  BookOpen, BookCopy, Flag, Type, Layers, Link as LinkIcon, ZoomIn, ZoomOut,
 } from "lucide-react";
 import Wheel from "@uiw/react-color-wheel";
 import ShadeSlider from "@uiw/react-color-shade-slider";
