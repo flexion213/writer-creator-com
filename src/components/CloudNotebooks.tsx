@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import {
   NotebookPen, Plus, Trash2, Wand2, Loader2, Users, MessageCircle,
   UserPlus, Send, ShieldCheck, X, LogIn, Shield, ArrowLeft, BookOpen,
-  Clock, ChevronUp, ChevronDown,
+  Clock, ChevronUp, ChevronDown, Globe2, Target, StickyNote,
 } from "lucide-react";
 
 type Notebook = {
@@ -56,6 +56,14 @@ type TimelineEvent = {
   event_order: number;
   event_date: string;
 };
+type Lore = {
+  id: string;
+  notebook_id: string;
+  category: string;
+  title: string;
+  details: string;
+};
+const LORE_CATEGORIES = ["Location", "Faction", "Power System", "Item", "Race", "Other"] as const;
 
 export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<string | null> }) {
   const { user, profile, loading, isAdmin, isModerator } = useAuth();
