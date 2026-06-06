@@ -1079,7 +1079,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
         <div className="absolute inset-0 flex items-center justify-center p-2">
           <div
             className="relative shadow-2xl rounded-md overflow-hidden bg-[#0a0a0a] border border-white/10"
-            style={{ aspectRatio: `${CANVAS_W} / ${CANVAS_H}`, maxHeight: "100%", maxWidth: "100%" }}
+            style={{ aspectRatio: `${CANVAS_W} / ${CANVAS_H}`, maxHeight: "100%", maxWidth: "100%", touchAction: "none" }}
           >
             {layers.map((layer) => (
               <canvas
