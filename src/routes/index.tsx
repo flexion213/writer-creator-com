@@ -727,7 +727,12 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   const [brush, setBrush] = useState<BrushId>(() => {
     if (typeof window === "undefined") return "pen";
     const saved = window.localStorage.getItem("dd:drawing-brush");
-    return BRUSHES.some((item) => item.id === saved) ? (saved as BrushId) : "pen";
+    // Never auto-restore eraser — it makes the canvas look "broken" on reload
+    // (no visible strokes on an empty layer).
+    if (saved && saved !== "eraser" && BRUSHES.some((item) => item.id === saved)) {
+      return saved as BrushId;
+    }
+    return "pen";
   });
   const [size, setSize] = useState(() => {
     if (typeof window === "undefined") return 4;
@@ -991,14 +996,10 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     if (!drawing.current) return;
     e.preventDefault();
     const c = activeCanvas(); if (!c) return;
-    // Coalesced events for higher fidelity on supported browsers
-    const native = e.nativeEvent as PointerEvent & { getCoalescedEvents?: () => PointerEvent[] };
-    const events = native.getCoalescedEvents ? native.getCoalescedEvents() : null;
-    if (events && events.length > 0) {
-      for (const ev of events) pendingPts.current.push(computePos(ev.clientX, ev.clientY, c));
-    } else {
-      pendingPts.current.push(computePos(e.clientX, e.clientY, c));
-    }
+    // Use the primary event coords only. Coalesced events on iOS Safari can
+    // report stale (0,0) coordinates, which caused strokes to "jump" off-canvas
+    // and made drawing appear completely broken on mobile.
+    pendingPts.current.push(computePos(e.clientX, e.clientY, c));
     scheduleFlush();
   };
   const end = () => {
@@ -1078,7 +1079,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
         <div className="absolute inset-0 flex items-center justify-center p-2">
           <div
             className="relative shadow-2xl rounded-md overflow-hidden bg-[#0a0a0a] border border-white/10"
-            style={{ aspectRatio: `${CANVAS_W} / ${CANVAS_H}`, maxHeight: "100%", maxWidth: "100%" }}
+            style={{ aspectRatio: `${CANVAS_W} / ${CANVAS_H}`, maxHeight: "100%", maxWidth: "100%", touchAction: "none" }}
           >
             {layers.map((layer) => (
               <canvas
