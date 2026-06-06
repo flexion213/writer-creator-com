@@ -710,6 +710,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   const CANVAS_H = isMobileViewport ? 1200 : 1800;
 
   const layerRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
+  const stageHostRef = useRef<HTMLDivElement | null>(null);
   const setLayerRef = (id: string) => (el: HTMLCanvasElement | null) => {
     if (el) layerRefs.current.set(id, el);
     else layerRefs.current.delete(id);
@@ -718,6 +719,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   const [layers, setLayers] = useState<Layer[]>([{ id: "base", name: "Layer 1", visible: true }]);
   const [activeLayerId, setActiveLayerId] = useState<string>("base");
   const [showSide, setShowSide] = useState(false);
+  const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
 
   const activeCanvas = () => layerRefs.current.get(activeLayerId) ?? null;
 
@@ -836,6 +838,37 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
       window.removeEventListener("scroll", clear, true);
     };
   }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const host = stageHostRef.current;
+    if (!host) return;
+
+    const updateStageSize = () => {
+      const bounds = host.getBoundingClientRect();
+      const maxW = Math.max(0, bounds.width - 16);
+      const maxH = Math.max(0, bounds.height - 16);
+      if (!maxW || !maxH) return;
+      const aspect = CANVAS_W / CANVAS_H;
+      let width = Math.min(maxW, maxH * aspect);
+      let height = width / aspect;
+      if (height > maxH) {
+        height = maxH;
+        width = height * aspect;
+      }
+      setStageSize({ width: Math.floor(width), height: Math.floor(height) });
+      rectCache.current = null;
+    };
+
+    updateStageSize();
+    const ro = new ResizeObserver(updateStageSize);
+    ro.observe(host);
+    window.addEventListener("orientationchange", updateStageSize);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("orientationchange", updateStageSize);
+    };
+  }, [CANVAS_H, CANVAS_W]);
 
   const selectBrush = (id: BrushId) => {
     if (PREMIUM_BRUSHES.includes(id) && !adminMode) {
