@@ -1141,11 +1141,15 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
       </div>
 
       {/* Canvas area (fills remaining space) */}
-      <div className="flex-1 min-h-0 relative overflow-hidden bg-[#0a0a0a]">
+      <div ref={stageHostRef} className="flex-1 min-h-0 relative overflow-hidden bg-[#0a0a0a]">
         <div className="absolute inset-0 flex items-center justify-center p-2">
           <div
-            className="relative h-full w-auto max-w-full shadow-2xl rounded-md overflow-hidden bg-[#0a0a0a] border border-white/10"
-            style={{ aspectRatio: `${CANVAS_W} / ${CANVAS_H}`, touchAction: "none" }}
+            className="relative shadow-2xl rounded-md overflow-hidden bg-[#0a0a0a] border border-white/10"
+            style={{
+              width: stageSize.width > 0 ? `${stageSize.width}px` : "min(100%, 42vh)",
+              height: stageSize.height > 0 ? `${stageSize.height}px` : "min(70vh, calc(100vw * 1.3333))",
+              touchAction: "none",
+            }}
           >
             {layers.map((layer) => (
               <canvas
