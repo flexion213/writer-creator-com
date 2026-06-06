@@ -704,10 +704,13 @@ const PREMIUM_BRUSHES: BrushId[] = ["neon", "spray"];
 
 function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMenu: () => void }) {
   type Layer = { id: string; name: string; visible: boolean };
-  const CANVAS_W = 1400;
-  const CANVAS_H = 1800;
+  type LayerSnapshot = string | null;
+  const isMobileViewport = typeof window !== "undefined" ? window.innerWidth < 768 : false;
+  const CANVAS_W = isMobileViewport ? 900 : 1400;
+  const CANVAS_H = isMobileViewport ? 1200 : 1800;
 
   const layerRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
+  const stageHostRef = useRef<HTMLDivElement | null>(null);
   const setLayerRef = (id: string) => (el: HTMLCanvasElement | null) => {
     if (el) layerRefs.current.set(id, el);
     else layerRefs.current.delete(id);
@@ -716,6 +719,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   const [layers, setLayers] = useState<Layer[]>([{ id: "base", name: "Layer 1", visible: true }]);
   const [activeLayerId, setActiveLayerId] = useState<string>("base");
   const [showSide, setShowSide] = useState(false);
+  const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
 
   const activeCanvas = () => layerRefs.current.get(activeLayerId) ?? null;
 
@@ -753,10 +757,44 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   const pendingPts = useRef<Array<{ x: number; y: number }>>([]);
   const rafId = useRef<number | null>(null);
   const rectCache = useRef<{ left: number; top: number; w: number; h: number } | null>(null);
-  // History tracked per active layer
-  const history = useRef<Map<string, ImageData[]>>(new Map());
-  const future = useRef<Map<string, ImageData[]>>(new Map());
+  // History tracked per active layer. Use lightweight data URLs instead of
+  // large ImageData buffers so Android Chrome can start drawing reliably.
+  const history = useRef<Map<string, LayerSnapshot[]>>(new Map());
+  const future = useRef<Map<string, LayerSnapshot[]>>(new Map());
   const sprayTimer = useRef<number | null>(null);
+
+  const captureLayerSnapshot = useCallback((canvas: HTMLCanvasElement) => {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return null;
+    try {
+      const sample = ctx.getImageData(0, 0, 1, 1).data;
+      const hasInk = sample[3] > 0 || ctx.getImageData(Math.max(0, canvas.width - 1), Math.max(0, canvas.height - 1), 1, 1).data[3] > 0;
+      if (!hasInk) {
+        const probe = ctx.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data;
+        if (probe[3] === 0) return null;
+      }
+    } catch {
+      // If probing fails, still try a snapshot fallback.
+    }
+    try {
+      return canvas.toDataURL("image/png");
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const restoreLayerSnapshot = useCallback((canvas: HTMLCanvasElement, snapshot: LayerSnapshot) => {
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (!snapshot) return;
+    const img = new Image();
+    img.onload = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+    };
+    img.src = snapshot;
+  }, []);
 
   const persistLayer = useCallback((id: string) => {
     const c = layerRefs.current.get(id); if (!c) return;
@@ -801,6 +839,37 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const host = stageHostRef.current;
+    if (!host) return;
+
+    const updateStageSize = () => {
+      const bounds = host.getBoundingClientRect();
+      const maxW = Math.max(0, bounds.width - 16);
+      const maxH = Math.max(0, bounds.height - 16);
+      if (!maxW || !maxH) return;
+      const aspect = CANVAS_W / CANVAS_H;
+      let width = Math.min(maxW, maxH * aspect);
+      let height = width / aspect;
+      if (height > maxH) {
+        height = maxH;
+        width = height * aspect;
+      }
+      setStageSize({ width: Math.floor(width), height: Math.floor(height) });
+      rectCache.current = null;
+    };
+
+    updateStageSize();
+    const ro = new ResizeObserver(updateStageSize);
+    ro.observe(host);
+    window.addEventListener("orientationchange", updateStageSize);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("orientationchange", updateStageSize);
+    };
+  }, [CANVAS_H, CANVAS_W]);
+
   const selectBrush = (id: BrushId) => {
     if (PREMIUM_BRUSHES.includes(id) && !adminMode) {
       toast.error("Premium brush — unlock for €3 (coming soon).");
@@ -814,9 +883,8 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
 
   const snapshot = () => {
     const c = activeCanvas(); if (!c) return;
-    const ctx = c.getContext("2d")!;
     const h = history.current.get(activeLayerId) ?? [];
-    h.push(ctx.getImageData(0, 0, c.width, c.height));
+    h.push(captureLayerSnapshot(c));
     if (h.length > 25) h.shift();
     history.current.set(activeLayerId, h);
     future.current.set(activeLayerId, []);
@@ -824,28 +892,26 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
 
   const undo = () => {
     const c = activeCanvas(); if (!c) return;
-    const ctx = c.getContext("2d")!;
     const h = history.current.get(activeLayerId) ?? [];
     const last = h.pop();
-    if (!last) return;
+    if (last === undefined) return;
     const f = future.current.get(activeLayerId) ?? [];
-    f.push(ctx.getImageData(0, 0, c.width, c.height));
+    f.push(captureLayerSnapshot(c));
     future.current.set(activeLayerId, f);
     history.current.set(activeLayerId, h);
-    ctx.putImageData(last, 0, 0);
+    restoreLayerSnapshot(c, last);
     persistLayer(activeLayerId);
   };
   const redo = () => {
     const c = activeCanvas(); if (!c) return;
-    const ctx = c.getContext("2d")!;
     const f = future.current.get(activeLayerId) ?? [];
     const next = f.pop();
-    if (!next) return;
+    if (next === undefined) return;
     const h = history.current.get(activeLayerId) ?? [];
-    h.push(ctx.getImageData(0, 0, c.width, c.height));
+    h.push(captureLayerSnapshot(c));
     history.current.set(activeLayerId, h);
     future.current.set(activeLayerId, f);
-    ctx.putImageData(next, 0, 0);
+    restoreLayerSnapshot(c, next);
     persistLayer(activeLayerId);
   };
 
@@ -1075,11 +1141,15 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
       </div>
 
       {/* Canvas area (fills remaining space) */}
-      <div className="flex-1 min-h-0 relative overflow-hidden bg-[#0a0a0a]">
+      <div ref={stageHostRef} className="flex-1 min-h-0 relative overflow-hidden bg-[#0a0a0a]">
         <div className="absolute inset-0 flex items-center justify-center p-2">
           <div
             className="relative shadow-2xl rounded-md overflow-hidden bg-[#0a0a0a] border border-white/10"
-            style={{ aspectRatio: `${CANVAS_W} / ${CANVAS_H}`, maxHeight: "100%", maxWidth: "100%", touchAction: "none" }}
+            style={{
+              width: stageSize.width > 0 ? `${stageSize.width}px` : "min(100%, 42vh)",
+              height: stageSize.height > 0 ? `${stageSize.height}px` : "min(70vh, calc(100vw * 1.3333))",
+              touchAction: "none",
+            }}
           >
             {layers.map((layer) => (
               <canvas
