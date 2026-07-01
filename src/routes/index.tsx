@@ -706,8 +706,8 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   type Layer = { id: string; name: string; visible: boolean };
   type LayerSnapshot = string | null;
   const isMobileViewport = typeof window !== "undefined" ? window.innerWidth < 768 : false;
-  const CANVAS_W = isMobileViewport ? 900 : 1400;
-  const CANVAS_H = isMobileViewport ? 1200 : 1800;
+  const CANVAS_W = isMobileViewport ? 1200 : 2000;
+  const CANVAS_H = isMobileViewport ? 1600 : 2600;
 
   const layerRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
   const stageHostRef = useRef<HTMLDivElement | null>(null);
@@ -1093,7 +1093,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     const out = document.createElement("canvas");
     out.width = CANVAS_W; out.height = CANVAS_H;
     const octx = out.getContext("2d")!;
-    octx.fillStyle = "#0a0a0a"; octx.fillRect(0, 0, out.width, out.height);
+    octx.fillStyle = "#ffffff"; octx.fillRect(0, 0, out.width, out.height);
     for (const layer of layers) {
       if (!layer.visible) continue;
       const c = layerRefs.current.get(layer.id); if (!c) continue;
@@ -1142,9 +1142,9 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
 
       {/* Canvas area (fills remaining space) */}
       <div ref={stageHostRef} className="flex-1 min-h-0 relative overflow-hidden bg-[#0a0a0a]">
-        <div className="absolute inset-0 flex items-center justify-center p-2">
+        <div className="absolute inset-0 flex items-center justify-center p-0.5">
           <div
-            className="relative shadow-2xl rounded-md overflow-hidden bg-[#0a0a0a] border border-white/10"
+            className="relative shadow-2xl rounded-md overflow-hidden bg-white border border-white/10"
             style={{
               width: stageSize.width > 0 ? `${stageSize.width}px` : "min(100%, 42vh)",
               height: stageSize.height > 0 ? `${stageSize.height}px` : "min(70vh, calc(100vw * 1.3333))",
@@ -1244,13 +1244,37 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
 
       {/* Bottom toolbar dock */}
       <div className="shrink-0 border-t border-white/10 bg-black/70 backdrop-blur-xl p-3 space-y-2">
+        {/* Quick color palette + clear */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
           <button
-            onClick={() => setShowColor((s) => !s)}
-            className="h-10 w-10 shrink-0 rounded-full border-2 border-white/20 shadow-inner"
+            onClick={() => { setShowSide(true); setShowColor(true); }}
+            className="h-9 w-9 shrink-0 rounded-full border-2 border-white/30 shadow-inner"
             style={{ background: currentHex }}
-            aria-label="Toggle color"
+            aria-label="Open color picker"
+            title="Custom color"
           />
+          {swatches.map((s) => {
+            const selected = s.toLowerCase() === currentHex.toLowerCase();
+            return (
+              <button
+                key={s}
+                onClick={() => setHsva(hexToHsva(s))}
+                className={`h-8 w-8 shrink-0 rounded-full border transition-transform ${selected ? "border-white scale-110 ring-2 ring-white/60" : "border-white/20"}`}
+                style={{ background: s }}
+                aria-label={`Color ${s}`}
+              />
+            );
+          })}
+          <button
+            onClick={clearActive}
+            className="ml-auto h-9 w-9 shrink-0 rounded-full bg-rose-500/20 hover:bg-rose-500/40 border border-rose-400/40 text-rose-100 flex items-center justify-center"
+            aria-label="Clear canvas"
+            title="Clear canvas"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
+        <div className="flex items-center gap-2 overflow-x-auto pb-1">
           {BRUSHES.map((b) => {
             const Icon = b.icon;
             const active = brush === b.id;
