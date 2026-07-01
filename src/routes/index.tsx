@@ -392,6 +392,10 @@ function Dashboard() {
           <CloudNotebooks runFix={runFix} />
         )}
         {section === "suggestions" && <Suggestions suggestions={suggestions} setSuggestions={setSuggestions} />}
+
+        <footer className="pt-6 pb-4 text-center text-[11px] text-muted-foreground/70">
+          © 2026 Writer Creators. Made by Abdulkader Alomar.
+        </footer>
       </main>
       )}
 
