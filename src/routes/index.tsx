@@ -16,6 +16,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   BadgeCheck, Bug, Lightbulb, Video, Upload, Send,
   NotebookPen, Globe, MessageSquare, Pencil, ImagePlus, X, Eraser, Megaphone,
@@ -1250,13 +1251,24 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
       <div className="shrink-0 border-t border-white/10 bg-black/70 backdrop-blur-xl p-3 space-y-2">
         {/* Quick color palette + clear */}
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <button
-            onClick={() => { setShowSide(true); setShowColor(true); }}
-            className="h-9 w-9 shrink-0 rounded-full border-2 border-white/30 shadow-inner"
-            style={{ background: currentHex }}
-            aria-label="Open color picker"
-            title="Custom color"
-          />
+          <Popover>
+            <PopoverTrigger asChild>
+              <button
+                className="h-9 w-9 shrink-0 rounded-full border-2 border-white/30 shadow-inner"
+                style={{ background: currentHex }}
+                aria-label="Open color wheel"
+                title="Color wheel"
+              />
+            </PopoverTrigger>
+            <PopoverContent side="top" align="start" className="w-[220px] p-3 bg-black/90 backdrop-blur-xl border-white/10 space-y-2">
+              <div className="flex justify-center">
+                <Wheel color={hsva} onChange={(c) => setHsva({ ...hsva, ...c.hsva })} width={180} height={180} />
+              </div>
+              <ShadeSlider hsva={hsva} onChange={(s) => setHsva({ ...hsva, ...s })} style={{ width: "100%" }} />
+              <Alpha hsva={hsva} onChange={(a) => setHsva({ ...hsva, ...a })} style={{ width: "100%", height: 14 }} />
+              <div className="text-center text-[10px] font-mono text-white/70 uppercase tracking-widest">{currentHex}</div>
+            </PopoverContent>
+          </Popover>
           {swatches.map((s) => {
             const selected = s.toLowerCase() === currentHex.toLowerCase();
             return (
