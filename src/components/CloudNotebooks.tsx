@@ -17,7 +17,7 @@ import { toast } from "sonner";
 import {
   NotebookPen, Plus, Trash2, Wand2, Loader2, Users, MessageCircle,
   UserPlus, Send, ShieldCheck, X, LogIn, Shield, ArrowLeft, BookOpen,
-  Clock, ChevronUp, ChevronDown, Globe2, Target, StickyNote,
+  Clock, ChevronUp, ChevronDown, Globe2, Target, StickyNote, Copy,
 } from "lucide-react";
 
 type Notebook = {
@@ -464,6 +464,20 @@ function NotebookFullscreen({
             className="flex-1 resize-none border-0 bg-muted/20 rounded-2xl text-base leading-relaxed focus-visible:ring-1 p-4"
           />
           <div className="flex items-center justify-end gap-2">
+            <Button
+              size="sm" variant="outline" className="rounded-full"
+              disabled={!body.trim()}
+              onClick={async () => {
+                try {
+                  await navigator.clipboard.writeText(body);
+                  toast.success("Story copied to clipboard");
+                } catch {
+                  toast.error("Couldn't copy — try again");
+                }
+              }}
+            >
+              <Copy className="h-3.5 w-3.5 mr-1" /> Copy text
+            </Button>
             <Button
               size="sm" variant="outline" className="rounded-full"
               disabled={!body.trim() || fixing}
