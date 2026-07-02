@@ -705,7 +705,8 @@ const BRUSHES: { id: BrushId; label: string; icon: React.ComponentType<{ classNa
   { id: "eraser",      label: "Eraser",      icon: Eraser,      defaultSize: 18, defaultOpacity: 1 },
 ];
 
-const PREMIUM_BRUSHES: BrushId[] = ["neon", "spray"];
+// All brushes are free for every user.
+const PREMIUM_BRUSHES: BrushId[] = [];
 
 function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMenu: () => void }) {
   type Layer = { id: string; name: string; visible: boolean };
@@ -876,10 +877,6 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   }, [CANVAS_H, CANVAS_W]);
 
   const selectBrush = (id: BrushId) => {
-    if (PREMIUM_BRUSHES.includes(id) && !adminMode) {
-      toast.error("Premium brush — unlock for €3 (coming soon).");
-      return;
-    }
     setBrush(id);
     const b = BRUSHES.find((x) => x.id === id)!;
     setSize(b.defaultSize);
