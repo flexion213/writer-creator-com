@@ -1463,7 +1463,7 @@ function FeedReel(props: FeedReelProps) {
   const [comments, setComments] = useState<Record<string, Comment[]>>({});
   const [openCommentsFor, setOpenCommentsFor] = useState<string | null>(null);
   const [commentDraft, setCommentDraft] = useState("");
-  const [activePostId, setActivePostId] = useState<string | null>(null);
+  const [expandedPostId, setExpandedPostId] = useState<string | null>(null);
 
   // One-time legacy cleanup of pre-cloud local likes/comments.
   useEffect(() => {
