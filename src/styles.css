@@ -142,3 +142,45 @@
     color: var(--color-foreground);
   }
 }
+
+/* Minimalist dark scrollbar */
+.custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+.custom-scroll::-webkit-scrollbar-track { background: transparent; }
+.custom-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: 9999px;
+}
+.custom-scroll::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+.custom-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+/* Soft fade-out mask at top/bottom of scrollable text containers */
+.fade-mask-y {
+  mask-image: linear-gradient(to bottom, transparent 0, black 28px, black calc(100% - 28px), transparent 100%);
+}
+
+/* Glowing pulse for the active tool / color */
+@keyframes tool-glow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 255, 215, 0.35), 0 0 12px 2px rgba(255, 255, 215, 0.25); }
+  50%      { box-shadow: 0 0 0 2px rgba(255, 255, 215, 0.55), 0 0 22px 6px rgba(255, 255, 215, 0.35); }
+}
+.tool-glow { animation: tool-glow 2.2s ease-in-out infinite; }
+
+/* Circular native color picker */
+.color-picker-round {
+  -webkit-appearance: none;
+  appearance: none;
+  border: none;
+  padding: 0;
+  background: transparent;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  cursor: pointer;
+  overflow: hidden;
+}
+.color-picker-round::-webkit-color-swatch-wrapper { padding: 0; }
+.color-picker-round::-webkit-color-swatch { border: 2px solid rgba(255,255,255,0.4); border-radius: 9999px; }
+.color-picker-round::-moz-color-swatch { border: 2px solid rgba(255,255,255,0.4); border-radius: 9999px; }
