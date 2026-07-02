@@ -1640,18 +1640,7 @@ function FeedReel(props: FeedReelProps) {
   const glass =
     "rounded-[20px] border border-white/10 bg-white/5 backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.4)]";
 
-  const activePost = activePostId !== null ? filtered.find((p) => p.id === activePostId) : null;
-
-  useEffect(() => {
-    if (filtered.length === 0) {
-      setActivePostId(null);
-      return;
-    }
-
-    if (activePostId === null || !filtered.some((post) => post.id === activePostId)) {
-      setActivePostId(filtered[0].id);
-    }
-  }, [filtered, activePostId]);
+  const expandedPost = expandedPostId ? filtered.find((p) => p.id === expandedPostId) : null;
 
   return (
     <div
