@@ -1709,7 +1709,7 @@ function FeedReel(props: FeedReelProps) {
         }}
       >
         {/* Composer slide */}
-        <FeedSlide postId={null} onActive={setActivePostId}>
+        <FeedSlide>
           <div
             className={`${glass} w-full max-w-sm p-5 overflow-y-auto`}
             style={{ maxHeight: "calc(100vh - 9rem)", overscrollBehavior: "contain" }}
@@ -1896,7 +1896,7 @@ function FeedReel(props: FeedReelProps) {
 
         {/* Broadcast slide */}
         {broadcast.trim() && (
-          <FeedSlide postId={null} onActive={setActivePostId}>
+          <FeedSlide>
             <div className={`${glass} w-full max-w-sm p-5`}>
               <div className="flex items-center gap-2 mb-2">
                 <Megaphone className="h-4 w-4 text-red-400" />
@@ -1921,57 +1921,47 @@ function FeedReel(props: FeedReelProps) {
 
         {/* Posts */}
         {filtered.length === 0 && q ? (
-          <FeedSlide postId={null} onActive={setActivePostId}>
+          <FeedSlide>
             <div className={`${glass} w-full max-w-sm p-6 text-center`}>
               <p className="text-white/70 text-sm">No stories match “{searchQuery}”.</p>
             </div>
           </FeedSlide>
         ) : (
           filtered.map((p) => (
-            <FeedSlide key={p.id} postId={p.id} onActive={setActivePostId}>
+            <FeedSlide key={p.id}>
               <FeedPostCard
                 post={p}
                 glass={glass}
                 isReported={reportedIds.has(p.id)}
                 onReport={() => reportPost(p.id)}
                 onOpenProject={p.projectId ? () => navigate({ to: "/" }) : undefined}
+                likeCount={likes[p.id] ?? 0}
+                isLiked={!!liked[p.id]}
+                commentCount={(comments[p.id] ?? []).length}
+                onToggleLike={() => toggleLike(p.id)}
+                onOpenComments={() => setOpenCommentsFor(p.id)}
+                onExpand={() => setExpandedPostId(p.id)}
               />
             </FeedSlide>
           ))
         )}
       </div>
 
-      {/* Single fixed interaction bar — tracks the currently visible post */}
-      {activePost && (
-        <div
-          className="fixed right-3 z-40 flex flex-col items-center gap-3"
-          style={{ bottom: "max(6rem, calc(env(safe-area-inset-bottom) + 5rem))" }}
-        >
-          <button
-            type="button"
-            onClick={() => toggleLike(activePost.id)}
-            aria-label="Like"
-            className={`${glass} h-12 w-12 flex items-center justify-center transition-transform active:scale-90`}
-          >
-            <Heart
-              className={`h-6 w-6 transition-colors ${liked[activePost.id] ? "text-rose-500 fill-rose-500" : "text-white"}`}
-            />
-          </button>
-          <span className="text-xs font-semibold text-white/90 -mt-1">
-            {likes[activePost.id] ?? 0}
-          </span>
-          <button
-            type="button"
-            onClick={() => setOpenCommentsFor(activePost.id)}
-            aria-label="Comments"
-            className={`${glass} h-12 w-12 flex items-center justify-center transition-transform active:scale-90`}
-          >
-            <MessageCircle className="h-6 w-6 text-white" />
-          </button>
-          <span className="text-xs font-semibold text-white/90 -mt-1">
-            {(comments[activePost.id] ?? []).length}
-          </span>
-        </div>
+      {/* Full-screen expanded story view (opened via "See more") */}
+      {expandedPost && (
+        <ExpandedStoryView
+          post={expandedPost}
+          glass={glass}
+          currentUsername={currentUsername}
+          comments={comments[expandedPost.id] ?? []}
+          likeCount={likes[expandedPost.id] ?? 0}
+          isLiked={!!liked[expandedPost.id]}
+          onToggleLike={() => toggleLike(expandedPost.id)}
+          commentDraft={commentDraft}
+          setCommentDraft={setCommentDraft}
+          onAddComment={() => addComment(expandedPost.id)}
+          onClose={() => setExpandedPostId(null)}
+        />
       )}
 
       {/* Comments sheet */}
