@@ -2006,33 +2006,9 @@ function FeedReel(props: FeedReelProps) {
   );
 }
 
-function FeedSlide({
-  children,
-  postId,
-  onActive,
-}: {
-  children: React.ReactNode;
-  postId?: string | null;
-  onActive?: (id: string | null) => void;
-}) {
-  const ref = useRef<HTMLElement | null>(null);
-  useEffect(() => {
-    if (postId === undefined || !onActive || !ref.current) return;
-    const el = ref.current;
-    const obs = new IntersectionObserver(
-      (entries) => {
-        for (const e of entries) {
-          if (e.isIntersecting && e.intersectionRatio >= 0.6) onActive(postId);
-        }
-      },
-      { threshold: [0.6] },
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [postId, onActive]);
+function FeedSlide({ children }: { children: React.ReactNode }) {
   return (
     <section
-      ref={ref}
       className="relative w-full flex items-center justify-center px-4"
       style={{ height: "100vh", scrollSnapAlign: "start", scrollSnapStop: "always" }}
     >
@@ -2043,21 +2019,32 @@ function FeedSlide({
 
 function FeedPostCard({
   post, glass, isReported, onReport, onOpenProject,
+  likeCount, isLiked, commentCount,
+  onToggleLike, onOpenComments, onExpand,
 }: {
   post: Post;
   glass: string;
   isReported: boolean;
   onReport: () => void;
   onOpenProject?: () => void;
+  likeCount: number;
+  isLiked: boolean;
+  commentCount: number;
+  onToggleLike: () => void;
+  onOpenComments: () => void;
+  onExpand: () => void;
 }) {
+  // Truncate long text so each card shows a preview; full read via "See more".
+  const LIMIT = 340;
+  const isLong = post.text.length > LIMIT;
+  const preview = isLong ? post.text.slice(0, LIMIT).trimEnd() + "…" : post.text;
   return (
     <article
-      className={`${glass} relative w-full max-w-sm overflow-y-auto p-5 pr-20 animate-fade-in`}
+      className={`${glass} custom-scroll relative w-full max-w-sm overflow-y-auto p-6 pr-20 animate-fade-in`}
       style={{
         maxHeight: "calc(100vh - 9rem)",
         overscrollBehavior: "contain",
         WebkitOverflowScrolling: "touch",
-        scrollbarWidth: "thin",
       }}
       onWheelCapture={(e) => e.stopPropagation()}
       onTouchMoveCapture={(e) => e.stopPropagation()}
@@ -2097,7 +2084,18 @@ function FeedPostCard({
         <h2 className="mt-3 text-xl font-semibold leading-tight text-white">{post.title}</h2>
       )}
       {post.text && post.kind !== "comic" && (
-        <p className="mt-2 text-[15px] leading-relaxed text-white/85 whitespace-pre-wrap">{post.text}</p>
+        <>
+          <p className="mt-2 text-[15px] leading-relaxed text-white/85 whitespace-pre-wrap">{preview}</p>
+          {isLong && (
+            <button
+              type="button"
+              onClick={onExpand}
+              className="mt-2 text-xs font-semibold text-sky-300 hover:text-sky-200 transition"
+            >
+              See more…
+            </button>
+          )}
+        </>
       )}
 
       {post.kind === "text" && post.image && (
@@ -2121,7 +2119,140 @@ function FeedPostCard({
       {post.kind === "comic" && post.comicPages.length > 0 && (
         <ComicViewer pages={post.comicPages} />
       )}
+
+      {/* Per-card action bar — pinned right, isolated state per post */}
+      <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col items-center gap-3 z-10">
+        <button
+          type="button"
+          onClick={onToggleLike}
+          aria-label="Like"
+          className={`${glass} h-11 w-11 flex items-center justify-center transition-transform active:scale-90`}
+        >
+          <Heart
+            className={`h-5 w-5 transition-colors ${isLiked ? "text-rose-500 fill-rose-500" : "text-white"}`}
+          />
+        </button>
+        <span className="text-[11px] font-semibold text-white/90 -mt-1.5">{likeCount}</span>
+        <button
+          type="button"
+          onClick={onOpenComments}
+          aria-label="Comments"
+          className={`${glass} h-11 w-11 flex items-center justify-center transition-transform active:scale-90`}
+        >
+          <MessageCircle className="h-5 w-5 text-white" />
+        </button>
+        <span className="text-[11px] font-semibold text-white/90 -mt-1.5">{commentCount}</span>
+      </div>
     </article>
+  );
+}
+
+function ExpandedStoryView({
+  post, glass, currentUsername, comments, likeCount, isLiked,
+  onToggleLike, commentDraft, setCommentDraft, onAddComment, onClose,
+}: {
+  post: Post;
+  glass: string;
+  currentUsername: string;
+  comments: Comment[];
+  likeCount: number;
+  isLiked: boolean;
+  onToggleLike: () => void;
+  commentDraft: string;
+  setCommentDraft: (s: string) => void;
+  onAddComment: () => void;
+  onClose: () => void;
+}) {
+  return (
+    <div
+      className="fixed inset-0 z-[70] flex flex-col animate-fade-in"
+      style={{
+        background: "linear-gradient(180deg, #050505 0%, #0d0d10 50%, #050505 100%)",
+      }}
+    >
+      <div
+        className="flex items-center gap-2 px-4 py-3 border-b border-white/5"
+        style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className={`${glass} h-10 px-3 flex items-center gap-1.5 text-xs text-white/90`}
+        >
+          <X className="h-4 w-4" /> Close
+        </button>
+        <p className="ml-2 text-xs uppercase tracking-widest text-white/50 truncate">@{post.author}</p>
+        <button
+          type="button"
+          onClick={onToggleLike}
+          className={`${glass} ml-auto h-10 px-3 flex items-center gap-1.5 text-xs`}
+        >
+          <Heart className={`h-4 w-4 ${isLiked ? "text-rose-500 fill-rose-500" : "text-white"}`} />
+          <span className="text-white/90">{likeCount}</span>
+        </button>
+      </div>
+
+      <div className="flex-1 overflow-y-auto custom-scroll">
+        <div className="mx-auto max-w-2xl px-6 py-8 fade-mask-y">
+          {post.title && (
+            <h1 className="text-3xl font-bold leading-tight text-white mb-4">{post.title}</h1>
+          )}
+          {post.kind === "novel" && post.cover && (
+            <img src={post.cover} alt="" className="rounded-[20px] w-full max-h-[60vh] object-cover mb-5 border border-white/10" />
+          )}
+          <p className="text-[17px] leading-[1.75] text-white/90 whitespace-pre-wrap">{post.text}</p>
+          {post.kind === "text" && post.image && (
+            <img src={post.image} alt="" className="mt-5 rounded-[20px] w-full object-cover border border-white/10" />
+          )}
+
+          <div className="mt-10 pt-6 border-t border-white/10">
+            <p className="text-xs uppercase tracking-widest text-white/50 mb-3">
+              Comments · {comments.length}
+            </p>
+            <div className="space-y-2">
+              {comments.map((c) => (
+                <div key={c.id} className="rounded-[20px] bg-white/5 border border-white/10 px-4 py-3">
+                  <p className="text-[11px] font-semibold text-white/70">@{c.author}</p>
+                  <p className="text-sm text-white/90 whitespace-pre-wrap">{c.text}</p>
+                </div>
+              ))}
+              {comments.length === 0 && (
+                <p className="text-center text-sm text-white/50 py-6">Be the first to comment.</p>
+              )}
+            </div>
+          </div>
+          <div className="h-24" />
+        </div>
+      </div>
+
+      <div
+        className="border-t border-white/10 bg-black/70 backdrop-blur-xl px-4 py-3 flex items-center gap-2"
+        style={{ paddingBottom: "max(0.75rem, env(safe-area-inset-bottom))" }}
+      >
+        <span className="text-[11px] text-white/50 shrink-0 pl-1">@{currentUsername}</span>
+        <input
+          value={commentDraft}
+          onChange={(e) => setCommentDraft(e.target.value)}
+          placeholder="Add a comment…"
+          onKeyDown={(e) => { if (e.key === "Enter") onAddComment(); }}
+          className="flex-1 h-11 rounded-[20px] bg-white/5 border border-white/10 px-4 text-sm text-white placeholder:text-white/40 outline-none"
+        />
+        <button
+          onClick={onAddComment}
+          className="h-11 px-4 rounded-[20px] bg-white text-black text-sm font-semibold"
+        >
+          Send
+        </button>
+      </div>
+
+      <button
+        type="button"
+        onClick={onClose}
+        className={`${glass} absolute bottom-24 left-1/2 -translate-x-1/2 h-10 px-4 flex items-center gap-1.5 text-xs text-white/90`}
+      >
+        Show less
+      </button>
+    </div>
   );
 }
 
