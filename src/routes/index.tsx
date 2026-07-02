@@ -1149,11 +1149,13 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
       <div ref={stageHostRef} className="flex-1 min-h-0 relative overflow-hidden bg-[#0a0a0a]">
         <div className="absolute inset-0 flex items-center justify-center p-0.5">
           <div
-            className="relative shadow-2xl rounded-md overflow-hidden bg-white border border-white/10"
+            className="relative rounded-xl overflow-hidden bg-white border border-white/10"
             style={{
               width: stageSize.width > 0 ? `${stageSize.width}px` : "min(100%, 42vh)",
               height: stageSize.height > 0 ? `${stageSize.height}px` : "min(70vh, calc(100vw * 1.3333))",
               touchAction: "none",
+              boxShadow:
+                "0 30px 60px -20px rgba(0,0,0,0.75), 0 12px 24px -10px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05)",
             }}
           >
             {layers.map((layer) => (
