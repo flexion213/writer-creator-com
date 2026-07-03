@@ -76,7 +76,10 @@ function AdminDashboard() {
 
   const setFlag = async (uid: string, field: "is_shadow_banned" | "is_system_locked", on: boolean) => {
     if (field === "is_system_locked" && on && !confirm("System-lock this user? They will be signed out immediately and blocked from the app.")) return;
-    const { error } = await supabase.from("profiles").update({ [field]: on }).eq("id", uid);
+    const patch = (field === "is_shadow_banned"
+      ? { is_shadow_banned: on }
+      : { is_system_locked: on }) as { is_shadow_banned?: boolean; is_system_locked?: boolean };
+    const { error } = await supabase.from("profiles").update(patch).eq("id", uid);
     if (error) { toast.error(error.message); return; }
     toast.success(field === "is_shadow_banned" ? (on ? "Shadow banned" : "Shadow ban lifted") : (on ? "System locked" : "System lock released"));
     void load();
