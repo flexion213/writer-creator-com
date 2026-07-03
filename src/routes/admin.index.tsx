@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
-import { Crown, Shield, ArrowLeft, Loader2, Search, MessageSquare } from "lucide-react";
+import { Crown, Shield, ArrowLeft, Loader2, Search, MessageSquare, EyeOff, Lock } from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
@@ -21,6 +21,8 @@ type UserRow = {
   username: string;
   display_name: string | null;
   roles: AppRole[];
+  is_shadow_banned: boolean;
+  is_system_locked: boolean;
 };
 
 function AdminDashboard() {
@@ -41,7 +43,10 @@ function AdminDashboard() {
   const load = async () => {
     setFetching(true);
     const [{ data: profiles }, { data: roles }] = await Promise.all([
-      supabase.from("profiles").select("id, username, display_name").order("username"),
+      supabase
+        .from("profiles")
+        .select("id, username, display_name, is_shadow_banned, is_system_locked")
+        .order("username"),
       supabase.from("user_roles").select("user_id, role"),
     ]);
     const byUser: Record<string, AppRole[]> = {};
@@ -49,7 +54,7 @@ function AdminDashboard() {
       (byUser[r.user_id] ??= []).push(r.role);
     }
     setUsers(
-      ((profiles as Array<{ id: string; username: string; display_name: string | null }> | null) ?? []).map((p) => ({
+      ((profiles as Array<{ id: string; username: string; display_name: string | null; is_shadow_banned: boolean; is_system_locked: boolean }> | null) ?? []).map((p) => ({
         ...p,
         roles: byUser[p.id] ?? [],
       })),
@@ -66,6 +71,14 @@ function AdminDashboard() {
       if (error) { toast.error(error.message); return; }
     }
     toast.success(`${on ? "Granted" : "Revoked"} ${role}`);
+    void load();
+  };
+
+  const setFlag = async (uid: string, field: "is_shadow_banned" | "is_system_locked", on: boolean) => {
+    if (field === "is_system_locked" && on && !confirm("System-lock this user? They will be signed out immediately and blocked from the app.")) return;
+    const { error } = await supabase.from("profiles").update({ [field]: on }).eq("id", uid);
+    if (error) { toast.error(error.message); return; }
+    toast.success(field === "is_shadow_banned" ? (on ? "Shadow banned" : "Shadow ban lifted") : (on ? "System locked" : "System lock released"));
     void load();
   };
 
@@ -130,6 +143,16 @@ function AdminDashboard() {
                           <Shield className="h-2.5 w-2.5 mr-0.5" /> Mod
                         </Badge>
                       )}
+                      {u.is_shadow_banned && (
+                        <Badge className="text-[9px] h-4 px-1.5 bg-white/10 text-white border-0">
+                          <EyeOff className="h-2.5 w-2.5 mr-0.5" /> Shadow
+                        </Badge>
+                      )}
+                      {u.is_system_locked && (
+                        <Badge className="text-[9px] h-4 px-1.5 bg-rose-500/20 text-rose-300 border-0">
+                          <Lock className="h-2.5 w-2.5 mr-0.5" /> Locked
+                        </Badge>
+                      )}
                     </p>
                     {u.display_name && (
                       <p className="text-[10px] text-muted-foreground truncate">{u.display_name}</p>
@@ -154,6 +177,28 @@ function AdminDashboard() {
                     title={isSelf && isAdminRole ? "You can't demote yourself" : ""}
                   >
                     {isAdminRole ? "Remove Admin" : "Make Admin"}
+                  </Button>
+                </div>
+                <div className="flex gap-1 mt-1.5">
+                  <Button
+                    size="sm"
+                    variant={u.is_shadow_banned ? "default" : "outline"}
+                    className="flex-1 text-xs"
+                    disabled={isSelf}
+                    onClick={() => setFlag(u.id, "is_shadow_banned", !u.is_shadow_banned)}
+                  >
+                    <EyeOff className="h-3 w-3 mr-1" />
+                    {u.is_shadow_banned ? "Unshadow" : "Shadow Ban"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant={u.is_system_locked ? "destructive" : "outline"}
+                    className="flex-1 text-xs"
+                    disabled={isSelf}
+                    onClick={() => setFlag(u.id, "is_system_locked", !u.is_system_locked)}
+                  >
+                    <Lock className="h-3 w-3 mr-1" />
+                    {u.is_system_locked ? "Unlock" : "System Lock"}
                   </Button>
                 </div>
               </Card>
