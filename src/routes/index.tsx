@@ -1362,23 +1362,28 @@ function FeedReel(props: FeedReelProps) {
 
   const navigate = useNavigate();
   // Composer extensions
-  const [composerKind, setComposerKind] = useState<"text" | "novel" | "comic">(() => {
-    if (typeof window === "undefined") return "text";
-    const v = window.localStorage.getItem("dd:composer-kind");
-    return v === "novel" || v === "comic" ? v : "text";
-  });
-  const [cover, setCover] = useState<string | undefined>(() => {
-    if (typeof window === "undefined") return undefined;
-    return window.localStorage.getItem("dd:composer-cover") ?? undefined;
-  });
-  const [comicPages, setComicPages] = useState<string[]>(() => {
-    if (typeof window === "undefined") return [];
-    try { return JSON.parse(window.localStorage.getItem("dd:composer-comic") ?? "[]") as string[]; } catch { return []; }
-  });
-  const [projectId, setProjectId] = useState<string | null>(() => {
-    if (typeof window === "undefined") return null;
-    return window.localStorage.getItem("dd:composer-project") || null;
-  });
+  // Init with SSR-safe defaults; hydrate from localStorage in an effect below
+  // to avoid React hydration mismatches on inputs / classNames.
+  const [composerKind, setComposerKind] = useState<"text" | "novel" | "comic">("text");
+  const [cover, setCover] = useState<string | undefined>(undefined);
+  const [comicPages, setComicPages] = useState<string[]>([]);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  const [composerHydrated, setComposerHydrated] = useState(false);
+  useEffect(() => {
+    try {
+      const k = window.localStorage.getItem("dd:composer-kind");
+      if (k === "novel" || k === "comic") setComposerKind(k);
+      const c = window.localStorage.getItem("dd:composer-cover");
+      if (c) setCover(c);
+      try {
+        const cp = JSON.parse(window.localStorage.getItem("dd:composer-comic") ?? "[]") as string[];
+        if (Array.isArray(cp) && cp.length) setComicPages(cp);
+      } catch {}
+      const pid = window.localStorage.getItem("dd:composer-project");
+      if (pid) setProjectId(pid);
+    } catch {}
+    setComposerHydrated(true);
+  }, []);
   const [myNotebooks, setMyNotebooks] = useState<Array<{ id: string; title: string }>>([]);
   const coverRef = useRef<HTMLInputElement>(null);
   const comicRef = useRef<HTMLInputElement>(null);
@@ -1386,7 +1391,7 @@ function FeedReel(props: FeedReelProps) {
   const [posting, setPosting] = useState(false);
   const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => { try { window.localStorage.setItem("dd:composer-kind", composerKind); } catch {} }, [composerKind]);
+  useEffect(() => { if (!composerHydrated) return; try { window.localStorage.setItem("dd:composer-kind", composerKind); } catch {} }, [composerKind, composerHydrated]);
   useEffect(() => {
     try { cover ? window.localStorage.setItem("dd:composer-cover", cover) : window.localStorage.removeItem("dd:composer-cover"); } catch {}
   }, [cover]);
