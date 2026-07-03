@@ -373,6 +373,8 @@ export type Database = {
           created_at: string
           display_name: string | null
           id: string
+          is_shadow_banned: boolean
+          is_system_locked: boolean
           updated_at: string
           username: string
         }
@@ -380,6 +382,8 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id: string
+          is_shadow_banned?: boolean
+          is_system_locked?: boolean
           updated_at?: string
           username: string
         }
@@ -387,6 +391,8 @@ export type Database = {
           created_at?: string
           display_name?: string | null
           id?: string
+          is_shadow_banned?: boolean
+          is_system_locked?: boolean
           updated_at?: string
           username?: string
         }
@@ -685,6 +691,8 @@ export type Database = {
         Args: { _nb: string; _uid: string }
         Returns: boolean
       }
+      is_shadow_banned: { Args: { _uid: string }; Returns: boolean }
+      is_system_locked: { Args: { _uid: string }; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "moderator" | "user"

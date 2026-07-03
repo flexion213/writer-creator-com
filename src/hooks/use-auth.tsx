@@ -2,7 +2,13 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import type { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-type Profile = { id: string; username: string; display_name: string | null };
+type Profile = {
+  id: string;
+  username: string;
+  display_name: string | null;
+  is_shadow_banned?: boolean;
+  is_system_locked?: boolean;
+};
 export type AppRole = "admin" | "moderator" | "user";
 
 type Ctx = {
@@ -27,7 +33,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadProfile = async (uid: string) => {
     const [{ data: p }, { data: r }] = await Promise.all([
-      supabase.from("profiles").select("id, username, display_name").eq("id", uid).maybeSingle(),
+      supabase
+        .from("profiles")
+        .select("id, username, display_name, is_shadow_banned, is_system_locked")
+        .eq("id", uid)
+        .maybeSingle(),
       supabase.from("user_roles").select("role").eq("user_id", uid),
     ]);
     setProfile((p as Profile) ?? null);
