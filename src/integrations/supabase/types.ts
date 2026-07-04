@@ -370,6 +370,8 @@ export type Database = {
       }
       profiles: {
         Row: {
+          agreed_to_tos: boolean
+          agreed_to_tos_at: string | null
           created_at: string
           display_name: string | null
           id: string
@@ -379,6 +381,8 @@ export type Database = {
           username: string
         }
         Insert: {
+          agreed_to_tos?: boolean
+          agreed_to_tos_at?: string | null
           created_at?: string
           display_name?: string | null
           id: string
@@ -388,6 +392,8 @@ export type Database = {
           username: string
         }
         Update: {
+          agreed_to_tos?: boolean
+          agreed_to_tos_at?: string | null
           created_at?: string
           display_name?: string | null
           id?: string
