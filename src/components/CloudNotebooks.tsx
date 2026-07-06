@@ -536,29 +536,62 @@ function NotebookFullscreen({
           {characters.length === 0 && (
             <p className="text-xs text-muted-foreground text-center py-6">No characters yet.</p>
           )}
-          <div className="overflow-x-auto rounded-2xl border">
-            <table className="w-full text-sm">
-              <thead className="bg-muted/40">
-                <tr className="text-left text-xs uppercase tracking-wider text-muted-foreground">
-                  <th className="p-2">Name</th>
-                  <th className="p-2">Role</th>
-                  <th className="p-2">Traits</th>
-                  <th className="p-2">Backstory</th>
-                  <th className="p-2 w-10"></th>
-                </tr>
-              </thead>
-              <tbody>
-                {characters.map((c) => (
-                  <tr key={c.id} className="border-t align-top">
-                    <td className="p-2"><Input value={c.name} onChange={(e) => updateCharacter(c.id, { name: e.target.value })} className="h-8 rounded-xl" /></td>
-                    <td className="p-2"><Input value={c.role} onChange={(e) => updateCharacter(c.id, { role: e.target.value })} className="h-8 rounded-xl" placeholder="Protagonist" /></td>
-                    <td className="p-2"><Textarea value={c.traits} onChange={(e) => updateCharacter(c.id, { traits: e.target.value })} className="min-h-[60px] rounded-xl text-xs" placeholder="Brave, witty…" /></td>
-                    <td className="p-2"><Textarea value={c.backstory} onChange={(e) => updateCharacter(c.id, { backstory: e.target.value })} className="min-h-[60px] rounded-xl text-xs" placeholder="Backstory" /></td>
-                    <td className="p-2"><Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive" onClick={() => removeCharacter(c.id)}><Trash2 className="h-3.5 w-3.5" /></Button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="space-y-3">
+            {characters.map((c) => {
+              const ex = parseCharExtras(c.traits);
+              const setEx = (patch: Partial<CharExtras>) =>
+                updateCharacter(c.id, { traits: serializeCharExtras({ ...ex, ...patch }) });
+              return (
+                <div key={c.id} className="rounded-2xl border bg-background/60 p-3 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Input value={c.name} onChange={(e) => updateCharacter(c.id, { name: e.target.value })} className="h-9 rounded-xl font-medium" placeholder="Character name" />
+                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive" onClick={() => removeCharacter(c.id)}>
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <Label className="text-[10px] uppercase text-muted-foreground">Faction / Affiliation</Label>
+                      <Input value={ex.faction} onChange={(e) => setEx({ faction: e.target.value })} className="h-8 rounded-xl text-xs" placeholder="e.g. Iron Order" />
+                    </div>
+                    <div>
+                      <Label className="text-[10px] uppercase text-muted-foreground">Role in Story</Label>
+                      <Input value={c.role} onChange={(e) => updateCharacter(c.id, { role: e.target.value })} className="h-8 rounded-xl text-xs" placeholder="Protagonist" />
+                    </div>
+                    <div className="col-span-2">
+                      <Label className="text-[10px] uppercase text-muted-foreground">Status</Label>
+                      <select
+                        value={ex.status}
+                        onChange={(e) => setEx({ status: e.target.value })}
+                        className="w-full h-8 rounded-xl bg-background border border-input px-2 text-xs"
+                      >
+                        {["Alive", "Missing", "Deceased", "Unknown"].map((s) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  <div>
+                    <Label className="text-[10px] uppercase text-muted-foreground">Inventory / Gear</Label>
+                    <Textarea value={ex.inventory} onChange={(e) => setEx({ inventory: e.target.value })} className="min-h-[50px] rounded-xl text-xs" placeholder="Weapons, tactical tools…" />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] uppercase text-muted-foreground">Key Skills / Traits</Label>
+                    <Textarea value={ex.keySkills} onChange={(e) => setEx({ keySkills: e.target.value })} className="min-h-[50px] rounded-xl text-xs" placeholder="Marksmanship, negotiation…" />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] uppercase text-muted-foreground">Psychological Profile</Label>
+                    <Textarea value={ex.psych} onChange={(e) => setEx({ psych: e.target.value })} className="min-h-[50px] rounded-xl text-xs" placeholder="Motivations, fears, mindset…" />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] uppercase text-muted-foreground">Backstory</Label>
+                    <Textarea value={c.backstory} onChange={(e) => updateCharacter(c.id, { backstory: e.target.value })} className="min-h-[50px] rounded-xl text-xs" placeholder="Origin, past events" />
+                  </div>
+                  <div>
+                    <Label className="text-[10px] uppercase text-muted-foreground">Relationships</Label>
+                    <Textarea value={ex.relationships} onChange={(e) => setEx({ relationships: e.target.value })} className="min-h-[50px] rounded-xl text-xs" placeholder="Allies: … / Rivals: … / Family: …" />
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </TabsContent>
 
@@ -574,16 +607,49 @@ function NotebookFullscreen({
             {timeline.map((ev, i) => (
               <div key={ev.id} className="relative pl-4 pb-4">
                 <div className="absolute left-[-1px] top-2 h-3 w-3 rounded-full bg-primary border-2 border-background" />
-                <div className="rounded-2xl border bg-background/60 p-3 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Input value={ev.title} onChange={(e) => updateEvent(ev.id, { title: e.target.value })} className="h-8 rounded-2xl font-medium" placeholder="Event" />
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-2xl" disabled={i === 0} onClick={() => moveEvent(ev.id, -1)}><ChevronUp className="h-3.5 w-3.5" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-2xl" disabled={i === timeline.length - 1} onClick={() => moveEvent(ev.id, 1)}><ChevronDown className="h-3.5 w-3.5" /></Button>
-                    <Button variant="ghost" size="icon" className="h-8 w-8 rounded-2xl hover:text-destructive" onClick={() => removeEvent(ev.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
-                  </div>
-                  <Input value={ev.event_date} onChange={(e) => updateEvent(ev.id, { event_date: e.target.value })} placeholder="When (e.g. Year 312)" className="h-8 rounded-2xl text-xs" />
-                  <Textarea value={ev.description} onChange={(e) => updateEvent(ev.id, { description: e.target.value })} placeholder="What happens" className="rounded-2xl text-xs min-h-[50px]" />
-                </div>
+                {(() => {
+                  const ex = parseEventExtras(ev.description);
+                  const setEx = (patch: Partial<EventExtras>) =>
+                    updateEvent(ev.id, { description: JSON.stringify({ ...ex, ...patch }) });
+                  return (
+                    <div className="rounded-2xl border bg-background/60 p-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <Input value={ev.title} onChange={(e) => updateEvent(ev.id, { title: e.target.value })} className="h-8 rounded-2xl font-medium" placeholder="Event title" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-2xl" disabled={i === 0} onClick={() => moveEvent(ev.id, -1)}><ChevronUp className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-2xl" disabled={i === timeline.length - 1} onClick={() => moveEvent(ev.id, 1)}><ChevronDown className="h-3.5 w-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-2xl hover:text-destructive" onClick={() => removeEvent(ev.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <Label className="text-[10px] uppercase text-muted-foreground">Chronological date</Label>
+                          <Input value={ev.event_date} onChange={(e) => updateEvent(ev.id, { event_date: e.target.value })} placeholder="e.g. Year 312, Day 4" className="h-8 rounded-2xl text-xs" />
+                        </div>
+                        <div>
+                          <Label className="text-[10px] uppercase text-muted-foreground">Location</Label>
+                          <Input value={ex.location} onChange={(e) => setEx({ location: e.target.value })} placeholder="Where" className="h-8 rounded-2xl text-xs" />
+                        </div>
+                        <div className="col-span-2">
+                          <Label className="text-[10px] uppercase text-muted-foreground">Narrative track</Label>
+                          <select
+                            value={ex.category}
+                            onChange={(e) => setEx({ category: e.target.value })}
+                            className="w-full h-8 rounded-2xl bg-background border border-input px-2 text-xs"
+                          >
+                            {EVENT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <div>
+                        <Label className="text-[10px] uppercase text-muted-foreground">Event breakdown</Label>
+                        <Textarea value={ex.description} onChange={(e) => setEx({ description: e.target.value })} placeholder="Exact sequence of what happens" className="rounded-2xl text-xs min-h-[60px]" />
+                      </div>
+                      <div>
+                        <Label className="text-[10px] uppercase text-muted-foreground">Impact note (butterfly effect)</Label>
+                        <Textarea value={ex.impact} onChange={(e) => setEx({ impact: e.target.value })} placeholder="Direct consequences on the rest of the timeline" className="rounded-2xl text-xs min-h-[50px]" />
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             ))}
           </div>
