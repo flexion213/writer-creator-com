@@ -2,20 +2,37 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
-  Upload, Brush, Eraser, Route as RouteIcon, PaintBucket, Trash2,
-  Download, Home, Skull, Target, Package, Tag, X, Menu, Undo2, ImageOff,
+  Upload,
+  Brush,
+  Eraser,
+  Route as RouteIcon,
+  PaintBucket,
+  Trash2,
+  Download,
+  Home,
+  Skull,
+  Target,
+  Package,
+  Tag,
+  X,
+  Menu,
+  Undo2,
+  ImageOff,
 } from "lucide-react";
 
 type MarkerType = "Safehouse" | "Enemy Territory" | "Objective" | "Resource Stash" | "Custom Label";
 type Marker = { id: string; type: MarkerType; label: string; x: number; y: number };
 type Tool = "brush" | "eraser" | "route" | "bucket" | "move";
 
-const MARKER_META: Record<MarkerType, { icon: React.ComponentType<{ className?: string }>; color: string }> = {
-  "Safehouse":        { icon: Home,    color: "#10b981" },
-  "Enemy Territory":  { icon: Skull,   color: "#ef4444" },
-  "Objective":        { icon: Target,  color: "#f59e0b" },
-  "Resource Stash":   { icon: Package, color: "#3b82f6" },
-  "Custom Label":     { icon: Tag,     color: "#a855f7" },
+const MARKER_META: Record<
+  MarkerType,
+  { icon: React.ComponentType<{ className?: string }>; color: string }
+> = {
+  Safehouse: { icon: Home, color: "#10b981" },
+  "Enemy Territory": { icon: Skull, color: "#ef4444" },
+  Objective: { icon: Target, color: "#f59e0b" },
+  "Resource Stash": { icon: Package, color: "#3b82f6" },
+  "Custom Label": { icon: Tag, color: "#a855f7" },
 };
 
 const LS = {
@@ -61,10 +78,30 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
   }, []);
 
   // Persist prefs
-  useEffect(() => { if (hydrated) try { localStorage.setItem(LS.tool, tool); } catch {} }, [tool, hydrated]);
-  useEffect(() => { if (hydrated) try { localStorage.setItem(LS.color, color); } catch {} }, [color, hydrated]);
-  useEffect(() => { if (hydrated) try { localStorage.setItem(LS.size, String(size)); } catch {} }, [size, hydrated]);
-  useEffect(() => { if (hydrated) try { localStorage.setItem(LS.markers, JSON.stringify(markers)); } catch {} }, [markers, hydrated]);
+  useEffect(() => {
+    if (hydrated)
+      try {
+        localStorage.setItem(LS.tool, tool);
+      } catch {}
+  }, [tool, hydrated]);
+  useEffect(() => {
+    if (hydrated)
+      try {
+        localStorage.setItem(LS.color, color);
+      } catch {}
+  }, [color, hydrated]);
+  useEffect(() => {
+    if (hydrated)
+      try {
+        localStorage.setItem(LS.size, String(size));
+      } catch {}
+  }, [size, hydrated]);
+  useEffect(() => {
+    if (hydrated)
+      try {
+        localStorage.setItem(LS.markers, JSON.stringify(markers));
+      } catch {}
+  }, [markers, hydrated]);
 
   // Init canvas + restore saved drawing
   useEffect(() => {
@@ -109,37 +146,51 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
   const floodFill = (sx: number, sy: number, hex: string) => {
     const c = canvasRef.current!;
     const ctx = ctxRef.current!;
-    const w = c.width, h = c.height;
+    const w = c.width,
+      h = c.height;
     const img = ctx.getImageData(0, 0, w, h);
     const data = img.data;
     const idx = (x: number, y: number) => (y * w + x) * 4;
-    const sx0 = Math.floor(sx), sy0 = Math.floor(sy);
+    const sx0 = Math.floor(sx),
+      sy0 = Math.floor(sy);
     if (sx0 < 0 || sy0 < 0 || sx0 >= w || sy0 >= h) return;
-    
+
     const start = idx(sx0, sy0);
-    const tr = data[start], tg = data[start + 1], tb = data[start + 2], ta = data[start + 3];
-    const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
-    
+    const tr = data[start],
+      tg = data[start + 1],
+      tb = data[start + 2],
+      ta = data[start + 3];
+    const r = parseInt(hex.slice(1, 3), 16),
+      g = parseInt(hex.slice(3, 5), 16),
+      b = parseInt(hex.slice(5, 7), 16);
+
     if (tr === r && tg === g && tb === b && ta === 255) return;
-    
+
     const tol = 24;
     const stack: number[] = [sx0, sy0];
     const visited = new Uint8Array(w * h);
-    
+
     while (stack.length) {
-      const y = stack.pop()!, x = stack.pop()!;
+      const y = stack.pop()!,
+        x = stack.pop()!;
       if (x < 0 || y < 0 || x >= w || y >= h) continue;
-      
+
       const vIdx = y * w + x;
       if (visited[vIdx]) continue;
       visited[vIdx] = 1;
 
       const p = idx(x, y);
-      const dr = data[p] - tr, dg = data[p + 1] - tg, db = data[p + 2] - tb, da = data[p + 3] - ta;
+      const dr = data[p] - tr,
+        dg = data[p + 1] - tg,
+        db = data[p + 2] - tb,
+        da = data[p + 3] - ta;
       if (dr * dr + dg * dg + db * db + da * da > tol * tol * 4) continue;
-      
-      data[p] = r; data[p + 1] = g; data[p + 2] = b; data[p + 3] = 255;
-      
+
+      data[p] = r;
+      data[p + 1] = g;
+      data[p + 2] = b;
+      data[p + 3] = 255;
+
       if (x + 1 < w) stack.push(x + 1, y);
       if (x - 1 >= 0) stack.push(x - 1, y);
       if (y + 1 < h) stack.push(x, y + 1);
@@ -153,7 +204,10 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
     if (tool === "move") return;
     (e.target as Element).setPointerCapture?.(e.pointerId);
     const p = getPt(e);
-    if (tool === "bucket") { floodFill(p.x, p.y, color); return; }
+    if (tool === "bucket") {
+      floodFill(p.x, p.y, color);
+      return;
+    }
     const ctx = ctxRef.current!;
     drawing.current = true;
     lastPt.current = p;
@@ -185,7 +239,8 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
 
   const clearAll = () => {
     if (!confirm("Clear the entire canvas?")) return;
-    const c = canvasRef.current!, ctx = ctxRef.current!;
+    const c = canvasRef.current!,
+      ctx = ctxRef.current!;
     ctx.globalCompositeOperation = "source-over";
     ctx.clearRect(0, 0, c.width, c.height);
     persistCanvas();
@@ -198,32 +253,52 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
     reader.onload = () => {
       const data = reader.result as string;
       setBg(data);
-      try { localStorage.setItem(LS.bg, data); } catch (err) { console.warn("bg too large", err); }
+      try {
+        localStorage.setItem(LS.bg, data);
+      } catch (err) {
+        console.warn("bg too large", err);
+      }
     };
     reader.readAsDataURL(f);
     e.target.value = "";
   };
-  const removeBg = () => { setBg(null); try { localStorage.removeItem(LS.bg); } catch {} };
+  const removeBg = () => {
+    setBg(null);
+    try {
+      localStorage.removeItem(LS.bg);
+    } catch {}
+  };
 
   // Marker helpers
   const addMarker = (type: MarkerType) => {
     const wrap = wrapRef.current;
     if (!wrap) return;
     const r = wrap.getBoundingClientRect();
-    setMarkers((m) => [...m, {
-      id: crypto.randomUUID(), type, label: type,
-      x: r.width / 2, y: r.height / 2,
-    }]);
+    setMarkers((m) => [
+      ...m,
+      {
+        id: crypto.randomUUID(),
+        type,
+        label: type,
+        x: r.width / 2,
+        y: r.height / 2,
+      },
+    ]);
     setSidebarOpen(false);
   };
   const removeMarker = (id: string) => setMarkers((m) => m.filter((x) => x.id !== id));
-  const renameMarker = (id: string, label: string) => setMarkers((m) => m.map((x) => x.id === id ? { ...x, label } : x));
+  const renameMarker = (id: string, label: string) =>
+    setMarkers((m) => m.map((x) => (x.id === id ? { ...x, label } : x)));
 
   const onMarkerPointerDown = (e: React.PointerEvent, m: Marker) => {
     e.stopPropagation();
     const wrap = wrapRef.current!;
     const r = wrap.getBoundingClientRect();
-    draggingMarker.current = { id: m.id, dx: e.clientX - r.left - m.x, dy: e.clientY - r.top - m.y };
+    draggingMarker.current = {
+      id: m.id,
+      dx: e.clientX - r.left - m.x,
+      dy: e.clientY - r.top - m.y,
+    };
     (e.target as Element).setPointerCapture(e.pointerId);
   };
   const onMarkerPointerMove = (e: React.PointerEvent) => {
@@ -233,9 +308,11 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
     const r = wrap.getBoundingClientRect();
     const nx = Math.max(0, Math.min(r.width, e.clientX - r.left - d.dx));
     const ny = Math.max(0, Math.min(r.height, e.clientY - r.top - d.dy));
-    setMarkers((all) => all.map((x) => x.id === d.id ? { ...x, x: nx, y: ny } : x));
+    setMarkers((all) => all.map((x) => (x.id === d.id ? { ...x, x: nx, y: ny } : x)));
   };
-  const onMarkerPointerUp = () => { draggingMarker.current = null; };
+  const onMarkerPointerUp = () => {
+    draggingMarker.current = null;
+  };
 
   const exportPng = () => {
     const c = canvasRef.current;
@@ -247,20 +324,35 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
   };
 
   const TOOLS: { id: Tool; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
-    { id: "brush",  label: "Brush",       icon: Brush },
-    { id: "route",  label: "Route",       icon: RouteIcon },
+    { id: "brush", label: "Brush", icon: Brush },
+    { id: "route", label: "Route", icon: RouteIcon },
     { id: "bucket", label: "Paint bucket", icon: PaintBucket },
-    { id: "eraser", label: "Eraser",      icon: Eraser },
-    { id: "move",   label: "Move",        icon: Menu },
+    { id: "eraser", label: "Eraser", icon: Eraser },
+    { id: "move", label: "Move", icon: Menu },
   ];
 
-  const PRESET_COLORS = ["#22c55e", "#ef4444", "#3b82f6", "#f59e0b", "#a855f7", "#e11d48", "#ffffff", "#0f172a"];
+  const PRESET_COLORS = [
+    "#22c55e",
+    "#ef4444",
+    "#3b82f6",
+    "#f59e0b",
+    "#a855f7",
+    "#e11d48",
+    "#ffffff",
+    "#0f172a",
+  ];
 
   return (
     <div className="w-full h-screen flex flex-col bg-background text-foreground overflow-hidden">
       {/* Top bar */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border/60 glass-panel">
-        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={onOpenMenu} aria-label="Menu">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9"
+          onClick={onOpenMenu}
+          aria-label="Menu"
+        >
           <div className="flex flex-col gap-[5px]">
             <span className="block h-[2px] w-5 bg-foreground" />
             <span className="block h-[2px] w-5 bg-foreground" />
@@ -314,7 +406,10 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
         <label className="flex items-center gap-2 text-xs text-muted-foreground">
           Size
           <input
-            type="range" min={1} max={200} value={size}
+            type="range"
+            min={1}
+            max={200}
+            value={size}
             onChange={(e) => setSize(Number(e.target.value))}
             className="w-28 accent-primary"
           />
@@ -359,7 +454,9 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
           <canvas
             ref={canvasRef}
             className="absolute inset-0 h-full w-full touch-none"
-            style={{ cursor: tool === "move" ? "default" : tool === "bucket" ? "crosshair" : "crosshair" }}
+            style={{
+              cursor: tool === "move" ? "default" : tool === "bucket" ? "crosshair" : "crosshair",
+            }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
@@ -391,21 +488,29 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
                       value={m.label}
                       onChange={(e) => renameMarker(m.id, e.target.value)}
                       onBlur={() => setEditingLabelId(null)}
-                      onKeyDown={(e) => { if (e.key === "Enter") setEditingLabelId(null); }}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") setEditingLabelId(null);
+                      }}
                       onPointerDown={(e) => e.stopPropagation()}
                       className="text-[10px] px-1.5 py-0.5 rounded bg-background/90 border border-border w-24 text-center"
                     />
                   ) : (
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={(e) => { e.stopPropagation(); setEditingLabelId(m.id); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingLabelId(m.id);
+                        }}
                         onPointerDown={(e) => e.stopPropagation()}
                         className="text-[10px] px-1.5 py-0.5 rounded bg-background/80 border border-border/60 max-w-[8rem] truncate"
                       >
                         {m.label}
                       </button>
                       <button
-                        onClick={(e) => { e.stopPropagation(); removeMarker(m.id); }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeMarker(m.id);
+                        }}
                         onPointerDown={(e) => e.stopPropagation()}
                         className="h-4 w-4 rounded-full bg-destructive/90 text-destructive-foreground flex items-center justify-center"
                         aria-label="Delete marker"
@@ -425,7 +530,12 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
           <div className="absolute right-0 top-0 bottom-0 w-64 glass-panel border-l border-border/60 p-3 space-y-2 overflow-y-auto z-10">
             <div className="flex items-center justify-between">
               <p className="text-xs font-semibold">Drop a marker</p>
-              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setSidebarOpen(false)}>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-6 w-6"
+                onClick={() => setSidebarOpen(false)}
+              >
                 <X className="h-3.5 w-3.5" />
               </Button>
             </div>

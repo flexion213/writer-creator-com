@@ -50,7 +50,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(s);
       if (s?.user) {
         // defer to avoid running inside listener callback
-        setTimeout(() => { void loadProfile(s.user.id); }, 0);
+        setTimeout(() => {
+          void loadProfile(s.user.id);
+        }, 0);
       } else {
         setProfile(null);
         setRoles([]);
@@ -62,7 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.session?.user) void loadProfile(data.session.user.id);
       setLoading(false);
     });
-    return () => { sub.subscription.unsubscribe(); };
+    return () => {
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   const value: Ctx = {
@@ -73,8 +77,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     roles,
     isAdmin: roles.includes("admin"),
     isModerator: roles.includes("moderator") || roles.includes("admin"),
-    refreshProfile: async () => { if (session?.user) await loadProfile(session.user.id); },
-    signOut: async () => { await supabase.auth.signOut(); },
+    refreshProfile: async () => {
+      if (session?.user) await loadProfile(session.user.id);
+    },
+    signOut: async () => {
+      await supabase.auth.signOut();
+    },
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -8,7 +8,16 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
-import { Crown, Shield, ArrowLeft, Loader2, Search, MessageSquare, EyeOff, Lock } from "lucide-react";
+import {
+  Crown,
+  Shield,
+  ArrowLeft,
+  Loader2,
+  Search,
+  MessageSquare,
+  EyeOff,
+  Lock,
+} from "lucide-react";
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
@@ -34,8 +43,14 @@ function AdminDashboard() {
 
   useEffect(() => {
     if (loading) return;
-    if (!user) { navigate({ to: "/auth" }); return; }
-    if (!isAdmin) { navigate({ to: "/" }); return; }
+    if (!user) {
+      navigate({ to: "/auth" });
+      return;
+    }
+    if (!isAdmin) {
+      navigate({ to: "/" });
+      return;
+    }
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, user, isAdmin]);
@@ -54,7 +69,15 @@ function AdminDashboard() {
       (byUser[r.user_id] ??= []).push(r.role);
     }
     setUsers(
-      ((profiles as Array<{ id: string; username: string; display_name: string | null; is_shadow_banned: boolean; is_system_locked: boolean }> | null) ?? []).map((p) => ({
+      (
+        (profiles as Array<{
+          id: string;
+          username: string;
+          display_name: string | null;
+          is_shadow_banned: boolean;
+          is_system_locked: boolean;
+        }> | null) ?? []
+      ).map((p) => ({
         ...p,
         roles: byUser[p.id] ?? [],
       })),
@@ -65,28 +88,64 @@ function AdminDashboard() {
   const setRole = async (uid: string, role: AppRole, on: boolean) => {
     if (on) {
       const { error } = await supabase.from("user_roles").insert({ user_id: uid, role });
-      if (error) { toast.error(error.message); return; }
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
     } else {
-      const { error } = await supabase.from("user_roles").delete().eq("user_id", uid).eq("role", role);
-      if (error) { toast.error(error.message); return; }
+      const { error } = await supabase
+        .from("user_roles")
+        .delete()
+        .eq("user_id", uid)
+        .eq("role", role);
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
     }
     toast.success(`${on ? "Granted" : "Revoked"} ${role}`);
     void load();
   };
 
-  const setFlag = async (uid: string, field: "is_shadow_banned" | "is_system_locked", on: boolean) => {
-    if (field === "is_system_locked" && on && !confirm("System-lock this user? They will be signed out immediately and blocked from the app.")) return;
-    const patch = (field === "is_shadow_banned"
-      ? { is_shadow_banned: on }
-      : { is_system_locked: on }) as { is_shadow_banned?: boolean; is_system_locked?: boolean };
+  const setFlag = async (
+    uid: string,
+    field: "is_shadow_banned" | "is_system_locked",
+    on: boolean,
+  ) => {
+    if (
+      field === "is_system_locked" &&
+      on &&
+      !confirm(
+        "System-lock this user? They will be signed out immediately and blocked from the app.",
+      )
+    )
+      return;
+    const patch = (
+      field === "is_shadow_banned" ? { is_shadow_banned: on } : { is_system_locked: on }
+    ) as { is_shadow_banned?: boolean; is_system_locked?: boolean };
     const { error } = await supabase.from("profiles").update(patch).eq("id", uid);
-    if (error) { toast.error(error.message); return; }
-    toast.success(field === "is_shadow_banned" ? (on ? "Shadow banned" : "Shadow ban lifted") : (on ? "System locked" : "System lock released"));
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    toast.success(
+      field === "is_shadow_banned"
+        ? on
+          ? "Shadow banned"
+          : "Shadow ban lifted"
+        : on
+          ? "System locked"
+          : "System lock released",
+    );
     void load();
   };
 
   const filtered = q
-    ? users.filter((u) => u.username.toLowerCase().includes(q.toLowerCase()) || (u.display_name ?? "").toLowerCase().includes(q.toLowerCase()))
+    ? users.filter(
+        (u) =>
+          u.username.toLowerCase().includes(q.toLowerCase()) ||
+          (u.display_name ?? "").toLowerCase().includes(q.toLowerCase()),
+      )
     : users;
 
   return (
@@ -97,7 +156,10 @@ function AdminDashboard() {
           <Link to="/" className="inline-flex items-center text-xs text-muted-foreground">
             <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Back
           </Link>
-          <h1 className="flex-1 text-center text-xl font-bold tracking-tight flex items-center justify-center gap-2" style={{ color: "#FFFFD7" }}>
+          <h1
+            className="flex-1 text-center text-xl font-bold tracking-tight flex items-center justify-center gap-2"
+            style={{ color: "#FFFFD7" }}
+          >
             <Crown className="h-5 w-5" /> Admin Dashboard
           </h1>
           <div className="w-10" />
@@ -105,7 +167,12 @@ function AdminDashboard() {
 
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-          <Input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search users…" className="pl-9" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search users…"
+            className="pl-9"
+          />
         </div>
 
         <Link to="/admin/reports" className="block">
@@ -115,7 +182,9 @@ function AdminDashboard() {
         </Link>
 
         {fetching && (
-          <Card className="p-6 text-center"><Loader2 className="h-5 w-5 mx-auto animate-spin" /></Card>
+          <Card className="p-6 text-center">
+            <Loader2 className="h-5 w-5 mx-auto animate-spin" />
+          </Card>
         )}
 
         {!fetching && filtered.length === 0 && (
@@ -134,7 +203,13 @@ function AdminDashboard() {
                     <p className="text-sm font-medium truncate flex items-center gap-1">
                       @{u.username}
                       {isAdminRole && (
-                        <Badge className="text-[9px] h-4 px-1.5" style={{ background: "linear-gradient(135deg,#FFE680,#C9A227)", color: "#000" }}>
+                        <Badge
+                          className="text-[9px] h-4 px-1.5"
+                          style={{
+                            background: "linear-gradient(135deg,#FFE680,#C9A227)",
+                            color: "#000",
+                          }}
+                        >
                           <Crown className="h-2.5 w-2.5 mr-0.5" /> Admin
                         </Badge>
                       )}

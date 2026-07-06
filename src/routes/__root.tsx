@@ -7,6 +7,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
+import { Analytics } from "@vercel/analytics/react";
 
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/hooks/use-auth";
@@ -75,17 +76,37 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
       { title: "Writer creator" },
-      { name: "description", content: "An app where writer can write their story draw their characters and can even upload the story for feedback" },
+      {
+        name: "description",
+        content:
+          "An app where writer can write their story draw their characters and can even upload the story for feedback",
+      },
       { name: "author", content: "Lovable" },
       { property: "og:title", content: "Writer creator" },
-      { property: "og:description", content: "An app where writer can write their story draw their characters and can even upload the story for feedback" },
+      {
+        property: "og:description",
+        content:
+          "An app where writer can write their story draw their characters and can even upload the story for feedback",
+      },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Writer creator" },
-      { name: "twitter:description", content: "An app where writer can write their story draw their characters and can even upload the story for feedback" },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/qH7iZz1uUvgdzYlqvkDmrPY2axQ2/social-images/social-1779119034067-1000027642.webp" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/qH7iZz1uUvgdzYlqvkDmrPY2axQ2/social-images/social-1779119034067-1000027642.webp" },
+      {
+        name: "twitter:description",
+        content:
+          "An app where writer can write their story draw their characters and can even upload the story for feedback",
+      },
+      {
+        property: "og:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/qH7iZz1uUvgdzYlqvkDmrPY2axQ2/social-images/social-1779119034067-1000027642.webp",
+      },
+      {
+        name: "twitter:image",
+        content:
+          "https://storage.googleapis.com/gpt-engineer-file-uploads/qH7iZz1uUvgdzYlqvkDmrPY2axQ2/social-images/social-1779119034067-1000027642.webp",
+      },
     ],
     links: [
       {
@@ -114,6 +135,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
       </head>
       <body className="min-h-screen bg-background text-foreground antialiased font-sans">
         {children}
+        <Analytics />
         <Scripts />
       </body>
     </html>

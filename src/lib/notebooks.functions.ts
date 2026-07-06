@@ -22,7 +22,8 @@ export const inviteByUsername = createServerFn({ method: "POST" })
       .maybeSingle();
     if (nbErr) return { ok: false as const, error: "Could not load notebook." };
     if (!nb) return { ok: false as const, error: "Notebook not found." };
-    if (nb.owner_id !== userId) return { ok: false as const, error: "Only the owner can invite people." };
+    if (nb.owner_id !== userId)
+      return { ok: false as const, error: "Only the owner can invite people." };
 
     // Look up the user by (case-insensitive) username.
     const { data: profile, error: pErr } = await supabase
