@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { Toaster } from "@/components/ui/sonner";
 import { fixGrammar } from "@/lib/grammar.functions";
 import { CloudNotebooks } from "@/components/CloudNotebooks";
+import { TacticalSandbox } from "@/components/TacticalSandbox";
 import { useAuth } from "@/hooks/use-auth";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
@@ -23,7 +24,7 @@ import {
   Brush, PenTool, Highlighter, SprayCan, Sparkles, Droplet, Undo2, Redo2, Download, Trash2,
   ShieldAlert, Crown,
   Plus, Wand2, Loader2, Search, Heart, MessageCircle, Menu,
-  BookOpen, BookCopy, Flag, Type, Layers, Link as LinkIcon, ZoomIn, ZoomOut,
+  BookOpen, BookCopy, Flag, Type, Layers, Link as LinkIcon, ZoomIn, ZoomOut, Map as MapIcon,
 } from "lucide-react";
 import Wheel from "@uiw/react-color-wheel";
 import ShadeSlider from "@uiw/react-color-shade-slider";
@@ -56,7 +57,7 @@ type Post = {
   hidden: boolean;
 };
 type Comment = { id: string; author: string; text: string; ts: number };
-type Section = "feed" | "notebooks" | "suggestions" | "drawing";
+type Section = "feed" | "notebooks" | "suggestions" | "drawing" | "sandbox";
 type Notebook = { id: number; title: string; body: string; updated: number };
 type SuggestionDrafts = {
   bugTitle: string;
@@ -87,6 +88,7 @@ const NAV: { id: Section; label: string; icon: React.ComponentType<{ className?:
   { id: "notebooks", label: "My Private Notebooks", icon: NotebookPen },
   { id: "suggestions", label: "Suggestions Box", icon: MessageSquare },
   { id: "drawing", label: "Drawing Studio", icon: Pencil },
+  { id: "sandbox", label: "Tactical Sandbox", icon: MapIcon },
 ];
 
 function Dashboard() {
@@ -126,7 +128,11 @@ function Dashboard() {
       const rawImg = window.localStorage.getItem("dd:post-draft-image");
       if (rawImg) setDraftImage(rawImg);
       const savedSection = window.localStorage.getItem("dd:section");
-      if (savedSection === "feed" || savedSection === "notebooks" || savedSection === "suggestions" || savedSection === "drawing") {
+      if (
+        savedSection === "feed" || savedSection === "notebooks" ||
+        savedSection === "suggestions" || savedSection === "drawing" ||
+        savedSection === "sandbox"
+      ) {
         setSection(savedSection);
       }
       const rawSug = window.localStorage.getItem("dd:suggestions");
@@ -354,6 +360,10 @@ function Dashboard() {
 
       {section === "drawing" && (
         <DrawingStudio adminMode={adminMode} onOpenMenu={() => setNavOpen(true)} />
+      )}
+
+      {section === "sandbox" && (
+        <TacticalSandbox onOpenMenu={() => setNavOpen(true)} />
       )}
 
       {(section === "notebooks" || section === "suggestions") && (
