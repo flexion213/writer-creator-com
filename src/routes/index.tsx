@@ -19,12 +19,48 @@ import { Separator } from "@/components/ui/separator";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
-  BadgeCheck, Bug, Lightbulb, Video, Upload, Send,
-  NotebookPen, Globe, MessageSquare, Pencil, ImagePlus, X, Eraser, Megaphone,
-  Brush, PenTool, Highlighter, SprayCan, Sparkles, Droplet, Undo2, Redo2, Download, Trash2,
-  ShieldAlert, Crown,
-  Plus, Wand2, Loader2, Search, Heart, MessageCircle, Menu,
-  BookOpen, BookCopy, Flag, Type, Layers, Link as LinkIcon, ZoomIn, ZoomOut, Map as MapIcon,
+  BadgeCheck,
+  Bug,
+  Lightbulb,
+  Video,
+  Upload,
+  Send,
+  NotebookPen,
+  Globe,
+  MessageSquare,
+  Pencil,
+  ImagePlus,
+  X,
+  Eraser,
+  Megaphone,
+  Brush,
+  PenTool,
+  Highlighter,
+  SprayCan,
+  Sparkles,
+  Droplet,
+  Undo2,
+  Redo2,
+  Download,
+  Trash2,
+  ShieldAlert,
+  Crown,
+  Plus,
+  Wand2,
+  Loader2,
+  Search,
+  Heart,
+  MessageCircle,
+  Menu,
+  BookOpen,
+  BookCopy,
+  Flag,
+  Type,
+  Layers,
+  Link as LinkIcon,
+  ZoomIn,
+  ZoomOut,
+  Map as MapIcon,
 } from "lucide-react";
 import Wheel from "@uiw/react-color-wheel";
 import ShadeSlider from "@uiw/react-color-shade-slider";
@@ -94,10 +130,7 @@ const NAV: { id: Section; label: string; icon: React.ComponentType<{ className?:
 function Dashboard() {
   const { isAdmin, isModerator, profile, user } = useAuth();
   const currentUsername =
-    profile?.username ||
-    profile?.display_name ||
-    user?.email?.split("@")[0] ||
-    "anonymous";
+    profile?.username || profile?.display_name || user?.email?.split("@")[0] || "anonymous";
   const navigate = useNavigate();
   // IMPORTANT: All state below uses the same defaults on the server and the
   // client's first render to avoid hydration mismatches. localStorage is
@@ -129,14 +162,20 @@ function Dashboard() {
       if (rawImg) setDraftImage(rawImg);
       const savedSection = window.localStorage.getItem("dd:section");
       if (
-        savedSection === "feed" || savedSection === "notebooks" ||
-        savedSection === "suggestions" || savedSection === "drawing" ||
+        savedSection === "feed" ||
+        savedSection === "notebooks" ||
+        savedSection === "suggestions" ||
+        savedSection === "drawing" ||
         savedSection === "sandbox"
       ) {
         setSection(savedSection);
       }
       const rawSug = window.localStorage.getItem("dd:suggestions");
-      if (rawSug) setSuggestions({ ...emptySuggestionDrafts, ...(JSON.parse(rawSug) as Partial<SuggestionDrafts>) });
+      if (rawSug)
+        setSuggestions({
+          ...emptySuggestionDrafts,
+          ...(JSON.parse(rawSug) as Partial<SuggestionDrafts>),
+        });
       const rawBroadcast = window.localStorage.getItem("dd:broadcast");
       if (rawBroadcast) setBroadcast(rawBroadcast);
       const rawNb = window.localStorage.getItem("dd:notebooks");
@@ -148,15 +187,21 @@ function Dashboard() {
   useEffect(() => {
     if (!hydrated) return;
     // Clean up legacy local-only feed; posts now live in cloud.
-    try { window.localStorage.removeItem("dd:posts"); } catch {}
+    try {
+      window.localStorage.removeItem("dd:posts");
+    } catch {}
   }, [hydrated]);
   useEffect(() => {
     if (!hydrated) return;
-    try { window.localStorage.setItem("dd:notebooks", JSON.stringify(notebooks)); } catch {}
+    try {
+      window.localStorage.setItem("dd:notebooks", JSON.stringify(notebooks));
+    } catch {}
   }, [notebooks, hydrated]);
   useEffect(() => {
     if (!hydrated) return;
-    try { window.localStorage.setItem("dd:post-draft", draft); } catch {}
+    try {
+      window.localStorage.setItem("dd:post-draft", draft);
+    } catch {}
   }, [draft, hydrated]);
   useEffect(() => {
     if (!hydrated) return;
@@ -167,15 +212,21 @@ function Dashboard() {
   }, [draftImage, hydrated]);
   useEffect(() => {
     if (!hydrated) return;
-    try { window.localStorage.setItem("dd:section", section); } catch {}
+    try {
+      window.localStorage.setItem("dd:section", section);
+    } catch {}
   }, [section, hydrated]);
   useEffect(() => {
     if (!hydrated) return;
-    try { window.localStorage.setItem("dd:suggestions", JSON.stringify(suggestions)); } catch {}
+    try {
+      window.localStorage.setItem("dd:suggestions", JSON.stringify(suggestions));
+    } catch {}
   }, [suggestions, hydrated]);
   useEffect(() => {
     if (!hydrated) return;
-    try { window.localStorage.setItem("dd:broadcast", broadcast); } catch {}
+    try {
+      window.localStorage.setItem("dd:broadcast", broadcast);
+    } catch {}
   }, [broadcast, hydrated]);
 
   const runFix = async (text: string): Promise<string | null> => {
@@ -186,7 +237,10 @@ function Dashboard() {
     }
     try {
       const r = await fix({ data: { text: trimmed } });
-      if (!r.ok) { toast.error(r.error); return null; }
+      if (!r.ok) {
+        toast.error(r.error);
+        return null;
+      }
       toast.success(`Fixed (${r.language})`);
       return r.corrected;
     } catch (e) {
@@ -202,7 +256,8 @@ function Dashboard() {
     const f = e.target.files?.[0];
     if (!f) return;
     const reader = new FileReader();
-    reader.onload = () => setDraftImage(typeof reader.result === "string" ? reader.result : undefined);
+    reader.onload = () =>
+      setDraftImage(typeof reader.result === "string" ? reader.result : undefined);
     reader.readAsDataURL(f);
   };
 
@@ -210,7 +265,10 @@ function Dashboard() {
     const text = draft.trim();
     const title = draftTitle.trim();
     if (!text && !draftImage && !title) return;
-    if (!user) { toast.error("Sign in to post."); return; }
+    if (!user) {
+      toast.error("Sign in to post.");
+      return;
+    }
     const { error } = await supabase.from("feed_posts").insert({
       author_id: user.id,
       author_name: adminMode ? "Head Dev" : currentUsername,
@@ -219,7 +277,10 @@ function Dashboard() {
       body: text,
       image: draftImage ?? null,
     });
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     setDraft("");
     setDraftTitle("");
     setDraftImage(undefined);
@@ -228,7 +289,10 @@ function Dashboard() {
 
   // Cloud feed: load + realtime
   useEffect(() => {
-    if (!user) { setPosts([]); return; }
+    if (!user) {
+      setPosts([]);
+      return;
+    }
     let alive = true;
     supabase
       .from("feed_posts")
@@ -238,12 +302,23 @@ function Dashboard() {
       .then(({ data }) => {
         if (!alive) return;
         setPosts(
-          ((data as Array<{
-            id: string; author_id: string; author_name: string; verified: boolean;
-            title: string | null; body: string; image: string | null; created_at: string;
-            post_kind: string | null; cover_image: string | null;
-            comic_pages: unknown; project_id: string | null; hidden: boolean | null;
-          }>) ?? []).map((r) => ({
+          (
+            (data as Array<{
+              id: string;
+              author_id: string;
+              author_name: string;
+              verified: boolean;
+              title: string | null;
+              body: string;
+              image: string | null;
+              created_at: string;
+              post_kind: string | null;
+              cover_image: string | null;
+              comic_pages: unknown;
+              project_id: string | null;
+              hidden: boolean | null;
+            }>) ?? []
+          ).map((r) => ({
             id: r.id,
             author_id: r.author_id,
             author: r.author_name,
@@ -252,7 +327,9 @@ function Dashboard() {
             text: r.body,
             image: r.image ?? undefined,
             created_at: r.created_at,
-            kind: (r.post_kind === "novel" || r.post_kind === "comic" ? r.post_kind : "text") as Post["kind"],
+            kind: (r.post_kind === "novel" || r.post_kind === "comic"
+              ? r.post_kind
+              : "text") as Post["kind"],
             cover: r.cover_image ?? undefined,
             comicPages: Array.isArray(r.comic_pages) ? (r.comic_pages as string[]) : [],
             projectId: r.project_id ?? null,
@@ -265,30 +342,60 @@ function Dashboard() {
       .on("postgres_changes", { event: "*", schema: "public", table: "feed_posts" }, (payload) => {
         if (payload.eventType === "INSERT") {
           const r = payload.new as {
-            id: string; author_id: string; author_name: string; verified: boolean;
-            title: string | null; body: string; image: string | null; created_at: string;
-            post_kind: string | null; cover_image: string | null;
-            comic_pages: unknown; project_id: string | null; hidden: boolean | null;
+            id: string;
+            author_id: string;
+            author_name: string;
+            verified: boolean;
+            title: string | null;
+            body: string;
+            image: string | null;
+            created_at: string;
+            post_kind: string | null;
+            cover_image: string | null;
+            comic_pages: unknown;
+            project_id: string | null;
+            hidden: boolean | null;
           };
-          setPosts((prev) => prev.some((p) => p.id === r.id) ? prev : [{
-            id: r.id, author_id: r.author_id, author: r.author_name, verified: r.verified,
-            title: r.title ?? undefined, text: r.body, image: r.image ?? undefined, created_at: r.created_at,
-            kind: (r.post_kind === "novel" || r.post_kind === "comic" ? r.post_kind : "text") as Post["kind"],
-            cover: r.cover_image ?? undefined,
-            comicPages: Array.isArray(r.comic_pages) ? (r.comic_pages as string[]) : [],
-            projectId: r.project_id ?? null,
-            hidden: !!r.hidden,
-          }, ...prev]);
+          setPosts((prev) =>
+            prev.some((p) => p.id === r.id)
+              ? prev
+              : [
+                  {
+                    id: r.id,
+                    author_id: r.author_id,
+                    author: r.author_name,
+                    verified: r.verified,
+                    title: r.title ?? undefined,
+                    text: r.body,
+                    image: r.image ?? undefined,
+                    created_at: r.created_at,
+                    kind: (r.post_kind === "novel" || r.post_kind === "comic"
+                      ? r.post_kind
+                      : "text") as Post["kind"],
+                    cover: r.cover_image ?? undefined,
+                    comicPages: Array.isArray(r.comic_pages) ? (r.comic_pages as string[]) : [],
+                    projectId: r.project_id ?? null,
+                    hidden: !!r.hidden,
+                  },
+                  ...prev,
+                ],
+          );
         } else if (payload.eventType === "DELETE") {
           const r = payload.old as { id: string };
           setPosts((prev) => prev.filter((p) => p.id !== r.id));
         }
       })
       .subscribe();
-    return () => { alive = false; supabase.removeChannel(ch); };
+    return () => {
+      alive = false;
+      supabase.removeChannel(ch);
+    };
   }, [user]);
 
-  const go = (s: Section) => { setSection(s); setNavOpen(false); };
+  const go = (s: Section) => {
+    setSection(s);
+    setNavOpen(false);
+  };
   const currentLabel = NAV.find((n) => n.id === section)?.label ?? "Global Feed";
 
   return (
@@ -296,7 +403,10 @@ function Dashboard() {
       <Toaster />
       {/* Menu sheet always mounted so the feed reel can open it imperatively */}
       <Sheet open={navOpen} onOpenChange={setNavOpen}>
-        <SheetContent side="left" className="w-80 border-r-0 bg-gradient-to-b from-background to-background/95">
+        <SheetContent
+          side="left"
+          className="w-80 border-r-0 bg-gradient-to-b from-background to-background/95"
+        >
           <SheetHeader className="text-left">
             <SheetTitle style={{ color: "#FFFFD7" }} className="text-2xl font-bold tracking-tight">
               Dev Dashboard
@@ -362,21 +472,25 @@ function Dashboard() {
         <DrawingStudio adminMode={adminMode} onOpenMenu={() => setNavOpen(true)} />
       )}
 
-      {section === "sandbox" && (
-        <TacticalSandbox onOpenMenu={() => setNavOpen(true)} />
-      )}
+      {section === "sandbox" && <TacticalSandbox onOpenMenu={() => setNavOpen(true)} />}
 
       {(section === "notebooks" || section === "suggestions") && (
-      <main className="mx-auto max-w-md px-4 py-4 space-y-4">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" aria-label="Open menu" className="h-9 w-9" onClick={() => setNavOpen(true)}>
-            <div className="flex flex-col gap-[5px]">
-              <span className="block h-[2px] w-5 bg-foreground" />
-              <span className="block h-[2px] w-5 bg-foreground" />
-              <span className="block h-[2px] w-5 bg-foreground" />
-            </div>
-          </Button>
-          {false && (
+        <main className="mx-auto max-w-md px-4 py-4 space-y-4">
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Open menu"
+              className="h-9 w-9"
+              onClick={() => setNavOpen(true)}
+            >
+              <div className="flex flex-col gap-[5px]">
+                <span className="block h-[2px] w-5 bg-foreground" />
+                <span className="block h-[2px] w-5 bg-foreground" />
+                <span className="block h-[2px] w-5 bg-foreground" />
+              </div>
+            </Button>
+            {false && (
               <Button variant="ghost" size="icon" aria-label="Open menu" className="h-9 w-9">
                 <div className="flex flex-col gap-[5px]">
                   <span className="block h-[2px] w-5 bg-foreground" />
@@ -384,30 +498,28 @@ function Dashboard() {
                   <span className="block h-[2px] w-5 bg-foreground" />
                 </div>
               </Button>
+            )}
+
+            <h1
+              style={{ color: "#FFFFD7" }}
+              className="flex-1 text-center text-xl font-bold tracking-tight select-none cursor-default"
+            >
+              Dev Dashboard
+            </h1>
+            <div className="w-9" />
+          </div>
+
+          <p className="text-center text-[11px] text-muted-foreground -mt-2">{currentLabel}</p>
+
+          {section === "notebooks" && <CloudNotebooks runFix={runFix} />}
+          {section === "suggestions" && (
+            <Suggestions suggestions={suggestions} setSuggestions={setSuggestions} />
           )}
 
-          <h1
-            style={{ color: "#FFFFD7" }}
-            className="flex-1 text-center text-xl font-bold tracking-tight select-none cursor-default"
-          >
-            Dev Dashboard
-          </h1>
-          <div className="w-9" />
-        </div>
-
-        <p className="text-center text-[11px] text-muted-foreground -mt-2">
-          {currentLabel}
-        </p>
-
-        {section === "notebooks" && (
-          <CloudNotebooks runFix={runFix} />
-        )}
-        {section === "suggestions" && <Suggestions suggestions={suggestions} setSuggestions={setSuggestions} />}
-
-        <footer className="pt-6 pb-4 text-center text-[11px] text-muted-foreground/70">
-          © 2026 Writer Creators. Made by Abdulkader Alomar.
-        </footer>
-      </main>
+          <footer className="pt-6 pb-4 text-center text-[11px] text-muted-foreground/70">
+            © 2026 Writer Creators. Made by Abdulkader Alomar.
+          </footer>
+        </main>
       )}
 
       {(isAdmin || isModerator) && (
@@ -444,7 +556,9 @@ function Notebooks({
     setNotebooks((n) => [{ id, title: "Untitled", body: "", updated: id }, ...n]);
   };
   const update = (id: number, patch: Partial<Notebook>) =>
-    setNotebooks((n) => n.map((nb) => (nb.id === id ? { ...nb, ...patch, updated: Date.now() } : nb)));
+    setNotebooks((n) =>
+      n.map((nb) => (nb.id === id ? { ...nb, ...patch, updated: Date.now() } : nb)),
+    );
   const remove = (id: number) => setNotebooks((n) => n.filter((nb) => nb.id !== id));
 
   const fmt = (t: number) => {
@@ -527,7 +641,11 @@ function Notebooks({
                     }}
                     className="rounded-full"
                   >
-                    {fixing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
+                    {fixing ? (
+                      <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+                    ) : (
+                      <Wand2 className="h-3.5 w-3.5 mr-1" />
+                    )}
                     Fix grammar
                   </Button>
                 </div>
@@ -557,13 +675,20 @@ function Suggestions({
     reportedUsername?: string,
     resetKeys?: (keyof SuggestionDrafts)[],
   ) => {
-    if (!user) { toast.error("Please sign in to submit."); return; }
-    if (!title.trim()) { toast.error("Add a title first."); return; }
+    if (!user) {
+      toast.error("Please sign in to submit.");
+      return;
+    }
+    if (!title.trim()) {
+      toast.error("Add a title first.");
+      return;
+    }
     setSubmitting(kind);
     let reportedUserId: string | null = null;
     if (kind === "user" && reportedUsername?.trim()) {
       const { data: p } = await supabase
-        .from("profiles").select("id")
+        .from("profiles")
+        .select("id")
         .ilike("username", reportedUsername.trim().replace(/^@/, ""))
         .maybeSingle();
       reportedUserId = p?.id ?? null;
@@ -574,11 +699,17 @@ function Suggestions({
       }
     }
     const { error } = await supabase.from("reports").insert({
-      kind, title: title.trim(), body: body.trim(),
-      reporter_id: user.id, reported_user_id: reportedUserId,
+      kind,
+      title: title.trim(),
+      body: body.trim(),
+      reporter_id: user.id,
+      reported_user_id: reportedUserId,
     });
     setSubmitting(null);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     toast.success("Submitted — staff will review.");
     if (resetKeys) {
       setSuggestions((cur) => {
@@ -612,7 +743,16 @@ function Suggestions({
           <Button variant="outline" size="sm" className="text-xs">
             <Upload className="h-3.5 w-3.5 mr-1" /> Attach
           </Button>
-          <Button size="sm" disabled={submitting === "bug"} onClick={() => submit("bug", suggestions.bugTitle, suggestions.bugBody, undefined, ["bugTitle","bugBody"])}>
+          <Button
+            size="sm"
+            disabled={submitting === "bug"}
+            onClick={() =>
+              submit("bug", suggestions.bugTitle, suggestions.bugBody, undefined, [
+                "bugTitle",
+                "bugBody",
+              ])
+            }
+          >
             {submitting === "bug" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Submit"}
           </Button>
         </div>
@@ -626,19 +766,32 @@ function Suggestions({
           placeholder="Idea title"
           className="mb-2"
           value={suggestions.featureTitle}
-          onChange={(e) => setSuggestions((current) => ({ ...current, featureTitle: e.target.value }))}
+          onChange={(e) =>
+            setSuggestions((current) => ({ ...current, featureTitle: e.target.value }))
+          }
         />
         <Textarea
           placeholder="Describe the feature…"
           className="mb-2 min-h-16 resize-none"
           value={suggestions.featureBody}
-          onChange={(e) => setSuggestions((current) => ({ ...current, featureBody: e.target.value }))}
+          onChange={(e) =>
+            setSuggestions((current) => ({ ...current, featureBody: e.target.value }))
+          }
         />
         <div className="flex items-center justify-between">
           <Button variant="outline" size="sm" className="text-xs">
             <Upload className="h-3.5 w-3.5 mr-1" /> Attach mockup
           </Button>
-          <Button size="sm" disabled={submitting === "feature"} onClick={() => submit("feature", suggestions.featureTitle, suggestions.featureBody, undefined, ["featureTitle","featureBody"])}>
+          <Button
+            size="sm"
+            disabled={submitting === "feature"}
+            onClick={() =>
+              submit("feature", suggestions.featureTitle, suggestions.featureBody, undefined, [
+                "featureTitle",
+                "featureBody",
+              ])
+            }
+          >
             {submitting === "feature" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Submit"}
           </Button>
         </div>
@@ -652,7 +805,9 @@ function Suggestions({
           placeholder="What broke?"
           className="mb-2"
           value={suggestions.videoTitle}
-          onChange={(e) => setSuggestions((current) => ({ ...current, videoTitle: e.target.value }))}
+          onChange={(e) =>
+            setSuggestions((current) => ({ ...current, videoTitle: e.target.value }))
+          }
         />
         <Textarea
           placeholder="Context (timestamp, device, etc.)"
@@ -664,7 +819,16 @@ function Suggestions({
           <Button variant="outline" size="sm" className="text-xs">
             <Upload className="h-3.5 w-3.5 mr-1" /> Attach video
           </Button>
-          <Button size="sm" disabled={submitting === "video"} onClick={() => submit("video", suggestions.videoTitle, suggestions.videoBody, undefined, ["videoTitle","videoBody"])}>
+          <Button
+            size="sm"
+            disabled={submitting === "video"}
+            onClick={() =>
+              submit("video", suggestions.videoTitle, suggestions.videoBody, undefined, [
+                "videoTitle",
+                "videoBody",
+              ])
+            }
+          >
             {submitting === "video" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Submit"}
           </Button>
         </div>
@@ -678,7 +842,9 @@ function Suggestions({
           placeholder="Username (e.g. alice)"
           className="mb-2"
           value={suggestions.userTarget}
-          onChange={(e) => setSuggestions((current) => ({ ...current, userTarget: e.target.value }))}
+          onChange={(e) =>
+            setSuggestions((current) => ({ ...current, userTarget: e.target.value }))
+          }
         />
         <Textarea
           placeholder="What happened? Be specific."
@@ -690,7 +856,15 @@ function Suggestions({
           <Button
             size="sm"
             disabled={submitting === "user"}
-            onClick={() => submit("user", `Report: @${suggestions.userTarget.trim().replace(/^@/, "")}`, suggestions.userBody, suggestions.userTarget, ["userTarget","userBody"])}
+            onClick={() =>
+              submit(
+                "user",
+                `Report: @${suggestions.userTarget.trim().replace(/^@/, "")}`,
+                suggestions.userBody,
+                suggestions.userTarget,
+                ["userTarget", "userBody"],
+              )
+            }
           >
             {submitting === "user" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : "Submit"}
           </Button>
@@ -700,19 +874,41 @@ function Suggestions({
   );
 }
 
-type BrushId = "pencil" | "pen" | "marker" | "ink" | "highlighter" | "airbrush" | "spray" | "neon" | "calligraphy" | "eraser";
+type BrushId =
+  | "pencil"
+  | "pen"
+  | "marker"
+  | "ink"
+  | "highlighter"
+  | "airbrush"
+  | "spray"
+  | "neon"
+  | "calligraphy"
+  | "eraser";
 
-const BRUSHES: { id: BrushId; label: string; icon: React.ComponentType<{ className?: string }>; defaultSize: number; defaultOpacity: number }[] = [
-  { id: "pencil",      label: "Pencil",      icon: Pencil,      defaultSize: 2,  defaultOpacity: 0.85 },
-  { id: "pen",         label: "Pen",         icon: PenTool,     defaultSize: 4,  defaultOpacity: 1 },
-  { id: "marker",      label: "Marker",      icon: Brush,       defaultSize: 10, defaultOpacity: 0.9 },
-  { id: "ink",         label: "Ink",         icon: Droplet,     defaultSize: 6,  defaultOpacity: 1 },
-  { id: "highlighter", label: "Highlighter", icon: Highlighter, defaultSize: 18, defaultOpacity: 0.35 },
-  { id: "airbrush",    label: "Airbrush",    icon: SprayCan,    defaultSize: 24, defaultOpacity: 0.15 },
-  { id: "spray",       label: "Spray",       icon: SprayCan,    defaultSize: 22, defaultOpacity: 0.6 },
-  { id: "neon",        label: "Neon",        icon: Sparkles,    defaultSize: 6,  defaultOpacity: 1 },
-  { id: "calligraphy", label: "Calligraphy", icon: PenTool,     defaultSize: 14, defaultOpacity: 1 },
-  { id: "eraser",      label: "Eraser",      icon: Eraser,      defaultSize: 18, defaultOpacity: 1 },
+const BRUSHES: {
+  id: BrushId;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  defaultSize: number;
+  defaultOpacity: number;
+}[] = [
+  { id: "pencil", label: "Pencil", icon: Pencil, defaultSize: 2, defaultOpacity: 0.85 },
+  { id: "pen", label: "Pen", icon: PenTool, defaultSize: 4, defaultOpacity: 1 },
+  { id: "marker", label: "Marker", icon: Brush, defaultSize: 10, defaultOpacity: 0.9 },
+  { id: "ink", label: "Ink", icon: Droplet, defaultSize: 6, defaultOpacity: 1 },
+  {
+    id: "highlighter",
+    label: "Highlighter",
+    icon: Highlighter,
+    defaultSize: 18,
+    defaultOpacity: 0.35,
+  },
+  { id: "airbrush", label: "Airbrush", icon: SprayCan, defaultSize: 24, defaultOpacity: 0.15 },
+  { id: "spray", label: "Spray", icon: SprayCan, defaultSize: 22, defaultOpacity: 0.6 },
+  { id: "neon", label: "Neon", icon: Sparkles, defaultSize: 6, defaultOpacity: 1 },
+  { id: "calligraphy", label: "Calligraphy", icon: PenTool, defaultSize: 14, defaultOpacity: 1 },
+  { id: "eraser", label: "Eraser", icon: Eraser, defaultSize: 18, defaultOpacity: 1 },
 ];
 
 // All brushes are free for every user.
@@ -784,9 +980,17 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     if (!ctx) return null;
     try {
       const sample = ctx.getImageData(0, 0, 1, 1).data;
-      const hasInk = sample[3] > 0 || ctx.getImageData(Math.max(0, canvas.width - 1), Math.max(0, canvas.height - 1), 1, 1).data[3] > 0;
+      const hasInk =
+        sample[3] > 0 ||
+        ctx.getImageData(Math.max(0, canvas.width - 1), Math.max(0, canvas.height - 1), 1, 1)
+          .data[3] > 0;
       if (!hasInk) {
-        const probe = ctx.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data;
+        const probe = ctx.getImageData(
+          Math.floor(canvas.width / 2),
+          Math.floor(canvas.height / 2),
+          1,
+          1,
+        ).data;
         if (probe[3] === 0) return null;
       }
     } catch {
@@ -813,8 +1017,11 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   }, []);
 
   const persistLayer = useCallback((id: string) => {
-    const c = layerRefs.current.get(id); if (!c) return;
-    try { window.localStorage.setItem(`dd:canvas:${id}`, c.toDataURL("image/png")); } catch {}
+    const c = layerRefs.current.get(id);
+    if (!c) return;
+    try {
+      window.localStorage.setItem(`dd:canvas:${id}`, c.toDataURL("image/png"));
+    } catch {}
   }, []);
 
   useEffect(() => {
@@ -830,9 +1037,12 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   // Restore each layer's saved bitmap on mount/when layers change
   useEffect(() => {
     for (const layer of layers) {
-      const c = layerRefs.current.get(layer.id); if (!c) continue;
-      const ctx = c.getContext("2d"); if (!ctx) continue;
-      const saved = typeof window !== "undefined" ? window.localStorage.getItem(`dd:canvas:${layer.id}`) : null;
+      const c = layerRefs.current.get(layer.id);
+      if (!c) continue;
+      const ctx = c.getContext("2d");
+      if (!ctx) continue;
+      const saved =
+        typeof window !== "undefined" ? window.localStorage.getItem(`dd:canvas:${layer.id}`) : null;
       if (saved) {
         const img = new Image();
         img.onload = () => ctx.drawImage(img, 0, 0, c.width, c.height);
@@ -844,7 +1054,9 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
 
   // Invalidate cached bounding rect on viewport changes
   useEffect(() => {
-    const clear = () => { rectCache.current = null; };
+    const clear = () => {
+      rectCache.current = null;
+    };
     window.addEventListener("resize", clear);
     window.addEventListener("orientationchange", clear);
     window.addEventListener("scroll", clear, true);
@@ -894,7 +1106,8 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   };
 
   const snapshot = () => {
-    const c = activeCanvas(); if (!c) return;
+    const c = activeCanvas();
+    if (!c) return;
     const h = history.current.get(activeLayerId) ?? [];
     h.push(captureLayerSnapshot(c));
     if (h.length > 25) h.shift();
@@ -903,7 +1116,8 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   };
 
   const undo = () => {
-    const c = activeCanvas(); if (!c) return;
+    const c = activeCanvas();
+    if (!c) return;
     const h = history.current.get(activeLayerId) ?? [];
     const last = h.pop();
     if (last === undefined) return;
@@ -915,7 +1129,8 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     persistLayer(activeLayerId);
   };
   const redo = () => {
-    const c = activeCanvas(); if (!c) return;
+    const c = activeCanvas();
+    if (!c) return;
     const f = future.current.get(activeLayerId) ?? [];
     const next = f.pop();
     if (next === undefined) return;
@@ -982,11 +1197,17 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     }
   };
 
-  const drawSegment = (ctx: CanvasRenderingContext2D, from: {x:number;y:number}, to: {x:number;y:number}) => {
+  const drawSegment = (
+    ctx: CanvasRenderingContext2D,
+    from: { x: number; y: number },
+    to: { x: number; y: number },
+  ) => {
     if (brush === "calligraphy") {
-      const dx = to.x - from.x, dy = to.y - from.y;
+      const dx = to.x - from.x,
+        dy = to.y - from.y;
       const len = Math.hypot(dx, dy) || 1;
-      const nx = -dy / len, ny = dx / len;
+      const nx = -dy / len,
+        ny = dx / len;
       const w = size / 2;
       ctx.beginPath();
       ctx.moveTo(from.x + nx * w, from.y + ny * w);
@@ -1040,8 +1261,10 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   const flushPoints = () => {
     rafId.current = null;
     if (!drawing.current) return;
-    const c = activeCanvas(); if (!c) return;
-    const ctx = c.getContext("2d"); if (!ctx) return;
+    const c = activeCanvas();
+    if (!c) return;
+    const ctx = c.getContext("2d");
+    if (!ctx) return;
     applyStroke(ctx);
     const pts = pendingPts.current;
     pendingPts.current = [];
@@ -1058,8 +1281,11 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
 
   const start = (e: React.PointerEvent<HTMLCanvasElement>) => {
     e.preventDefault();
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
-    const c = activeCanvas(); if (!c) return;
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+    const c = activeCanvas();
+    if (!c) return;
     rectCache.current = null; // refresh in case layout changed
     drawing.current = true;
     snapshot();
@@ -1073,7 +1299,8 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   const move = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!drawing.current) return;
     e.preventDefault();
-    const c = activeCanvas(); if (!c) return;
+    const c = activeCanvas();
+    if (!c) return;
     // Use the primary event coords only. Coalesced events on iOS Safari can
     // report stale (0,0) coordinates, which caused strokes to "jump" off-canvas
     // and made drawing appear completely broken on mobile.
@@ -1085,15 +1312,22 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     drawing.current = false;
     lastPt.current = null;
     pendingPts.current = [];
-    if (rafId.current != null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
-    if (sprayTimer.current) { window.clearInterval(sprayTimer.current); sprayTimer.current = null; }
+    if (rafId.current != null) {
+      cancelAnimationFrame(rafId.current);
+      rafId.current = null;
+    }
+    if (sprayTimer.current) {
+      window.clearInterval(sprayTimer.current);
+      sprayTimer.current = null;
+    }
     // Persist on idle to avoid blocking the next stroke
     window.setTimeout(() => persistLayer(activeLayerId), 0);
     rectCache.current = null;
   };
 
   const clearActive = () => {
-    const c = activeCanvas(); if (!c) return;
+    const c = activeCanvas();
+    if (!c) return;
     snapshot();
     const ctx = c.getContext("2d")!;
     ctx.clearRect(0, 0, c.width, c.height);
@@ -1103,12 +1337,15 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   const save = () => {
     // Flatten all visible layers to a single PNG and download.
     const out = document.createElement("canvas");
-    out.width = CANVAS_W; out.height = CANVAS_H;
+    out.width = CANVAS_W;
+    out.height = CANVAS_H;
     const octx = out.getContext("2d")!;
-    octx.fillStyle = "#ffffff"; octx.fillRect(0, 0, out.width, out.height);
+    octx.fillStyle = "#ffffff";
+    octx.fillRect(0, 0, out.width, out.height);
     for (const layer of layers) {
       if (!layer.visible) continue;
-      const c = layerRefs.current.get(layer.id); if (!c) continue;
+      const c = layerRefs.current.get(layer.id);
+      if (!c) continue;
       octx.drawImage(c, 0, 0);
     }
     const link = document.createElement("a");
@@ -1118,14 +1355,22 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   };
 
   const addLayer = () => {
-    if (layers.length >= 8) { toast.error("Layer limit reached (8)."); return; }
+    if (layers.length >= 8) {
+      toast.error("Layer limit reached (8).");
+      return;
+    }
     const id = `layer-${Date.now()}`;
     setLayers((ls) => [...ls, { id, name: `Layer ${ls.length + 1}`, visible: true }]);
     setActiveLayerId(id);
   };
   const removeLayer = (id: string) => {
-    if (layers.length <= 1) { toast.error("Need at least one layer."); return; }
-    try { window.localStorage.removeItem(`dd:canvas:${id}`); } catch {}
+    if (layers.length <= 1) {
+      toast.error("Need at least one layer.");
+      return;
+    }
+    try {
+      window.localStorage.removeItem(`dd:canvas:${id}`);
+    } catch {}
     setLayers((ls) => {
       const next = ls.filter((l) => l.id !== id);
       if (activeLayerId === id) setActiveLayerId(next[0].id);
@@ -1133,21 +1378,46 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     });
   };
   const toggleLayer = (id: string) => {
-    setLayers((ls) => ls.map((l) => l.id === id ? { ...l, visible: !l.visible } : l));
+    setLayers((ls) => ls.map((l) => (l.id === id ? { ...l, visible: !l.visible } : l)));
   };
 
-  const swatches = ["#FFFFD7","#FFFFFF","#000000","#EF4444","#F97316","#EAB308","#22C55E","#06B6D4","#3B82F6","#A855F7","#EC4899","#78350F"];
+  const swatches = [
+    "#FFFFD7",
+    "#FFFFFF",
+    "#000000",
+    "#EF4444",
+    "#F97316",
+    "#EAB308",
+    "#22C55E",
+    "#06B6D4",
+    "#3B82F6",
+    "#A855F7",
+    "#EC4899",
+    "#78350F",
+  ];
   const currentHex = hsvaToHex(hsva);
 
   return (
     <div className="fixed inset-0 z-30 flex flex-col bg-[#0a0a0a] text-white">
       {/* Top mini bar */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-black/40 backdrop-blur shrink-0">
-        <Button variant="ghost" size="icon" aria-label="Open menu" className="h-9 w-9 text-white" onClick={onOpenMenu}>
+        <Button
+          variant="ghost"
+          size="icon"
+          aria-label="Open menu"
+          className="h-9 w-9 text-white"
+          onClick={onOpenMenu}
+        >
           <Menu className="h-5 w-5" />
         </Button>
         <span className="text-sm font-semibold flex-1">Drawing Studio</span>
-        <Button variant="ghost" size="icon" className="h-9 w-9 text-white" onClick={() => setShowSide((s) => !s)} aria-label="Toggle side panel">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-9 w-9 text-white"
+          onClick={() => setShowSide((s) => !s)}
+          aria-label="Toggle side panel"
+        >
           <Sparkles className="h-4 w-4" />
         </Button>
       </div>
@@ -1159,7 +1429,8 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
             className="relative rounded-xl overflow-hidden bg-white border border-white/10"
             style={{
               width: stageSize.width > 0 ? `${stageSize.width}px` : "min(100%, 42vh)",
-              height: stageSize.height > 0 ? `${stageSize.height}px` : "min(70vh, calc(100vw * 1.3333))",
+              height:
+                stageSize.height > 0 ? `${stageSize.height}px` : "min(70vh, calc(100vw * 1.3333))",
               touchAction: "none",
               boxShadow:
                 "0 30px 60px -20px rgba(0,0,0,0.75), 0 12px 24px -10px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05)",
@@ -1191,8 +1462,16 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
         {showSide && (
           <aside className="absolute top-2 right-2 bottom-2 w-64 max-w-[80vw] rounded-2xl bg-black/70 backdrop-blur-xl border border-white/10 p-3 space-y-3 overflow-y-auto z-10">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-widest text-white/70">Layers</span>
-              <Button size="icon" variant="ghost" className="h-7 w-7 text-white" onClick={addLayer} aria-label="Add layer">
+              <span className="text-xs font-semibold uppercase tracking-widest text-white/70">
+                Layers
+              </span>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-7 w-7 text-white"
+                onClick={addLayer}
+                aria-label="Add layer"
+              >
                 <Plus className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -1206,16 +1485,24 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
                     onClick={() => setActiveLayerId(layer.id)}
                   >
                     <button
-                      onClick={(e) => { e.stopPropagation(); toggleLayer(layer.id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggleLayer(layer.id);
+                      }}
                       className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-white/10"
                       aria-label={layer.visible ? "Hide layer" : "Show layer"}
                       title={layer.visible ? "Hide" : "Show"}
                     >
-                      <span className={`block h-2 w-2 rounded-full ${layer.visible ? "bg-emerald-400" : "bg-white/20"}`} />
+                      <span
+                        className={`block h-2 w-2 rounded-full ${layer.visible ? "bg-emerald-400" : "bg-white/20"}`}
+                      />
                     </button>
                     <span className="flex-1 truncate">{layer.name}</span>
                     <button
-                      onClick={(e) => { e.stopPropagation(); removeLayer(layer.id); }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        removeLayer(layer.id);
+                      }}
                       className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-rose-500/20 hover:text-rose-300"
                       aria-label="Delete layer"
                     >
@@ -1227,27 +1514,57 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
             </div>
 
             <div className="border-t border-white/10 pt-3 space-y-2">
-              <span className="text-xs font-semibold uppercase tracking-widest text-white/70">Actions</span>
+              <span className="text-xs font-semibold uppercase tracking-widest text-white/70">
+                Actions
+              </span>
               <div className="grid grid-cols-2 gap-2">
-                <Button size="sm" variant="secondary" className="rounded-xl" onClick={undo}><Undo2 className="h-3.5 w-3.5 mr-1" /> Undo</Button>
-                <Button size="sm" variant="secondary" className="rounded-xl" onClick={redo}><Redo2 className="h-3.5 w-3.5 mr-1" /> Redo</Button>
-                <Button size="sm" variant="secondary" className="rounded-xl" onClick={save}><Download className="h-3.5 w-3.5 mr-1" /> Save</Button>
-                <Button size="sm" variant="secondary" className="rounded-xl" onClick={clearActive}><Trash2 className="h-3.5 w-3.5 mr-1" /> Clear</Button>
+                <Button size="sm" variant="secondary" className="rounded-xl" onClick={undo}>
+                  <Undo2 className="h-3.5 w-3.5 mr-1" /> Undo
+                </Button>
+                <Button size="sm" variant="secondary" className="rounded-xl" onClick={redo}>
+                  <Redo2 className="h-3.5 w-3.5 mr-1" /> Redo
+                </Button>
+                <Button size="sm" variant="secondary" className="rounded-xl" onClick={save}>
+                  <Download className="h-3.5 w-3.5 mr-1" /> Save
+                </Button>
+                <Button size="sm" variant="secondary" className="rounded-xl" onClick={clearActive}>
+                  <Trash2 className="h-3.5 w-3.5 mr-1" /> Clear
+                </Button>
               </div>
             </div>
 
             {showColor && (
               <div className="border-t border-white/10 pt-3 space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-widest text-white/70">Color</span>
+                <span className="text-xs font-semibold uppercase tracking-widest text-white/70">
+                  Color
+                </span>
                 <div className="flex justify-center">
-                  <Wheel color={hsva} onChange={(c) => setHsva({ ...hsva, ...c.hsva })} width={180} height={180} />
+                  <Wheel
+                    color={hsva}
+                    onChange={(c) => setHsva({ ...hsva, ...c.hsva })}
+                    width={180}
+                    height={180}
+                  />
                 </div>
-                <ShadeSlider hsva={hsva} onChange={(s) => setHsva({ ...hsva, ...s })} style={{ width: "100%" }} />
-                <Alpha hsva={hsva} onChange={(a) => setHsva({ ...hsva, ...a })} style={{ width: "100%", height: 14 }} />
+                <ShadeSlider
+                  hsva={hsva}
+                  onChange={(s) => setHsva({ ...hsva, ...s })}
+                  style={{ width: "100%" }}
+                />
+                <Alpha
+                  hsva={hsva}
+                  onChange={(a) => setHsva({ ...hsva, ...a })}
+                  style={{ width: "100%", height: 14 }}
+                />
                 <div className="grid grid-cols-6 gap-1.5">
                   {swatches.map((s) => (
-                    <button key={s} onClick={() => setHsva(hexToHsva(s))}
-                      className="h-7 rounded-md border border-white/10" style={{ background: s }} aria-label={s} />
+                    <button
+                      key={s}
+                      onClick={() => setHsva(hexToHsva(s))}
+                      className="h-7 rounded-md border border-white/10"
+                      style={{ background: s }}
+                      aria-label={s}
+                    />
                   ))}
                 </div>
               </div>
@@ -1269,13 +1586,32 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
                 title="Color wheel"
               />
             </PopoverTrigger>
-            <PopoverContent side="top" align="start" className="w-[220px] p-3 bg-black/90 backdrop-blur-xl border-white/10 space-y-2">
+            <PopoverContent
+              side="top"
+              align="start"
+              className="w-[220px] p-3 bg-black/90 backdrop-blur-xl border-white/10 space-y-2"
+            >
               <div className="flex justify-center">
-                <Wheel color={hsva} onChange={(c) => setHsva({ ...hsva, ...c.hsva })} width={180} height={180} />
+                <Wheel
+                  color={hsva}
+                  onChange={(c) => setHsva({ ...hsva, ...c.hsva })}
+                  width={180}
+                  height={180}
+                />
               </div>
-              <ShadeSlider hsva={hsva} onChange={(s) => setHsva({ ...hsva, ...s })} style={{ width: "100%" }} />
-              <Alpha hsva={hsva} onChange={(a) => setHsva({ ...hsva, ...a })} style={{ width: "100%", height: 14 }} />
-              <div className="text-center text-[10px] font-mono text-white/70 uppercase tracking-widest">{currentHex}</div>
+              <ShadeSlider
+                hsva={hsva}
+                onChange={(s) => setHsva({ ...hsva, ...s })}
+                style={{ width: "100%" }}
+              />
+              <Alpha
+                hsva={hsva}
+                onChange={(a) => setHsva({ ...hsva, ...a })}
+                style={{ width: "100%", height: 14 }}
+              />
+              <div className="text-center text-[10px] font-mono text-white/70 uppercase tracking-widest">
+                {currentHex}
+              </div>
             </PopoverContent>
           </Popover>
           {swatches.map((s) => {
@@ -1322,12 +1658,32 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
         </div>
         <div className="flex items-center gap-3 text-[10px] text-white/70">
           <div className="flex-1">
-            <div className="flex items-center justify-between"><span>Size</span><span>{size}px</span></div>
-            <input type="range" min={1} max={80} value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-full accent-white" />
+            <div className="flex items-center justify-between">
+              <span>Size</span>
+              <span>{size}px</span>
+            </div>
+            <input
+              type="range"
+              min={1}
+              max={80}
+              value={size}
+              onChange={(e) => setSize(Number(e.target.value))}
+              className="w-full accent-white"
+            />
           </div>
           <div className="flex-1">
-            <div className="flex items-center justify-between"><span>Opacity</span><span>{Math.round(opacity * 100)}%</span></div>
-            <input type="range" min={5} max={100} value={Math.round(opacity * 100)} onChange={(e) => setOpacity(Number(e.target.value) / 100)} className="w-full accent-white" />
+            <div className="flex items-center justify-between">
+              <span>Opacity</span>
+              <span>{Math.round(opacity * 100)}%</span>
+            </div>
+            <input
+              type="range"
+              min={5}
+              max={100}
+              value={Math.round(opacity * 100)}
+              onChange={(e) => setOpacity(Number(e.target.value) / 100)}
+              className="w-full accent-white"
+            />
           </div>
         </div>
       </div>
@@ -1363,11 +1719,27 @@ type FeedReelProps = {
 
 function FeedReel(props: FeedReelProps) {
   const {
-    posts, currentUsername, searchQuery, setSearchQuery, onOpenMenu,
-    broadcast, setBroadcast, adminMode,
-    draft, setDraft, draftTitle, setDraftTitle,
-    draftImage, setDraftImage, fileRef, onPickImage,
-    submitPost, runFix, draftFixing, setDraftFixing, currentUserId,
+    posts,
+    currentUsername,
+    searchQuery,
+    setSearchQuery,
+    onOpenMenu,
+    broadcast,
+    setBroadcast,
+    adminMode,
+    draft,
+    setDraft,
+    draftTitle,
+    setDraftTitle,
+    draftImage,
+    setDraftImage,
+    fileRef,
+    onPickImage,
+    submitPost,
+    runFix,
+    draftFixing,
+    setDraftFixing,
+    currentUserId,
   } = props;
 
   const navigate = useNavigate();
@@ -1401,26 +1773,57 @@ function FeedReel(props: FeedReelProps) {
   const [posting, setPosting] = useState(false);
   const [reportedIds, setReportedIds] = useState<Set<string>>(new Set());
 
-  useEffect(() => { if (!composerHydrated) return; try { window.localStorage.setItem("dd:composer-kind", composerKind); } catch {} }, [composerKind, composerHydrated]);
   useEffect(() => {
-    try { cover ? window.localStorage.setItem("dd:composer-cover", cover) : window.localStorage.removeItem("dd:composer-cover"); } catch {}
+    if (!composerHydrated) return;
+    try {
+      window.localStorage.setItem("dd:composer-kind", composerKind);
+    } catch {}
+  }, [composerKind, composerHydrated]);
+  useEffect(() => {
+    try {
+      cover
+        ? window.localStorage.setItem("dd:composer-cover", cover)
+        : window.localStorage.removeItem("dd:composer-cover");
+    } catch {}
   }, [cover]);
-  useEffect(() => { try { window.localStorage.setItem("dd:composer-comic", JSON.stringify(comicPages)); } catch {} }, [comicPages]);
   useEffect(() => {
-    try { projectId ? window.localStorage.setItem("dd:composer-project", projectId) : window.localStorage.removeItem("dd:composer-project"); } catch {}
+    try {
+      window.localStorage.setItem("dd:composer-comic", JSON.stringify(comicPages));
+    } catch {}
+  }, [comicPages]);
+  useEffect(() => {
+    try {
+      projectId
+        ? window.localStorage.setItem("dd:composer-project", projectId)
+        : window.localStorage.removeItem("dd:composer-project");
+    } catch {}
   }, [projectId]);
 
   // Load notebooks I own for the "Link to Project" picker
   useEffect(() => {
-    if (!currentUserId) { setMyNotebooks([]); return; }
-    void supabase.from("notebooks").select("id, title").eq("owner_id", currentUserId).order("updated_at", { ascending: false })
+    if (!currentUserId) {
+      setMyNotebooks([]);
+      return;
+    }
+    void supabase
+      .from("notebooks")
+      .select("id, title")
+      .eq("owner_id", currentUserId)
+      .order("updated_at", { ascending: false })
       .then(({ data }) => setMyNotebooks((data as Array<{ id: string; title: string }>) ?? []));
   }, [currentUserId]);
 
   // Track which posts I've already reported (so the button reads "Reported")
   useEffect(() => {
     if (!currentUserId || posts.length === 0) return;
-    void supabase.from("feed_post_reports").select("post_id").eq("reporter_id", currentUserId).in("post_id", posts.map((p) => p.id))
+    void supabase
+      .from("feed_post_reports")
+      .select("post_id")
+      .eq("reporter_id", currentUserId)
+      .in(
+        "post_id",
+        posts.map((p) => p.id),
+      )
       .then(({ data }) => {
         const s = new Set<string>();
         for (const r of (data as Array<{ post_id: string }>) ?? []) s.add(r.post_id);
@@ -1429,7 +1832,12 @@ function FeedReel(props: FeedReelProps) {
   }, [currentUserId, posts]);
 
   // Downscale an image File to a JPEG data URL bounded by maxW/maxH for mobile-safe payloads.
-  const fileToCompressedDataUrl = (file: File, maxW = 1600, maxH = 2400, quality = 0.82): Promise<string> =>
+  const fileToCompressedDataUrl = (
+    file: File,
+    maxW = 1600,
+    maxH = 2400,
+    quality = 0.82,
+  ): Promise<string> =>
     new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.onload = () => {
@@ -1439,8 +1847,13 @@ function FeedReel(props: FeedReelProps) {
           const w = Math.round(img.width * ratio);
           const h = Math.round(img.height * ratio);
           const c = document.createElement("canvas");
-          c.width = w; c.height = h;
-          const ctx = c.getContext("2d"); if (!ctx) { reject(new Error("ctx")); return; }
+          c.width = w;
+          c.height = h;
+          const ctx = c.getContext("2d");
+          if (!ctx) {
+            reject(new Error("ctx"));
+            return;
+          }
           ctx.drawImage(img, 0, 0, w, h);
           resolve(c.toDataURL("image/jpeg", quality));
         };
@@ -1452,10 +1865,15 @@ function FeedReel(props: FeedReelProps) {
     });
 
   const onPickCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const f = e.target.files?.[0]; if (!f) return;
-    try { setCover(await fileToCompressedDataUrl(f, 800, 1200, 0.8)); }
-    catch { toast.error("Couldn't read that image."); }
-    finally { if (coverRef.current) coverRef.current.value = ""; }
+    const f = e.target.files?.[0];
+    if (!f) return;
+    try {
+      setCover(await fileToCompressedDataUrl(f, 800, 1200, 0.8));
+    } catch {
+      toast.error("Couldn't read that image.");
+    } finally {
+      if (coverRef.current) coverRef.current.value = "";
+    }
   };
   const onPickComic = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -1469,8 +1887,11 @@ function FeedReel(props: FeedReelProps) {
       const next: string[] = [];
       for (const f of files) next.push(await fileToCompressedDataUrl(f, 1400, 2000, 0.78));
       setComicPages((cur) => [...cur, ...next]);
-    } catch { toast.error("One of those images failed to load."); }
-    finally { if (comicRef.current) comicRef.current.value = ""; }
+    } catch {
+      toast.error("One of those images failed to load.");
+    } finally {
+      if (comicRef.current) comicRef.current.value = "";
+    }
   };
 
   const [likes, setLikes] = useState<Record<string, number>>({});
@@ -1491,7 +1912,11 @@ function FeedReel(props: FeedReelProps) {
 
   // Load cloud likes (counts + who I liked) whenever the post set changes.
   useEffect(() => {
-    if (posts.length === 0) { setLikes({}); setLiked({}); return; }
+    if (posts.length === 0) {
+      setLikes({});
+      setLiked({});
+      return;
+    }
     let alive = true;
     const ids = posts.map((p) => p.id);
     void (async () => {
@@ -1509,31 +1934,47 @@ function FeedReel(props: FeedReelProps) {
       setLikes(counts);
       setLiked(mine);
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [posts, currentUserId]);
 
   // Realtime likes — keep counts and self-liked map in sync.
   useEffect(() => {
     const ch = supabase
       .channel("feed_post_likes:all")
-      .on("postgres_changes", { event: "*", schema: "public", table: "feed_post_likes" }, (payload) => {
-        if (payload.eventType === "INSERT") {
-          const r = payload.new as { post_id: string; user_id: string };
-          setLikes((c) => ({ ...c, [r.post_id]: (c[r.post_id] ?? 0) + 1 }));
-          if (r.user_id === currentUserId) setLiked((l) => ({ ...l, [r.post_id]: true }));
-        } else if (payload.eventType === "DELETE") {
-          const r = payload.old as { post_id: string; user_id: string };
-          setLikes((c) => ({ ...c, [r.post_id]: Math.max(0, (c[r.post_id] ?? 0) - 1) }));
-          if (r.user_id === currentUserId) setLiked((l) => { const n = { ...l }; delete n[r.post_id]; return n; });
-        }
-      })
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "feed_post_likes" },
+        (payload) => {
+          if (payload.eventType === "INSERT") {
+            const r = payload.new as { post_id: string; user_id: string };
+            setLikes((c) => ({ ...c, [r.post_id]: (c[r.post_id] ?? 0) + 1 }));
+            if (r.user_id === currentUserId) setLiked((l) => ({ ...l, [r.post_id]: true }));
+          } else if (payload.eventType === "DELETE") {
+            const r = payload.old as { post_id: string; user_id: string };
+            setLikes((c) => ({ ...c, [r.post_id]: Math.max(0, (c[r.post_id] ?? 0) - 1) }));
+            if (r.user_id === currentUserId)
+              setLiked((l) => {
+                const n = { ...l };
+                delete n[r.post_id];
+                return n;
+              });
+          }
+        },
+      )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      supabase.removeChannel(ch);
+    };
   }, [currentUserId]);
 
   // Load comments whenever the post set changes.
   useEffect(() => {
-    if (posts.length === 0) { setComments({}); return; }
+    if (posts.length === 0) {
+      setComments({});
+      return;
+    }
     let alive = true;
     const ids = posts.map((p) => p.id);
     void (async () => {
@@ -1544,29 +1985,65 @@ function FeedReel(props: FeedReelProps) {
         .order("created_at");
       if (!alive) return;
       const grouped: Record<string, Comment[]> = {};
-      for (const r of (data as Array<{ id: string; post_id: string; author_name: string; body: string; created_at: string }>) ?? []) {
+      for (const r of (data as Array<{
+        id: string;
+        post_id: string;
+        author_name: string;
+        body: string;
+        created_at: string;
+      }>) ?? []) {
         const arr = grouped[r.post_id] ?? (grouped[r.post_id] = []);
-        arr.push({ id: r.id, author: r.author_name, text: r.body, ts: new Date(r.created_at).getTime() });
+        arr.push({
+          id: r.id,
+          author: r.author_name,
+          text: r.body,
+          ts: new Date(r.created_at).getTime(),
+        });
       }
       setComments(grouped);
     })();
-    return () => { alive = false; };
+    return () => {
+      alive = false;
+    };
   }, [posts]);
 
   // Realtime comments
   useEffect(() => {
     const ch = supabase
       .channel("feed_post_comments:all")
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "feed_post_comments" }, (payload) => {
-        const r = payload.new as { id: string; post_id: string; author_name: string; body: string; created_at: string };
-        setComments((prev) => {
-          const arr = prev[r.post_id] ?? [];
-          if (arr.some((c) => c.id === r.id)) return prev;
-          return { ...prev, [r.post_id]: [...arr, { id: r.id, author: r.author_name, text: r.body, ts: new Date(r.created_at).getTime() }] };
-        });
-      })
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "feed_post_comments" },
+        (payload) => {
+          const r = payload.new as {
+            id: string;
+            post_id: string;
+            author_name: string;
+            body: string;
+            created_at: string;
+          };
+          setComments((prev) => {
+            const arr = prev[r.post_id] ?? [];
+            if (arr.some((c) => c.id === r.id)) return prev;
+            return {
+              ...prev,
+              [r.post_id]: [
+                ...arr,
+                {
+                  id: r.id,
+                  author: r.author_name,
+                  text: r.body,
+                  ts: new Date(r.created_at).getTime(),
+                },
+              ],
+            };
+          });
+        },
+      )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      supabase.removeChannel(ch);
+    };
   }, []);
 
   const q = searchQuery.trim().toLowerCase();
@@ -1584,14 +2061,26 @@ function FeedReel(props: FeedReelProps) {
   const overLimit = composerWordCount > 500;
 
   const submitFullPost = async () => {
-    if (!currentUserId) { toast.error("Sign in to post."); return; }
+    if (!currentUserId) {
+      toast.error("Sign in to post.");
+      return;
+    }
     const text = draft.trim();
     const title = draftTitle.trim();
     if (composerKind === "comic") {
-      if (comicPages.length === 0) { toast.error("Add at least one comic page."); return; }
+      if (comicPages.length === 0) {
+        toast.error("Add at least one comic page.");
+        return;
+      }
     } else {
-      if (!text && !title && !draftImage) { toast.error("Write something or add a title."); return; }
-      if (overLimit) { toast.error("500-word limit reached."); return; }
+      if (!text && !title && !draftImage) {
+        toast.error("Write something or add a title.");
+        return;
+      }
+      if (overLimit) {
+        toast.error("500-word limit reached.");
+        return;
+      }
     }
     setPosting(true);
     const { error } = await supabase.from("feed_posts").insert({
@@ -1608,33 +2097,58 @@ function FeedReel(props: FeedReelProps) {
       word_count: composerWordCount,
     });
     setPosting(false);
-    if (error) { toast.error(error.message); return; }
-    setDraft(""); setDraftTitle(""); setDraftImage(undefined);
-    setCover(undefined); setComicPages([]); setProjectId(null);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setDraft("");
+    setDraftTitle("");
+    setDraftImage(undefined);
+    setCover(undefined);
+    setComicPages([]);
+    setProjectId(null);
     if (fileRef.current) fileRef.current.value = "";
     toast.success("Posted.");
   };
 
   const reportPost = async (postId: string) => {
-    if (!currentUserId) { toast.error("Sign in to report."); return; }
-    if (reportedIds.has(postId)) { toast.info("Already reported — staff will review."); return; }
+    if (!currentUserId) {
+      toast.error("Sign in to report.");
+      return;
+    }
+    if (reportedIds.has(postId)) {
+      toast.info("Already reported — staff will review.");
+      return;
+    }
     const reason = window.prompt("Briefly, what's wrong with this post?", "")?.trim() ?? "";
     const { error } = await supabase.from("feed_post_reports").insert({
-      post_id: postId, reporter_id: currentUserId, reason,
+      post_id: postId,
+      reporter_id: currentUserId,
+      reason,
     });
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     setReportedIds((s) => new Set(s).add(postId));
     toast.success("Reported — sent to the mod queue.");
   };
 
   const toggleLike = async (id: string) => {
-    if (!currentUserId) { toast.error("Sign in to like."); return; }
+    if (!currentUserId) {
+      toast.error("Sign in to like.");
+      return;
+    }
     const wasLiked = !!liked[id];
     // Optimistic
     setLiked((l) => ({ ...l, [id]: !wasLiked }));
     setLikes((c) => ({ ...c, [id]: Math.max(0, (c[id] ?? 0) + (wasLiked ? -1 : 1)) }));
     if (wasLiked) {
-      await supabase.from("feed_post_likes").delete().eq("post_id", id).eq("user_id", currentUserId);
+      await supabase
+        .from("feed_post_likes")
+        .delete()
+        .eq("post_id", id)
+        .eq("user_id", currentUserId);
     } else {
       await supabase.from("feed_post_likes").insert({ post_id: id, user_id: currentUserId });
     }
@@ -1643,10 +2157,16 @@ function FeedReel(props: FeedReelProps) {
   const addComment = async (id: string) => {
     const t = commentDraft.trim();
     if (!t) return;
-    if (!currentUserId) { toast.error("Sign in to comment."); return; }
+    if (!currentUserId) {
+      toast.error("Sign in to comment.");
+      return;
+    }
     setCommentDraft("");
     const { error } = await supabase.from("feed_post_comments").insert({
-      post_id: id, author_id: currentUserId, author_name: currentUsername, body: t,
+      post_id: id,
+      author_id: currentUserId,
+      author_name: currentUsername,
+      body: t,
     });
     if (error) toast.error(error.message);
   };
@@ -1661,8 +2181,7 @@ function FeedReel(props: FeedReelProps) {
     <div
       className="fixed inset-0 z-30 overflow-hidden text-foreground"
       style={{
-        background:
-          "linear-gradient(180deg, #050505 0%, #0d0d10 50%, #050505 100%)",
+        background: "linear-gradient(180deg, #050505 0%, #0d0d10 50%, #050505 100%)",
       }}
     >
       {/* Top translucent overlay: menu + search */}
@@ -1671,31 +2190,33 @@ function FeedReel(props: FeedReelProps) {
         style={{ paddingTop: "max(0.75rem, env(safe-area-inset-top))" }}
       >
         <div className="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={onOpenMenu}
-          aria-label="Open menu"
-          className={`${glass} h-11 w-11 shrink-0 flex items-center justify-center text-white/90`}
-        >
-          <Menu className="h-5 w-5" />
-        </button>
-        <div className={`${glass} relative flex-1 h-11 flex items-center`}>
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/60 pointer-events-none" />
-          <input
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search #tags or @users"
-            className="w-full h-full bg-transparent pl-10 pr-4 text-sm text-white placeholder:text-white/50 outline-none rounded-[20px]"
-          />
-        </div>
+          <button
+            type="button"
+            onClick={onOpenMenu}
+            aria-label="Open menu"
+            className={`${glass} h-11 w-11 shrink-0 flex items-center justify-center text-white/90`}
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className={`${glass} relative flex-1 h-11 flex items-center`}>
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-white/60 pointer-events-none" />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search #tags or @users"
+              className="w-full h-full bg-transparent pl-10 pr-4 text-sm text-white placeholder:text-white/50 outline-none rounded-[20px]"
+            />
+          </div>
         </div>
         {/* Filter dock */}
         <div className={`${glass} self-start flex items-center gap-1 p-1 text-xs`}>
-          {([
-            { id: "all", label: "All", icon: Layers },
-            { id: "novel", label: "Novels", icon: BookOpen },
-            { id: "comic", label: "Comics", icon: BookCopy },
-          ] as const).map((opt) => {
+          {(
+            [
+              { id: "all", label: "All", icon: Layers },
+              { id: "novel", label: "Novels", icon: BookOpen },
+              { id: "comic", label: "Comics", icon: BookCopy },
+            ] as const
+          ).map((opt) => {
             const Icon = opt.icon;
             const active = filter === opt.id;
             return (
@@ -1735,11 +2256,13 @@ function FeedReel(props: FeedReelProps) {
 
             {/* Mode toggle */}
             <div className={`${glass} flex items-center gap-1 p-1 mb-3 text-xs`}>
-              {([
-                { id: "text", label: "Text", icon: Type },
-                { id: "novel", label: "Novel", icon: BookOpen },
-                { id: "comic", label: "Comic", icon: BookCopy },
-              ] as const).map((opt) => {
+              {(
+                [
+                  { id: "text", label: "Text", icon: Type },
+                  { id: "novel", label: "Novel", icon: BookOpen },
+                  { id: "comic", label: "Comic", icon: BookCopy },
+                ] as const
+              ).map((opt) => {
                 const Icon = opt.icon;
                 const active = composerKind === opt.id;
                 return (
@@ -1762,7 +2285,9 @@ function FeedReel(props: FeedReelProps) {
                 <Input
                   value={draftTitle}
                   onChange={(e) => setDraftTitle(e.target.value)}
-                  placeholder={composerKind === "novel" ? "Chapter / story title" : "Title (optional)"}
+                  placeholder={
+                    composerKind === "novel" ? "Chapter / story title" : "Title (optional)"
+                  }
                   className="rounded-[20px] bg-white/5 border-white/10 text-white placeholder:text-white/40 font-semibold"
                   maxLength={120}
                 />
@@ -1777,7 +2302,11 @@ function FeedReel(props: FeedReelProps) {
                       toast.error("500-word limit reached.");
                     } else setDraft(next);
                   }}
-                  placeholder={composerKind === "novel" ? "Write your scene (max 500 words)…" : "What's the story?"}
+                  placeholder={
+                    composerKind === "novel"
+                      ? "Write your scene (max 500 words)…"
+                      : "What's the story?"
+                  }
                   className="mt-2 min-h-28 resize-none rounded-[20px] bg-white/5 border-white/10 text-white placeholder:text-white/40"
                 />
                 <div className="mt-1 flex items-center justify-between text-[10px]">
@@ -1791,9 +2320,16 @@ function FeedReel(props: FeedReelProps) {
 
             {composerKind === "text" && draftImage && (
               <div className="relative mt-2">
-                <img src={draftImage} alt="" className="rounded-[20px] max-h-48 w-full object-cover" />
+                <img
+                  src={draftImage}
+                  alt=""
+                  className="rounded-[20px] max-h-48 w-full object-cover"
+                />
                 <button
-                  onClick={() => { setDraftImage(undefined); if (fileRef.current) fileRef.current.value = ""; }}
+                  onClick={() => {
+                    setDraftImage(undefined);
+                    if (fileRef.current) fileRef.current.value = "";
+                  }}
                   className="absolute top-2 right-2 h-7 w-7 rounded-full bg-black/60 backdrop-blur flex items-center justify-center"
                   aria-label="Remove image"
                 >
@@ -1806,12 +2342,18 @@ function FeedReel(props: FeedReelProps) {
               <div className="mt-3 space-y-2">
                 {cover && (
                   <div className="relative">
-                    <img src={cover} alt="" className="rounded-[20px] max-h-56 w-full object-cover" />
+                    <img
+                      src={cover}
+                      alt=""
+                      className="rounded-[20px] max-h-56 w-full object-cover"
+                    />
                     <button
                       onClick={() => setCover(undefined)}
                       className="absolute top-2 right-2 h-7 w-7 rounded-full bg-black/60 flex items-center justify-center"
                       aria-label="Remove cover"
-                    ><X className="h-3.5 w-3.5 text-white" /></button>
+                    >
+                      <X className="h-3.5 w-3.5 text-white" />
+                    </button>
                   </div>
                 )}
                 <div className="flex flex-wrap items-center gap-2">
@@ -1827,20 +2369,32 @@ function FeedReel(props: FeedReelProps) {
                     onChange={(e) => setProjectId(e.target.value || null)}
                     className={`${glass} h-9 px-3 text-xs text-white/90 bg-transparent`}
                   >
-                    <option value="" className="bg-black">Link to a project…</option>
+                    <option value="" className="bg-black">
+                      Link to a project…
+                    </option>
                     {myNotebooks.map((n) => (
-                      <option key={n.id} value={n.id} className="bg-black">{n.title || "Untitled"}</option>
+                      <option key={n.id} value={n.id} className="bg-black">
+                        {n.title || "Untitled"}
+                      </option>
                     ))}
                   </select>
                 </div>
-                <input ref={coverRef} type="file" accept="image/*" className="hidden" onChange={onPickCover} />
+                <input
+                  ref={coverRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={onPickCover}
+                />
               </div>
             )}
 
             {composerKind === "comic" && (
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-white/70">{comicPages.length} page{comicPages.length === 1 ? "" : "s"}</span>
+                  <span className="text-xs text-white/70">
+                    {comicPages.length} page{comicPages.length === 1 ? "" : "s"}
+                  </span>
                   <button
                     type="button"
                     onClick={() => comicRef.current?.click()}
@@ -1849,18 +2403,32 @@ function FeedReel(props: FeedReelProps) {
                     <Upload className="h-4 w-4" /> Add pages
                   </button>
                 </div>
-                <input ref={comicRef} type="file" accept="image/*" multiple className="hidden" onChange={onPickComic} />
+                <input
+                  ref={comicRef}
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  className="hidden"
+                  onChange={onPickComic}
+                />
                 {comicPages.length > 0 && (
                   <div className="grid grid-cols-3 gap-2">
                     {comicPages.map((p, i) => (
-                      <div key={i} className="relative aspect-[2/3] rounded-lg overflow-hidden border border-white/10">
+                      <div
+                        key={i}
+                        className="relative aspect-[2/3] rounded-lg overflow-hidden border border-white/10"
+                      >
                         <img src={p} alt={`Page ${i + 1}`} className="w-full h-full object-cover" />
                         <button
                           onClick={() => setComicPages((cur) => cur.filter((_, idx) => idx !== i))}
                           className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/70 flex items-center justify-center"
                           aria-label="Remove page"
-                        ><X className="h-3 w-3 text-white" /></button>
-                        <span className="absolute bottom-1 left-1 text-[10px] bg-black/70 px-1.5 rounded text-white">{i + 1}</span>
+                        >
+                          <X className="h-3 w-3 text-white" />
+                        </button>
+                        <span className="absolute bottom-1 left-1 text-[10px] bg-black/70 px-1.5 rounded text-white">
+                          {i + 1}
+                        </span>
                       </div>
                     ))}
                   </div>
@@ -1868,7 +2436,13 @@ function FeedReel(props: FeedReelProps) {
               </div>
             )}
 
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onPickImage} />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={onPickImage}
+            />
 
             <div className="flex items-center gap-2 mt-3">
               {composerKind === "text" && (
@@ -1892,7 +2466,11 @@ function FeedReel(props: FeedReelProps) {
                   }}
                   className={`${glass} h-10 px-3 flex items-center gap-1.5 text-xs text-white/90 disabled:opacity-40`}
                 >
-                  {draftFixing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Wand2 className="h-4 w-4" />}
+                  {draftFixing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Wand2 className="h-4 w-4" />
+                  )}
                   Fix
                 </button>
               )}
@@ -1902,10 +2480,17 @@ function FeedReel(props: FeedReelProps) {
                 disabled={posting || overLimit}
                 className="ml-auto h-10 px-4 rounded-[20px] bg-white text-black text-xs font-semibold flex items-center gap-1.5 disabled:opacity-40"
               >
-                {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Post
+                {posting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Send className="h-4 w-4" />
+                )}{" "}
+                Post
               </button>
             </div>
-            <p className="mt-4 text-center text-[11px] text-white/40">Swipe up to explore stories</p>
+            <p className="mt-4 text-center text-[11px] text-white/40">
+              Swipe up to explore stories
+            </p>
           </div>
         </FeedSlide>
 
@@ -1989,8 +2574,11 @@ function FeedReel(props: FeedReelProps) {
             <SheetTitle className="text-white">Comments</SheetTitle>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto py-3 space-y-2">
-            {(openCommentsFor !== null ? comments[openCommentsFor] ?? [] : []).map((c, i) => (
-              <div key={i} className="rounded-[20px] bg-white/5 border border-white/10 px-3 py-2 text-sm">
+            {(openCommentsFor !== null ? (comments[openCommentsFor] ?? []) : []).map((c, i) => (
+              <div
+                key={i}
+                className="rounded-[20px] bg-white/5 border border-white/10 px-3 py-2 text-sm"
+              >
                 <p className="text-[11px] font-semibold text-white/70">@{c.author}</p>
                 <p className="text-white/90 whitespace-pre-wrap">{c.text}</p>
               </div>
@@ -2005,7 +2593,9 @@ function FeedReel(props: FeedReelProps) {
               value={commentDraft}
               onChange={(e) => setCommentDraft(e.target.value)}
               placeholder="Add a comment…"
-              onKeyDown={(e) => { if (e.key === "Enter" && openCommentsFor !== null) addComment(openCommentsFor); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && openCommentsFor !== null) addComment(openCommentsFor);
+              }}
               className="flex-1 h-11 rounded-[20px] bg-white/5 border border-white/10 px-4 text-sm text-white placeholder:text-white/40 outline-none"
             />
             <button
@@ -2033,9 +2623,17 @@ function FeedSlide({ children }: { children: React.ReactNode }) {
 }
 
 function FeedPostCard({
-  post, glass, isReported, onReport, onOpenProject,
-  likeCount, isLiked, commentCount,
-  onToggleLike, onOpenComments, onExpand,
+  post,
+  glass,
+  isReported,
+  onReport,
+  onOpenProject,
+  likeCount,
+  isLiked,
+  commentCount,
+  onToggleLike,
+  onOpenComments,
+  onExpand,
 }: {
   post: Post;
   glass: string;
@@ -2069,10 +2667,14 @@ function FeedPostCard({
         <p className="text-sm font-medium text-white ml-1">{post.author}</p>
         {post.verified && <BadgeCheck className="h-3.5 w-3.5 text-sky-400" />}
         {post.kind === "novel" && (
-          <span className="ml-2 text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/10 text-white/80">Novel</span>
+          <span className="ml-2 text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/10 text-white/80">
+            Novel
+          </span>
         )}
         {post.kind === "comic" && (
-          <span className="ml-2 text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/10 text-white/80">Comic</span>
+          <span className="ml-2 text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/10 text-white/80">
+            Comic
+          </span>
         )}
         <button
           type="button"
@@ -2080,7 +2682,9 @@ function FeedPostCard({
           aria-label={isReported ? "Reported" : "Report"}
           title={isReported ? "Reported" : "Report"}
           className={`ml-auto h-7 w-7 rounded-full flex items-center justify-center transition ${
-            isReported ? "bg-rose-500/30 text-rose-200" : "bg-white/5 text-white/60 hover:bg-white/10"
+            isReported
+              ? "bg-rose-500/30 text-rose-200"
+              : "bg-white/5 text-white/60 hover:bg-white/10"
           }`}
         >
           <Flag className="h-3.5 w-3.5" />
@@ -2100,7 +2704,9 @@ function FeedPostCard({
       )}
       {post.text && post.kind !== "comic" && (
         <>
-          <p className="mt-2 text-[15px] leading-relaxed text-white/85 whitespace-pre-wrap">{preview}</p>
+          <p className="mt-2 text-[15px] leading-relaxed text-white/85 whitespace-pre-wrap">
+            {preview}
+          </p>
           {isLong && (
             <button
               type="button"
@@ -2163,8 +2769,17 @@ function FeedPostCard({
 }
 
 function ExpandedStoryView({
-  post, glass, currentUsername, comments, likeCount, isLiked,
-  onToggleLike, commentDraft, setCommentDraft, onAddComment, onClose,
+  post,
+  glass,
+  currentUsername,
+  comments,
+  likeCount,
+  isLiked,
+  onToggleLike,
+  commentDraft,
+  setCommentDraft,
+  onAddComment,
+  onClose,
 }: {
   post: Post;
   glass: string;
@@ -2196,7 +2811,9 @@ function ExpandedStoryView({
         >
           <X className="h-4 w-4" /> Close
         </button>
-        <p className="ml-2 text-xs uppercase tracking-widest text-white/50 truncate">@{post.author}</p>
+        <p className="ml-2 text-xs uppercase tracking-widest text-white/50 truncate">
+          @{post.author}
+        </p>
         <button
           type="button"
           onClick={onToggleLike}
@@ -2213,11 +2830,21 @@ function ExpandedStoryView({
             <h1 className="text-3xl font-bold leading-tight text-white mb-4">{post.title}</h1>
           )}
           {post.kind === "novel" && post.cover && (
-            <img src={post.cover} alt="" className="rounded-[20px] w-full max-h-[60vh] object-cover mb-5 border border-white/10" />
+            <img
+              src={post.cover}
+              alt=""
+              className="rounded-[20px] w-full max-h-[60vh] object-cover mb-5 border border-white/10"
+            />
           )}
-          <p className="text-[17px] leading-[1.75] text-white/90 whitespace-pre-wrap">{post.text}</p>
+          <p className="text-[17px] leading-[1.75] text-white/90 whitespace-pre-wrap">
+            {post.text}
+          </p>
           {post.kind === "text" && post.image && (
-            <img src={post.image} alt="" className="mt-5 rounded-[20px] w-full object-cover border border-white/10" />
+            <img
+              src={post.image}
+              alt=""
+              className="mt-5 rounded-[20px] w-full object-cover border border-white/10"
+            />
           )}
 
           <div className="mt-10 pt-6 border-t border-white/10">
@@ -2226,7 +2853,10 @@ function ExpandedStoryView({
             </p>
             <div className="space-y-2">
               {comments.map((c) => (
-                <div key={c.id} className="rounded-[20px] bg-white/5 border border-white/10 px-4 py-3">
+                <div
+                  key={c.id}
+                  className="rounded-[20px] bg-white/5 border border-white/10 px-4 py-3"
+                >
                   <p className="text-[11px] font-semibold text-white/70">@{c.author}</p>
                   <p className="text-sm text-white/90 whitespace-pre-wrap">{c.text}</p>
                 </div>
@@ -2249,7 +2879,9 @@ function ExpandedStoryView({
           value={commentDraft}
           onChange={(e) => setCommentDraft(e.target.value)}
           placeholder="Add a comment…"
-          onKeyDown={(e) => { if (e.key === "Enter") onAddComment(); }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") onAddComment();
+          }}
           className="flex-1 h-11 rounded-[20px] bg-white/5 border border-white/10 px-4 text-sm text-white placeholder:text-white/40 outline-none"
         />
         <button
@@ -2296,7 +2928,12 @@ function ComicViewer({ pages }: { pages: string[] }) {
             style={{ width: "78vw", maxWidth: 320, aspectRatio: "2 / 3" }}
             aria-label={`Open page ${i + 1}`}
           >
-            <img src={src} alt={`Page ${i + 1}`} className="w-full h-full object-contain" loading="lazy" />
+            <img
+              src={src}
+              alt={`Page ${i + 1}`}
+              className="w-full h-full object-contain"
+              loading="lazy"
+            />
             <span className="absolute bottom-1.5 right-1.5 text-[10px] bg-black/70 px-1.5 py-0.5 rounded text-white">
               {i + 1} / {pages.length}
             </span>
@@ -2310,26 +2947,47 @@ function ComicViewer({ pages }: { pages: string[] }) {
   );
 }
 
-function ComicZoom({ pages, startIndex, onClose }: { pages: string[]; startIndex: number; onClose: () => void }) {
+function ComicZoom({
+  pages,
+  startIndex,
+  onClose,
+}: {
+  pages: string[];
+  startIndex: number;
+  onClose: () => void;
+}) {
   const [scale, setScale] = useState(1);
   const [index, setIndex] = useState(startIndex);
   return (
     <div className="fixed inset-0 z-[60] bg-black/95 flex flex-col" onClick={onClose}>
-      <div className="flex items-center justify-between p-3 text-white text-xs" onClick={(e) => e.stopPropagation()}>
-        <span>{index + 1} / {pages.length}</span>
+      <div
+        className="flex items-center justify-between p-3 text-white text-xs"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <span>
+          {index + 1} / {pages.length}
+        </span>
         <div className="flex items-center gap-2">
           <button
             onClick={() => setScale((s) => Math.max(1, +(s - 0.25).toFixed(2)))}
             className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center"
             aria-label="Zoom out"
-          ><ZoomOut className="h-4 w-4" /></button>
+          >
+            <ZoomOut className="h-4 w-4" />
+          </button>
           <span className="w-10 text-center">{Math.round(scale * 100)}%</span>
           <button
             onClick={() => setScale((s) => Math.min(3, +(s + 0.25).toFixed(2)))}
             className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center"
             aria-label="Zoom in"
-          ><ZoomIn className="h-4 w-4" /></button>
-          <button onClick={onClose} className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center" aria-label="Close">
+          >
+            <ZoomIn className="h-4 w-4" />
+          </button>
+          <button
+            onClick={onClose}
+            className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center"
+            aria-label="Close"
+          >
             <X className="h-4 w-4" />
           </button>
         </div>
@@ -2345,11 +3003,19 @@ function ComicZoom({ pages, startIndex, onClose }: { pages: string[]; startIndex
         }}
       >
         {pages.map((src, i) => (
-          <div key={i} className="shrink-0 w-screen h-full snap-start flex items-center justify-center overflow-auto">
+          <div
+            key={i}
+            className="shrink-0 w-screen h-full snap-start flex items-center justify-center overflow-auto"
+          >
             <img
               src={src}
               alt={`Page ${i + 1}`}
-              style={{ transform: `scale(${scale})`, transformOrigin: "center center", maxWidth: "100%", maxHeight: "100%" }}
+              style={{
+                transform: `scale(${scale})`,
+                transformOrigin: "center center",
+                maxWidth: "100%",
+                maxHeight: "100%",
+              }}
               className="select-none"
               draggable={false}
             />

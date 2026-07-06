@@ -15,9 +15,28 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import {
-  NotebookPen, Plus, Trash2, Wand2, Loader2, Users, MessageCircle,
-  UserPlus, Send, ShieldCheck, X, LogIn, Shield, ArrowLeft, BookOpen,
-  Clock, ChevronUp, ChevronDown, Globe2, Target, StickyNote, Copy,
+  NotebookPen,
+  Plus,
+  Trash2,
+  Wand2,
+  Loader2,
+  Users,
+  MessageCircle,
+  UserPlus,
+  Send,
+  ShieldCheck,
+  X,
+  LogIn,
+  Shield,
+  ArrowLeft,
+  BookOpen,
+  Clock,
+  ChevronUp,
+  ChevronDown,
+  Globe2,
+  Target,
+  StickyNote,
+  Copy,
 } from "lucide-react";
 
 type Notebook = {
@@ -76,7 +95,14 @@ type CharExtras = {
   psych: string;
   relationships: string;
 };
-const EMPTY_CHAR_EXTRAS: CharExtras = { faction: "", status: "Alive", inventory: "", keySkills: "", psych: "", relationships: "" };
+const EMPTY_CHAR_EXTRAS: CharExtras = {
+  faction: "",
+  status: "Alive",
+  inventory: "",
+  keySkills: "",
+  psych: "",
+  relationships: "",
+};
 function parseCharExtras(raw: string): CharExtras {
   if (!raw) return { ...EMPTY_CHAR_EXTRAS };
   try {
@@ -87,9 +113,21 @@ function parseCharExtras(raw: string): CharExtras {
 }
 const serializeCharExtras = (e: CharExtras) => JSON.stringify(e);
 
-const EVENT_CATEGORIES = ["Major Plot Point", "Character Arc", "Tactical Conflict/Battle", "Discovery", "Turning Point", "Other"] as const;
+const EVENT_CATEGORIES = [
+  "Major Plot Point",
+  "Character Arc",
+  "Tactical Conflict/Battle",
+  "Discovery",
+  "Turning Point",
+  "Other",
+] as const;
 type EventExtras = { location: string; category: string; description: string; impact: string };
-const EMPTY_EVENT_EXTRAS: EventExtras = { location: "", category: "Major Plot Point", description: "", impact: "" };
+const EMPTY_EVENT_EXTRAS: EventExtras = {
+  location: "",
+  category: "Major Plot Point",
+  description: "",
+  impact: "",
+};
 function parseEventExtras(raw: string): EventExtras {
   if (!raw) return { ...EMPTY_EVENT_EXTRAS };
   try {
@@ -110,7 +148,11 @@ export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<s
   const migratedRef = useRef(false);
 
   useEffect(() => {
-    if (!user) { setNotebooks([]); setFetching(false); return; }
+    if (!user) {
+      setNotebooks([]);
+      setFetching(false);
+      return;
+    }
     let alive = true;
     setFetching(true);
     supabase
@@ -133,7 +175,8 @@ export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<s
           }
           if (payload.eventType === "UPDATE") {
             const row = payload.new as Notebook;
-            return prev.map((n) => (n.id === row.id ? row : n))
+            return prev
+              .map((n) => (n.id === row.id ? row : n))
               .sort((a, b) => b.updated_at.localeCompare(a.updated_at));
           }
           if (payload.eventType === "DELETE") {
@@ -144,7 +187,10 @@ export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<s
         });
       })
       .subscribe();
-    return () => { alive = false; supabase.removeChannel(ch); };
+    return () => {
+      alive = false;
+      supabase.removeChannel(ch);
+    };
   }, [user]);
 
   useEffect(() => {
@@ -153,17 +199,28 @@ export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<s
     const migratedKey = `dd:notebooks-migrated:${user.id}`;
     if (window.localStorage.getItem(migratedKey)) return;
     const raw = window.localStorage.getItem("dd:notebooks");
-    if (!raw) { window.localStorage.setItem(migratedKey, "1"); return; }
+    if (!raw) {
+      window.localStorage.setItem(migratedKey, "1");
+      return;
+    }
     try {
       const arr = JSON.parse(raw) as Array<{ title: string; body: string }>;
       const usable = arr
-        .filter((n) => (n.title?.trim() || n.body?.trim()))
-        .map((n) => ({ title: (n.title || "Untitled").slice(0, 200), body: (n.body || "").slice(0, 200000) }));
-      if (usable.length === 0) { window.localStorage.setItem(migratedKey, "1"); return; }
+        .filter((n) => n.title?.trim() || n.body?.trim())
+        .map((n) => ({
+          title: (n.title || "Untitled").slice(0, 200),
+          body: (n.body || "").slice(0, 200000),
+        }));
+      if (usable.length === 0) {
+        window.localStorage.setItem(migratedKey, "1");
+        return;
+      }
       migratedRef.current = true;
       migrate({ data: { notebooks: usable } }).then((r) => {
         if (r.ok) {
-          toast.success(`Imported ${r.count} notebook${r.count === 1 ? "" : "s"} into your account.`);
+          toast.success(
+            `Imported ${r.count} notebook${r.count === 1 ? "" : "s"} into your account.`,
+          );
           window.localStorage.removeItem("dd:notebooks");
           window.localStorage.setItem(migratedKey, "1");
         }
@@ -174,7 +231,11 @@ export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<s
   }, [user, migrate]);
 
   if (loading) {
-    return <Card className="p-8 text-center"><Loader2 className="h-5 w-5 mx-auto animate-spin" /></Card>;
+    return (
+      <Card className="p-8 text-center">
+        <Loader2 className="h-5 w-5 mx-auto animate-spin" />
+      </Card>
+    );
   }
 
   if (!user) {
@@ -195,10 +256,19 @@ export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<s
   }
 
   const addNotebook = async () => {
-    const { data, error } = await supabase.from("notebooks").insert({
-      owner_id: user.id, title: "Untitled", body: "",
-    }).select("*").single();
-    if (error) { toast.error(error.message); return; }
+    const { data, error } = await supabase
+      .from("notebooks")
+      .insert({
+        owner_id: user.id,
+        title: "Untitled",
+        body: "",
+      })
+      .select("*")
+      .single();
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     if (data) setOpenId((data as Notebook).id);
   };
 
@@ -243,7 +313,9 @@ export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<s
       </div>
 
       {fetching && (
-        <Card className="p-6 text-center"><Loader2 className="h-5 w-5 mx-auto animate-spin" /></Card>
+        <Card className="p-6 text-center">
+          <Loader2 className="h-5 w-5 mx-auto animate-spin" />
+        </Card>
       )}
 
       {!fetching && notebooks.length === 0 && (
@@ -271,13 +343,20 @@ export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<s
                     {nb.body ? nb.body.slice(0, 80) : "Empty notebook"}
                   </p>
                 </div>
-                {!isOwner && <Badge variant="secondary" className="text-[10px]">shared</Badge>}
+                {!isOwner && (
+                  <Badge variant="secondary" className="text-[10px]">
+                    shared
+                  </Badge>
+                )}
                 {isOwner && (
                   <Button
                     size="icon"
                     variant="ghost"
                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                    onClick={(e) => { e.stopPropagation(); void remove(nb.id); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      void remove(nb.id);
+                    }}
                     aria-label="Delete notebook"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -333,25 +412,40 @@ function NotebookFullscreen({
 
   // Persist scratchpad + goal per-notebook
   useEffect(() => {
-    try { window.localStorage.setItem(`nb:scratch:${notebook.id}`, scratch); } catch {}
+    try {
+      window.localStorage.setItem(`nb:scratch:${notebook.id}`, scratch);
+    } catch {}
   }, [scratch, notebook.id]);
   useEffect(() => {
-    try { window.localStorage.setItem(`nb:goal:${notebook.id}`, String(wordGoal)); } catch {}
+    try {
+      window.localStorage.setItem(`nb:goal:${notebook.id}`, String(wordGoal));
+    } catch {}
   }, [wordGoal, notebook.id]);
 
   const bodyWordCount = body.trim() ? body.trim().split(/\s+/).length : 0;
   const goalPct = Math.min(100, Math.round((bodyWordCount / Math.max(1, wordGoal)) * 100));
 
   // Sync incoming changes
-  useEffect(() => { setTitle(notebook.title); setBody(notebook.body); }, [notebook.id]);
+  useEffect(() => {
+    setTitle(notebook.title);
+    setBody(notebook.body);
+  }, [notebook.id]);
 
   // Load characters + timeline
   useEffect(() => {
     void (async () => {
       const [{ data: cd }, { data: td }, { data: ld }] = await Promise.all([
         supabase.from("notebook_characters").select("*").eq("notebook_id", notebook.id),
-        supabase.from("notebook_timeline_events").select("*").eq("notebook_id", notebook.id).order("event_order"),
-        supabase.from("notebook_lore").select("*").eq("notebook_id", notebook.id).order("created_at"),
+        supabase
+          .from("notebook_timeline_events")
+          .select("*")
+          .eq("notebook_id", notebook.id)
+          .order("event_order"),
+        supabase
+          .from("notebook_lore")
+          .select("*")
+          .eq("notebook_id", notebook.id)
+          .order("created_at"),
       ]);
       setCharacters((cd as Character[]) ?? []);
       setTimeline((td as TimelineEvent[]) ?? []);
@@ -372,9 +466,14 @@ function NotebookFullscreen({
   }, [title, body]);
 
   const addCharacter = async () => {
-    const { data } = await supabase.from("notebook_characters").insert({
-      notebook_id: notebook.id, name: "New character",
-    }).select("*").single();
+    const { data } = await supabase
+      .from("notebook_characters")
+      .insert({
+        notebook_id: notebook.id,
+        name: "New character",
+      })
+      .select("*")
+      .single();
     if (data) setCharacters((cs) => [...cs, data as Character]);
   };
   const updateCharacter = async (id: string, patch: Partial<Character>) => {
@@ -387,9 +486,15 @@ function NotebookFullscreen({
   };
 
   const addEvent = async () => {
-    const { data } = await supabase.from("notebook_timeline_events").insert({
-      notebook_id: notebook.id, title: "New event", event_order: timeline.length,
-    }).select("*").single();
+    const { data } = await supabase
+      .from("notebook_timeline_events")
+      .insert({
+        notebook_id: notebook.id,
+        title: "New event",
+        event_order: timeline.length,
+      })
+      .select("*")
+      .single();
     if (data) setTimeline((xs) => [...xs, data as TimelineEvent]);
   };
   const updateEvent = async (id: string, patch: Partial<TimelineEvent>) => {
@@ -408,15 +513,26 @@ function NotebookFullscreen({
     [next[idx], next[j]] = [next[j], next[idx]];
     const reorder = next.map((e, i) => ({ ...e, event_order: i }));
     setTimeline(reorder);
-    await Promise.all(reorder.map((e) =>
-      supabase.from("notebook_timeline_events").update({ event_order: e.event_order }).eq("id", e.id)
-    ));
+    await Promise.all(
+      reorder.map((e) =>
+        supabase
+          .from("notebook_timeline_events")
+          .update({ event_order: e.event_order })
+          .eq("id", e.id),
+      ),
+    );
   };
 
   const addLore = async (category: string) => {
-    const { data } = await supabase.from("notebook_lore").insert({
-      notebook_id: notebook.id, category, title: "Untitled",
-    }).select("*").single();
+    const { data } = await supabase
+      .from("notebook_lore")
+      .insert({
+        notebook_id: notebook.id,
+        category,
+        title: "Untitled",
+      })
+      .select("*")
+      .single();
     if (data) setLore((xs) => [...xs, data as Lore]);
   };
   const updateLore = async (id: string, patch: Partial<Lore>) => {
@@ -431,7 +547,13 @@ function NotebookFullscreen({
   return (
     <div className="fixed inset-0 z-40 bg-background flex flex-col">
       <header className="flex items-center gap-2 px-3 h-14 border-b bg-card/60 backdrop-blur shrink-0">
-        <Button variant="ghost" size="icon" className="rounded-2xl" onClick={onClose} aria-label="Back">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-2xl"
+          onClick={onClose}
+          aria-label="Back"
+        >
           <ArrowLeft className="h-4 w-4" />
         </Button>
         <Input
@@ -444,24 +566,51 @@ function NotebookFullscreen({
           {saving ? "Saving…" : "Saved"}
         </span>
         {isOwner && (
-          <Button variant="ghost" size="icon" className="rounded-2xl" onClick={() => setOpenSharing(true)} aria-label="Share">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="rounded-2xl"
+            onClick={() => setOpenSharing(true)}
+            aria-label="Share"
+          >
             <Users className="h-4 w-4" />
           </Button>
         )}
-        <Button variant="ghost" size="icon" className="rounded-2xl" onClick={() => setOpenChat(true)} aria-label="Chat">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-2xl"
+          onClick={() => setOpenChat(true)}
+          aria-label="Chat"
+        >
           <MessageCircle className="h-4 w-4" />
         </Button>
       </header>
 
-      <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="flex-1 flex flex-col min-h-0">
+      <Tabs
+        value={tab}
+        onValueChange={(v) => setTab(v as typeof tab)}
+        className="flex-1 flex flex-col min-h-0"
+      >
         <TabsList className="mx-3 mt-3 grid grid-cols-4 rounded-2xl shrink-0">
-          <TabsTrigger value="write" className="rounded-2xl"><BookOpen className="h-3.5 w-3.5 mr-1" /> Write</TabsTrigger>
-          <TabsTrigger value="characters" className="rounded-2xl"><Users className="h-3.5 w-3.5 mr-1" /> Characters</TabsTrigger>
-          <TabsTrigger value="timeline" className="rounded-2xl"><Clock className="h-3.5 w-3.5 mr-1" /> Timeline</TabsTrigger>
-          <TabsTrigger value="lore" className="rounded-2xl"><Globe2 className="h-3.5 w-3.5 mr-1" /> Lore</TabsTrigger>
+          <TabsTrigger value="write" className="rounded-2xl">
+            <BookOpen className="h-3.5 w-3.5 mr-1" /> Write
+          </TabsTrigger>
+          <TabsTrigger value="characters" className="rounded-2xl">
+            <Users className="h-3.5 w-3.5 mr-1" /> Characters
+          </TabsTrigger>
+          <TabsTrigger value="timeline" className="rounded-2xl">
+            <Clock className="h-3.5 w-3.5 mr-1" /> Timeline
+          </TabsTrigger>
+          <TabsTrigger value="lore" className="rounded-2xl">
+            <Globe2 className="h-3.5 w-3.5 mr-1" /> Lore
+          </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="write" className="flex-1 min-h-0 m-0 mt-3 px-3 pb-3 flex flex-col gap-2">
+        <TabsContent
+          value="write"
+          className="flex-1 min-h-0 m-0 mt-3 px-3 pb-3 flex flex-col gap-2"
+        >
           {/* Word goal progress bar */}
           <div className="flex items-center gap-2 px-1">
             <Target className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
@@ -500,7 +649,9 @@ function NotebookFullscreen({
           />
           <div className="flex items-center justify-end gap-2">
             <Button
-              size="sm" variant="outline" className="rounded-full"
+              size="sm"
+              variant="outline"
+              className="rounded-full"
               disabled={!body.trim()}
               onClick={async () => {
                 try {
@@ -514,7 +665,9 @@ function NotebookFullscreen({
               <Copy className="h-3.5 w-3.5 mr-1" /> Copy text
             </Button>
             <Button
-              size="sm" variant="outline" className="rounded-full"
+              size="sm"
+              variant="outline"
+              className="rounded-full"
               disabled={!body.trim() || fixing}
               onClick={async () => {
                 setFixing(true);
@@ -523,13 +676,20 @@ function NotebookFullscreen({
                 setFixing(false);
               }}
             >
-              {fixing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
+              {fixing ? (
+                <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" />
+              ) : (
+                <Wand2 className="h-3.5 w-3.5 mr-1" />
+              )}
               Fix grammar
             </Button>
           </div>
         </TabsContent>
 
-        <TabsContent value="characters" className="flex-1 min-h-0 m-0 mt-3 px-3 pb-3 overflow-y-auto space-y-3">
+        <TabsContent
+          value="characters"
+          className="flex-1 min-h-0 m-0 mt-3 px-3 pb-3 overflow-y-auto space-y-3"
+        >
           <Button size="sm" variant="outline" className="w-full rounded-2xl" onClick={addCharacter}>
             <Plus className="h-3.5 w-3.5 mr-1" /> Add character
           </Button>
@@ -544,19 +704,43 @@ function NotebookFullscreen({
               return (
                 <div key={c.id} className="rounded-2xl border bg-background/60 p-3 space-y-2">
                   <div className="flex items-center gap-2">
-                    <Input value={c.name} onChange={(e) => updateCharacter(c.id, { name: e.target.value })} className="h-9 rounded-xl font-medium" placeholder="Character name" />
-                    <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive" onClick={() => removeCharacter(c.id)}>
+                    <Input
+                      value={c.name}
+                      onChange={(e) => updateCharacter(c.id, { name: e.target.value })}
+                      className="h-9 rounded-xl font-medium"
+                      placeholder="Character name"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 hover:text-destructive"
+                      onClick={() => removeCharacter(c.id)}
+                    >
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <Label className="text-[10px] uppercase text-muted-foreground">Faction / Affiliation</Label>
-                      <Input value={ex.faction} onChange={(e) => setEx({ faction: e.target.value })} className="h-8 rounded-xl text-xs" placeholder="e.g. Iron Order" />
+                      <Label className="text-[10px] uppercase text-muted-foreground">
+                        Faction / Affiliation
+                      </Label>
+                      <Input
+                        value={ex.faction}
+                        onChange={(e) => setEx({ faction: e.target.value })}
+                        className="h-8 rounded-xl text-xs"
+                        placeholder="e.g. Iron Order"
+                      />
                     </div>
                     <div>
-                      <Label className="text-[10px] uppercase text-muted-foreground">Role in Story</Label>
-                      <Input value={c.role} onChange={(e) => updateCharacter(c.id, { role: e.target.value })} className="h-8 rounded-xl text-xs" placeholder="Protagonist" />
+                      <Label className="text-[10px] uppercase text-muted-foreground">
+                        Role in Story
+                      </Label>
+                      <Input
+                        value={c.role}
+                        onChange={(e) => updateCharacter(c.id, { role: e.target.value })}
+                        className="h-8 rounded-xl text-xs"
+                        placeholder="Protagonist"
+                      />
                     </div>
                     <div className="col-span-2">
                       <Label className="text-[10px] uppercase text-muted-foreground">Status</Label>
@@ -565,29 +749,66 @@ function NotebookFullscreen({
                         onChange={(e) => setEx({ status: e.target.value })}
                         className="w-full h-8 rounded-xl bg-background border border-input px-2 text-xs"
                       >
-                        {["Alive", "Missing", "Deceased", "Unknown"].map((s) => <option key={s} value={s}>{s}</option>)}
+                        {["Alive", "Missing", "Deceased", "Unknown"].map((s) => (
+                          <option key={s} value={s}>
+                            {s}
+                          </option>
+                        ))}
                       </select>
                     </div>
                   </div>
                   <div>
-                    <Label className="text-[10px] uppercase text-muted-foreground">Inventory / Gear</Label>
-                    <Textarea value={ex.inventory} onChange={(e) => setEx({ inventory: e.target.value })} className="min-h-[50px] rounded-xl text-xs" placeholder="Weapons, tactical tools…" />
+                    <Label className="text-[10px] uppercase text-muted-foreground">
+                      Inventory / Gear
+                    </Label>
+                    <Textarea
+                      value={ex.inventory}
+                      onChange={(e) => setEx({ inventory: e.target.value })}
+                      className="min-h-[50px] rounded-xl text-xs"
+                      placeholder="Weapons, tactical tools…"
+                    />
                   </div>
                   <div>
-                    <Label className="text-[10px] uppercase text-muted-foreground">Key Skills / Traits</Label>
-                    <Textarea value={ex.keySkills} onChange={(e) => setEx({ keySkills: e.target.value })} className="min-h-[50px] rounded-xl text-xs" placeholder="Marksmanship, negotiation…" />
+                    <Label className="text-[10px] uppercase text-muted-foreground">
+                      Key Skills / Traits
+                    </Label>
+                    <Textarea
+                      value={ex.keySkills}
+                      onChange={(e) => setEx({ keySkills: e.target.value })}
+                      className="min-h-[50px] rounded-xl text-xs"
+                      placeholder="Marksmanship, negotiation…"
+                    />
                   </div>
                   <div>
-                    <Label className="text-[10px] uppercase text-muted-foreground">Psychological Profile</Label>
-                    <Textarea value={ex.psych} onChange={(e) => setEx({ psych: e.target.value })} className="min-h-[50px] rounded-xl text-xs" placeholder="Motivations, fears, mindset…" />
+                    <Label className="text-[10px] uppercase text-muted-foreground">
+                      Psychological Profile
+                    </Label>
+                    <Textarea
+                      value={ex.psych}
+                      onChange={(e) => setEx({ psych: e.target.value })}
+                      className="min-h-[50px] rounded-xl text-xs"
+                      placeholder="Motivations, fears, mindset…"
+                    />
                   </div>
                   <div>
                     <Label className="text-[10px] uppercase text-muted-foreground">Backstory</Label>
-                    <Textarea value={c.backstory} onChange={(e) => updateCharacter(c.id, { backstory: e.target.value })} className="min-h-[50px] rounded-xl text-xs" placeholder="Origin, past events" />
+                    <Textarea
+                      value={c.backstory}
+                      onChange={(e) => updateCharacter(c.id, { backstory: e.target.value })}
+                      className="min-h-[50px] rounded-xl text-xs"
+                      placeholder="Origin, past events"
+                    />
                   </div>
                   <div>
-                    <Label className="text-[10px] uppercase text-muted-foreground">Relationships</Label>
-                    <Textarea value={ex.relationships} onChange={(e) => setEx({ relationships: e.target.value })} className="min-h-[50px] rounded-xl text-xs" placeholder="Allies: … / Rivals: … / Family: …" />
+                    <Label className="text-[10px] uppercase text-muted-foreground">
+                      Relationships
+                    </Label>
+                    <Textarea
+                      value={ex.relationships}
+                      onChange={(e) => setEx({ relationships: e.target.value })}
+                      className="min-h-[50px] rounded-xl text-xs"
+                      placeholder="Allies: … / Rivals: … / Family: …"
+                    />
                   </div>
                 </div>
               );
@@ -595,12 +816,17 @@ function NotebookFullscreen({
           </div>
         </TabsContent>
 
-        <TabsContent value="timeline" className="flex-1 min-h-0 m-0 mt-3 px-3 pb-3 overflow-y-auto space-y-3">
+        <TabsContent
+          value="timeline"
+          className="flex-1 min-h-0 m-0 mt-3 px-3 pb-3 overflow-y-auto space-y-3"
+        >
           <Button size="sm" variant="outline" className="w-full rounded-2xl" onClick={addEvent}>
             <Plus className="h-3.5 w-3.5 mr-1" /> Add event
           </Button>
           {timeline.length === 0 && (
-            <p className="text-xs text-muted-foreground text-center py-6">No events yet. Map your plot beats here.</p>
+            <p className="text-xs text-muted-foreground text-center py-6">
+              No events yet. Map your plot beats here.
+            </p>
           )}
           <div className="relative pl-4">
             <div className="absolute left-[7px] top-2 bottom-2 w-px bg-border" />
@@ -614,38 +840,100 @@ function NotebookFullscreen({
                   return (
                     <div className="rounded-2xl border bg-background/60 p-3 space-y-2">
                       <div className="flex items-center gap-2">
-                        <Input value={ev.title} onChange={(e) => updateEvent(ev.id, { title: e.target.value })} className="h-8 rounded-2xl font-medium" placeholder="Event title" />
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-2xl" disabled={i === 0} onClick={() => moveEvent(ev.id, -1)}><ChevronUp className="h-3.5 w-3.5" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-2xl" disabled={i === timeline.length - 1} onClick={() => moveEvent(ev.id, 1)}><ChevronDown className="h-3.5 w-3.5" /></Button>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-2xl hover:text-destructive" onClick={() => removeEvent(ev.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                        <Input
+                          value={ev.title}
+                          onChange={(e) => updateEvent(ev.id, { title: e.target.value })}
+                          className="h-8 rounded-2xl font-medium"
+                          placeholder="Event title"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-2xl"
+                          disabled={i === 0}
+                          onClick={() => moveEvent(ev.id, -1)}
+                        >
+                          <ChevronUp className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-2xl"
+                          disabled={i === timeline.length - 1}
+                          onClick={() => moveEvent(ev.id, 1)}
+                        >
+                          <ChevronDown className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 rounded-2xl hover:text-destructive"
+                          onClick={() => removeEvent(ev.id)}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
                       </div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <Label className="text-[10px] uppercase text-muted-foreground">Chronological date</Label>
-                          <Input value={ev.event_date} onChange={(e) => updateEvent(ev.id, { event_date: e.target.value })} placeholder="e.g. Year 312, Day 4" className="h-8 rounded-2xl text-xs" />
+                          <Label className="text-[10px] uppercase text-muted-foreground">
+                            Chronological date
+                          </Label>
+                          <Input
+                            value={ev.event_date}
+                            onChange={(e) => updateEvent(ev.id, { event_date: e.target.value })}
+                            placeholder="e.g. Year 312, Day 4"
+                            className="h-8 rounded-2xl text-xs"
+                          />
                         </div>
                         <div>
-                          <Label className="text-[10px] uppercase text-muted-foreground">Location</Label>
-                          <Input value={ex.location} onChange={(e) => setEx({ location: e.target.value })} placeholder="Where" className="h-8 rounded-2xl text-xs" />
+                          <Label className="text-[10px] uppercase text-muted-foreground">
+                            Location
+                          </Label>
+                          <Input
+                            value={ex.location}
+                            onChange={(e) => setEx({ location: e.target.value })}
+                            placeholder="Where"
+                            className="h-8 rounded-2xl text-xs"
+                          />
                         </div>
                         <div className="col-span-2">
-                          <Label className="text-[10px] uppercase text-muted-foreground">Narrative track</Label>
+                          <Label className="text-[10px] uppercase text-muted-foreground">
+                            Narrative track
+                          </Label>
                           <select
                             value={ex.category}
                             onChange={(e) => setEx({ category: e.target.value })}
                             className="w-full h-8 rounded-2xl bg-background border border-input px-2 text-xs"
                           >
-                            {EVENT_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                            {EVENT_CATEGORIES.map((c) => (
+                              <option key={c} value={c}>
+                                {c}
+                              </option>
+                            ))}
                           </select>
                         </div>
                       </div>
                       <div>
-                        <Label className="text-[10px] uppercase text-muted-foreground">Event breakdown</Label>
-                        <Textarea value={ex.description} onChange={(e) => setEx({ description: e.target.value })} placeholder="Exact sequence of what happens" className="rounded-2xl text-xs min-h-[60px]" />
+                        <Label className="text-[10px] uppercase text-muted-foreground">
+                          Event breakdown
+                        </Label>
+                        <Textarea
+                          value={ex.description}
+                          onChange={(e) => setEx({ description: e.target.value })}
+                          placeholder="Exact sequence of what happens"
+                          className="rounded-2xl text-xs min-h-[60px]"
+                        />
                       </div>
                       <div>
-                        <Label className="text-[10px] uppercase text-muted-foreground">Impact note (butterfly effect)</Label>
-                        <Textarea value={ex.impact} onChange={(e) => setEx({ impact: e.target.value })} placeholder="Direct consequences on the rest of the timeline" className="rounded-2xl text-xs min-h-[50px]" />
+                        <Label className="text-[10px] uppercase text-muted-foreground">
+                          Impact note (butterfly effect)
+                        </Label>
+                        <Textarea
+                          value={ex.impact}
+                          onChange={(e) => setEx({ impact: e.target.value })}
+                          placeholder="Direct consequences on the rest of the timeline"
+                          className="rounded-2xl text-xs min-h-[50px]"
+                        />
                       </div>
                     </div>
                   );
@@ -655,7 +943,10 @@ function NotebookFullscreen({
           </div>
         </TabsContent>
 
-        <TabsContent value="lore" className="flex-1 min-h-0 m-0 mt-3 px-3 pb-3 overflow-y-auto space-y-3">
+        <TabsContent
+          value="lore"
+          className="flex-1 min-h-0 m-0 mt-3 px-3 pb-3 overflow-y-auto space-y-3"
+        >
           <div className="flex items-center gap-1 overflow-x-auto pb-1">
             {(["All", ...LORE_CATEGORIES] as const).map((cat) => {
               const active = loreFilter === cat;
@@ -664,7 +955,9 @@ function NotebookFullscreen({
                   key={cat}
                   onClick={() => setLoreFilter(cat)}
                   className={`shrink-0 px-3 h-8 rounded-full text-xs transition ${
-                    active ? "bg-primary text-primary-foreground" : "bg-muted/40 text-muted-foreground hover:bg-muted/70"
+                    active
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted/40 text-muted-foreground hover:bg-muted/70"
                   }`}
                 >
                   {cat}
@@ -674,7 +967,13 @@ function NotebookFullscreen({
           </div>
           <div className="flex flex-wrap gap-2">
             {LORE_CATEGORIES.map((cat) => (
-              <Button key={cat} size="sm" variant="outline" className="rounded-full" onClick={() => addLore(cat)}>
+              <Button
+                key={cat}
+                size="sm"
+                variant="outline"
+                className="rounded-full"
+                onClick={() => addLore(cat)}
+              >
                 <Plus className="h-3 w-3 mr-1" /> {cat}
               </Button>
             ))}
@@ -688,33 +987,42 @@ function NotebookFullscreen({
             {lore
               .filter((l) => loreFilter === "All" || l.category === loreFilter)
               .map((l) => (
-              <Card key={l.id} className="p-3 space-y-2 rounded-2xl">
-                <div className="flex items-center gap-2">
-                  <select
-                    value={l.category}
-                    onChange={(e) => updateLore(l.id, { category: e.target.value })}
-                    className="h-7 rounded-xl border bg-background text-xs px-2"
-                  >
-                    {LORE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                  <Input
-                    value={l.title}
-                    onChange={(e) => updateLore(l.id, { title: e.target.value })}
-                    className="h-7 rounded-xl text-sm font-medium flex-1"
-                    placeholder="Name"
+                <Card key={l.id} className="p-3 space-y-2 rounded-2xl">
+                  <div className="flex items-center gap-2">
+                    <select
+                      value={l.category}
+                      onChange={(e) => updateLore(l.id, { category: e.target.value })}
+                      className="h-7 rounded-xl border bg-background text-xs px-2"
+                    >
+                      {LORE_CATEGORIES.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
+                    </select>
+                    <Input
+                      value={l.title}
+                      onChange={(e) => updateLore(l.id, { title: e.target.value })}
+                      className="h-7 rounded-xl text-sm font-medium flex-1"
+                      placeholder="Name"
+                    />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 hover:text-destructive"
+                      onClick={() => removeLore(l.id)}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                  <Textarea
+                    value={l.details}
+                    onChange={(e) => updateLore(l.id, { details: e.target.value })}
+                    placeholder="Describe it…"
+                    className="rounded-xl min-h-[70px] text-xs"
                   />
-                  <Button size="icon" variant="ghost" className="h-7 w-7 hover:text-destructive" onClick={() => removeLore(l.id)}>
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-                <Textarea
-                  value={l.details}
-                  onChange={(e) => updateLore(l.id, { details: e.target.value })}
-                  placeholder="Describe it…"
-                  className="rounded-xl min-h-[70px] text-xs"
-                />
-              </Card>
-            ))}
+                </Card>
+              ))}
           </div>
         </TabsContent>
       </Tabs>
@@ -743,7 +1051,9 @@ function NotebookFullscreen({
             <SheetTitle className="flex items-center gap-2 text-base">
               <StickyNote className="h-4 w-4" /> Scratchpad
             </SheetTitle>
-            <p className="text-[10px] text-muted-foreground">Quick notes, brainstorming, plot beats. Saved on this device.</p>
+            <p className="text-[10px] text-muted-foreground">
+              Quick notes, brainstorming, plot beats. Saved on this device.
+            </p>
           </SheetHeader>
           <Textarea
             value={scratch}
@@ -767,7 +1077,9 @@ function SharingPanel({ notebookId }: { notebookId: string }) {
   const load = async () => {
     const { data } = await supabase
       .from("notebook_members")
-      .select("notebook_id, user_id, can_edit, profile:profiles!notebook_members_user_id_fkey(username, display_name)")
+      .select(
+        "notebook_id, user_id, can_edit, profile:profiles!notebook_members_user_id_fkey(username, display_name)",
+      )
       .eq("notebook_id", notebookId);
     setMembers((data as unknown as Member[]) ?? []);
   };
@@ -776,9 +1088,22 @@ function SharingPanel({ notebookId }: { notebookId: string }) {
     void load();
     const ch = supabase
       .channel(`members:${notebookId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "notebook_members", filter: `notebook_id=eq.${notebookId}` }, () => { void load(); })
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "notebook_members",
+          filter: `notebook_id=eq.${notebookId}`,
+        },
+        () => {
+          void load();
+        },
+      )
       .subscribe();
-    return () => { supabase.removeChannel(ch); };
+    return () => {
+      supabase.removeChannel(ch);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notebookId]);
 
@@ -788,21 +1113,39 @@ function SharingPanel({ notebookId }: { notebookId: string }) {
     setBusy(true);
     try {
       const r = await invite({ data: { notebookId, username: username.trim(), canEdit } });
-      if (!r.ok) { toast.error(r.error); return; }
+      if (!r.ok) {
+        toast.error(r.error);
+        return;
+      }
       toast.success(`Invited @${r.username}`);
-      setUsername(""); setCanEdit(false); void load();
-    } finally { setBusy(false); }
+      setUsername("");
+      setCanEdit(false);
+      void load();
+    } finally {
+      setBusy(false);
+    }
   };
 
   return (
     <>
       <SheetHeader>
-        <SheetTitle className="flex items-center gap-2"><Users className="h-4 w-4" /> Share notebook</SheetTitle>
+        <SheetTitle className="flex items-center gap-2">
+          <Users className="h-4 w-4" /> Share notebook
+        </SheetTitle>
       </SheetHeader>
       <form onSubmit={submit} className="mt-4 space-y-2">
-        <Label htmlFor="invite-user" className="text-xs">Invite by username</Label>
+        <Label htmlFor="invite-user" className="text-xs">
+          Invite by username
+        </Label>
         <div className="flex gap-2">
-          <Input id="invite-user" value={username} onChange={(e) => setUsername(e.target.value)} placeholder="username" autoCapitalize="off" autoCorrect="off" />
+          <Input
+            id="invite-user"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="username"
+            autoCapitalize="off"
+            autoCorrect="off"
+          />
           <Button type="submit" disabled={busy}>
             {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserPlus className="h-4 w-4" />}
           </Button>
@@ -814,19 +1157,45 @@ function SharingPanel({ notebookId }: { notebookId: string }) {
       </form>
       <div className="mt-6 space-y-2">
         <p className="text-xs font-medium text-muted-foreground">People with access</p>
-        {members.length === 0 && <p className="text-xs text-muted-foreground/70">Nobody invited yet.</p>}
+        {members.length === 0 && (
+          <p className="text-xs text-muted-foreground/70">Nobody invited yet.</p>
+        )}
         {members.map((m) => (
           <Card key={m.user_id} className="p-3 flex items-center gap-2">
             <div className="flex-1 min-w-0">
               <p className="text-sm font-medium truncate">@{m.profile?.username ?? "user"}</p>
-              <p className="text-[10px] text-muted-foreground">{m.can_edit ? "Editor" : "Viewer"}</p>
+              <p className="text-[10px] text-muted-foreground">
+                {m.can_edit ? "Editor" : "Viewer"}
+              </p>
             </div>
-            <Button size="sm" variant={m.can_edit ? "default" : "outline"} className="text-[10px] h-7"
-              onClick={async () => { await supabase.from("notebook_members").update({ can_edit: !m.can_edit }).eq("notebook_id", m.notebook_id).eq("user_id", m.user_id); void load(); }}>
+            <Button
+              size="sm"
+              variant={m.can_edit ? "default" : "outline"}
+              className="text-[10px] h-7"
+              onClick={async () => {
+                await supabase
+                  .from("notebook_members")
+                  .update({ can_edit: !m.can_edit })
+                  .eq("notebook_id", m.notebook_id)
+                  .eq("user_id", m.user_id);
+                void load();
+              }}
+            >
               {m.can_edit ? "Editor" : "Viewer"}
             </Button>
-            <Button size="icon" variant="ghost" className="h-7 w-7 hover:text-destructive"
-              onClick={async () => { await supabase.from("notebook_members").delete().eq("notebook_id", m.notebook_id).eq("user_id", m.user_id); void load(); }}>
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-7 w-7 hover:text-destructive"
+              onClick={async () => {
+                await supabase
+                  .from("notebook_members")
+                  .delete()
+                  .eq("notebook_id", m.notebook_id)
+                  .eq("user_id", m.user_id);
+                void load();
+              }}
+            >
               <X className="h-3.5 w-3.5" />
             </Button>
           </Card>
@@ -837,10 +1206,17 @@ function SharingPanel({ notebookId }: { notebookId: string }) {
 }
 
 function ChatPanel({
-  notebookId, notebookTitle, currentUserId, currentUsername, canModerate,
+  notebookId,
+  notebookTitle,
+  currentUserId,
+  currentUsername,
+  canModerate,
 }: {
-  notebookId: string; notebookTitle: string; currentUserId: string;
-  currentUsername: string; canModerate: boolean;
+  notebookId: string;
+  notebookTitle: string;
+  currentUserId: string;
+  currentUsername: string;
+  canModerate: boolean;
 }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [draft, setDraft] = useState("");
@@ -864,7 +1240,12 @@ function ChatPanel({
 
   useEffect(() => {
     let alive = true;
-    supabase.from("notebook_messages").select("*").eq("notebook_id", notebookId).order("created_at").limit(200)
+    supabase
+      .from("notebook_messages")
+      .select("*")
+      .eq("notebook_id", notebookId)
+      .order("created_at")
+      .limit(200)
       .then(({ data }) => {
         if (!alive) return;
         const rows = (data as Message[]) ?? [];
@@ -873,13 +1254,25 @@ function ChatPanel({
       });
     const ch = supabase
       .channel(`messages:${notebookId}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "notebook_messages", filter: `notebook_id=eq.${notebookId}` }, (payload) => {
-        const row = payload.new as Message;
-        setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]));
-        void fetchUsernames([row.user_id]);
-      })
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notebook_messages",
+          filter: `notebook_id=eq.${notebookId}`,
+        },
+        (payload) => {
+          const row = payload.new as Message;
+          setMessages((prev) => (prev.some((m) => m.id === row.id) ? prev : [...prev, row]));
+          void fetchUsernames([row.user_id]);
+        },
+      )
       .subscribe();
-    return () => { alive = false; supabase.removeChannel(ch); };
+    return () => {
+      alive = false;
+      supabase.removeChannel(ch);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notebookId]);
 
@@ -894,9 +1287,14 @@ function ChatPanel({
     setSending(true);
     try {
       const r = await send({ data: { notebookId, body } });
-      if (!r.ok) { toast.error(`Blocked: ${r.error}`); return; }
+      if (!r.ok) {
+        toast.error(`Blocked: ${r.error}`);
+        return;
+      }
       setDraft("");
-    } finally { setSending(false); }
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -910,13 +1308,19 @@ function ChatPanel({
         </p>
       </SheetHeader>
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-        {messages.length === 0 && <p className="text-center text-xs text-muted-foreground py-8">No messages yet. Say hi 👋</p>}
+        {messages.length === 0 && (
+          <p className="text-center text-xs text-muted-foreground py-8">
+            No messages yet. Say hi 👋
+          </p>
+        )}
         {messages.map((m) => {
           const mine = m.user_id === currentUserId;
           const name = mine ? currentUsername : (userMap[m.user_id] ?? "user");
           return (
             <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-primary text-primary-foreground" : "bg-accent"}`}>
+              <div
+                className={`max-w-[80%] rounded-2xl px-3 py-2 text-sm ${mine ? "bg-primary text-primary-foreground" : "bg-accent"}`}
+              >
                 {!mine && <p className="text-[10px] font-semibold opacity-70 mb-0.5">@{name}</p>}
                 <p className="whitespace-pre-wrap break-words">{m.body}</p>
               </div>
@@ -925,7 +1329,13 @@ function ChatPanel({
         })}
       </div>
       <form onSubmit={submit} className="border-t p-3 flex gap-2">
-        <Input value={draft} onChange={(e) => setDraft(e.target.value)} placeholder="Message…" maxLength={2000} disabled={sending} />
+        <Input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          placeholder="Message…"
+          maxLength={2000}
+          disabled={sending}
+        />
         <Button type="submit" disabled={sending || !draft.trim()} size="icon">
           {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>

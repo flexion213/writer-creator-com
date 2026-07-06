@@ -7,7 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Toaster } from "@/components/ui/sonner";
 import { toast } from "sonner";
-import { ArrowLeft, Bug, Lightbulb, Video, ShieldAlert, Loader2, Check, Trash2, Activity, Crown, ShieldCheck, Clock } from "lucide-react";
+import {
+  ArrowLeft,
+  Bug,
+  Lightbulb,
+  Video,
+  ShieldAlert,
+  Loader2,
+  Check,
+  Trash2,
+  Activity,
+  Crown,
+  ShieldCheck,
+  Clock,
+} from "lucide-react";
 
 export const Route = createFileRoute("/admin/reports")({
   component: ReportsPage,
@@ -27,7 +40,10 @@ type Report = {
 };
 type Profile = { id: string; username: string };
 
-const KIND_META: Record<Kind, { label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
+const KIND_META: Record<
+  Kind,
+  { label: string; icon: React.ComponentType<{ className?: string }>; color: string }
+> = {
   bug: { label: "Bug", icon: Bug, color: "text-destructive" },
   feature: { label: "Feature", icon: Lightbulb, color: "text-primary" },
   video: { label: "Video", icon: Video, color: "text-primary" },
@@ -44,8 +60,14 @@ function ReportsPage() {
 
   useEffect(() => {
     if (loading) return;
-    if (!user) { navigate({ to: "/auth" }); return; }
-    if (!isAdmin && !isModerator) { navigate({ to: "/" }); return; }
+    if (!user) {
+      navigate({ to: "/auth" });
+      return;
+    }
+    if (!isAdmin && !isModerator) {
+      navigate({ to: "/" });
+      return;
+    }
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loading, user, isAdmin, isModerator]);
@@ -53,11 +75,19 @@ function ReportsPage() {
   const load = async () => {
     setFetching(true);
     const { data, error } = await supabase
-      .from("reports").select("*").order("created_at", { ascending: false });
-    if (error) { toast.error(error.message); setFetching(false); return; }
+      .from("reports")
+      .select("*")
+      .order("created_at", { ascending: false });
+    if (error) {
+      toast.error(error.message);
+      setFetching(false);
+      return;
+    }
     const rows = (data as Report[]) ?? [];
     setReports(rows);
-    const ids = Array.from(new Set(rows.flatMap((r) => [r.reporter_id, r.reported_user_id].filter(Boolean) as string[])));
+    const ids = Array.from(
+      new Set(rows.flatMap((r) => [r.reporter_id, r.reported_user_id].filter(Boolean) as string[])),
+    );
     if (ids.length) {
       const { data: pr } = await supabase.from("profiles").select("id, username").in("id", ids);
       const map: Record<string, string> = {};
@@ -68,14 +98,23 @@ function ReportsPage() {
   };
 
   const toggleResolved = async (r: Report) => {
-    const { error } = await supabase.from("reports").update({ resolved: !r.resolved }).eq("id", r.id);
-    if (error) { toast.error(error.message); return; }
-    setReports((cur) => cur.map((x) => x.id === r.id ? { ...x, resolved: !r.resolved } : x));
+    const { error } = await supabase
+      .from("reports")
+      .update({ resolved: !r.resolved })
+      .eq("id", r.id);
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    setReports((cur) => cur.map((x) => (x.id === r.id ? { ...x, resolved: !r.resolved } : x)));
   };
   const remove = async (r: Report) => {
     if (!confirm("Delete this report?")) return;
     const { error } = await supabase.from("reports").delete().eq("id", r.id);
-    if (error) { toast.error(error.message); return; }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
     setReports((cur) => cur.filter((x) => x.id !== r.id));
   };
 
@@ -83,8 +122,20 @@ function ReportsPage() {
 
   const staff = [
     { name: "You", role: "Admin", icon: Crown, color: "text-amber-300", ago: "Just now" },
-    { name: "Moderator · Nyx", role: "Moderator", icon: ShieldCheck, color: "text-rose-300", ago: "4h ago" },
-    { name: "Moderator · Kai", role: "Moderator", icon: ShieldCheck, color: "text-rose-300", ago: "1d ago" },
+    {
+      name: "Moderator · Nyx",
+      role: "Moderator",
+      icon: ShieldCheck,
+      color: "text-rose-300",
+      ago: "4h ago",
+    },
+    {
+      name: "Moderator · Kai",
+      role: "Moderator",
+      icon: ShieldCheck,
+      color: "text-rose-300",
+      ago: "1d ago",
+    },
     { name: "Admin · alkader", role: "Admin", icon: Crown, color: "text-amber-300", ago: "2d ago" },
   ];
   const unresolved = reports.filter((r) => !r.resolved).length;
@@ -95,11 +146,17 @@ function ReportsPage() {
       <Toaster />
       <main className="mx-auto max-w-6xl px-4 md:px-6 py-6 space-y-6">
         <div className="flex items-center gap-3">
-          <Link to="/admin" className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground transition">
+          <Link
+            to="/admin"
+            className="inline-flex items-center text-xs text-muted-foreground hover:text-foreground transition"
+          >
             <ArrowLeft className="h-3.5 w-3.5 mr-1" /> Admin
           </Link>
           <div className="flex-1">
-            <h1 className="text-2xl md:text-3xl font-bold tracking-tight" style={{ color: "#FFFFD7" }}>
+            <h1
+              className="text-2xl md:text-3xl font-bold tracking-tight"
+              style={{ color: "#FFFFD7" }}
+            >
               Moderation Console
             </h1>
             <p className="text-xs text-muted-foreground">
@@ -112,12 +169,14 @@ function ReportsPage() {
           {/* COLUMN 1 — report queue */}
           <section className="space-y-4">
             <div className="flex gap-1 overflow-x-auto p-1 rounded-2xl bg-white/5 border border-white/10 backdrop-blur w-fit">
-              {(["all","bug","feature","video","user"] as const).map((k) => (
+              {(["all", "bug", "feature", "video", "user"] as const).map((k) => (
                 <button
                   key={k}
                   onClick={() => setFilter(k)}
                   className={`text-xs capitalize px-3 h-8 rounded-xl transition ${
-                    filter === k ? "bg-white text-black font-semibold" : "text-white/80 hover:bg-white/10"
+                    filter === k
+                      ? "bg-white text-black font-semibold"
+                      : "text-white/80 hover:bg-white/10"
                   }`}
                 >
                   {k}
@@ -148,31 +207,60 @@ function ReportsPage() {
                     }`}
                   >
                     <div className="flex items-center gap-2 mb-2">
-                      <span className={`h-8 w-8 rounded-xl bg-white/5 flex items-center justify-center ${meta.color}`}>
+                      <span
+                        className={`h-8 w-8 rounded-xl bg-white/5 flex items-center justify-center ${meta.color}`}
+                      >
                         <Icon className="h-4 w-4" />
                       </span>
-                      <Badge variant="outline" className="text-[9px] uppercase border-white/20">{meta.label}</Badge>
-                      {r.resolved && <Badge className="text-[9px] bg-emerald-500/20 text-emerald-300 border-0">Resolved</Badge>}
+                      <Badge variant="outline" className="text-[9px] uppercase border-white/20">
+                        {meta.label}
+                      </Badge>
+                      {r.resolved && (
+                        <Badge className="text-[9px] bg-emerald-500/20 text-emerald-300 border-0">
+                          Resolved
+                        </Badge>
+                      )}
                       <span className="ml-auto text-[10px] text-muted-foreground">
                         {new Date(r.created_at).toLocaleString()}
                       </span>
                     </div>
                     <p className="text-base font-semibold text-white">{r.title}</p>
                     {r.body && (
-                      <p className="text-sm text-white/70 mt-1 whitespace-pre-wrap leading-relaxed">{r.body}</p>
+                      <p className="text-sm text-white/70 mt-1 whitespace-pre-wrap leading-relaxed">
+                        {r.body}
+                      </p>
                     )}
                     <p className="text-[11px] text-muted-foreground mt-3">
-                      From <span className="text-white/70">@{profiles[r.reporter_id] ?? r.reporter_id.slice(0, 8)}</span>
+                      From{" "}
+                      <span className="text-white/70">
+                        @{profiles[r.reporter_id] ?? r.reporter_id.slice(0, 8)}
+                      </span>
                       {r.reported_user_id && (
-                        <> · about <span className="text-rose-300">@{profiles[r.reported_user_id] ?? r.reported_user_id.slice(0, 8)}</span></>
+                        <>
+                          {" "}
+                          · about{" "}
+                          <span className="text-rose-300">
+                            @{profiles[r.reported_user_id] ?? r.reported_user_id.slice(0, 8)}
+                          </span>
+                        </>
                       )}
                     </p>
                     <div className="flex gap-2 mt-3">
-                      <Button size="sm" variant="outline" className="flex-1 text-xs" onClick={() => toggleResolved(r)}>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 text-xs"
+                        onClick={() => toggleResolved(r)}
+                      >
                         <Check className="h-3.5 w-3.5 mr-1" />
                         {r.resolved ? "Reopen" : "Dismiss report"}
                       </Button>
-                      <Button size="sm" variant="destructive" className="text-xs" onClick={() => remove(r)}>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        className="text-xs"
+                        onClick={() => remove(r)}
+                      >
                         <Trash2 className="h-3.5 w-3.5 mr-1" /> Delete post
                       </Button>
                     </div>

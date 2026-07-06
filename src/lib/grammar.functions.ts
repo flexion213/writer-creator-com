@@ -55,7 +55,10 @@ export const fixGrammar = createServerFn({ method: "POST" })
       return { ok: false as const, error: "Too many requests — try again in a minute." };
     }
     if (res.status === 402) {
-      return { ok: false as const, error: "AI credits exhausted. Add credits in Settings → Workspace → Usage." };
+      return {
+        ok: false as const,
+        error: "AI credits exhausted. Add credits in Settings → Workspace → Usage.",
+      };
     }
     if (!res.ok) {
       console.error("Grammar AI error", res.status, await res.text().catch(() => ""));

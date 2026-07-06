@@ -13,8 +13,12 @@ export function SystemLockScreen() {
     (async () => {
       try {
         await supabase.auth.signOut();
-        try { window.localStorage.clear(); } catch {}
-        try { window.sessionStorage.clear(); } catch {}
+        try {
+          window.localStorage.clear();
+        } catch {}
+        try {
+          window.sessionStorage.clear();
+        } catch {}
       } finally {
         setSignedOut(true);
       }

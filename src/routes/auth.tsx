@@ -54,7 +54,10 @@ function AuthPage() {
             data: { username: u, display_name: u },
           },
         });
-        if (error) { toast.error(error.message); return; }
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
         // Record ToS acceptance on the profile
         const uid = signUpData.user?.id;
         if (uid) {
@@ -70,7 +73,10 @@ function AuthPage() {
           email: email.trim(),
           password,
         });
-        if (error) { toast.error(error.message); return; }
+        if (error) {
+          toast.error(error.message);
+          return;
+        }
         toast.success("Signed in");
         navigate({ to: "/" });
       }
@@ -84,7 +90,9 @@ function AuthPage() {
       <Toaster />
       <Card className="w-full max-w-sm p-6 space-y-4">
         <div className="text-center">
-          <h1 style={{ color: "#FFFFD7" }} className="text-2xl font-bold">Writer Creator</h1>
+          <h1 style={{ color: "#FFFFD7" }} className="text-2xl font-bold">
+            Writer Creator
+          </h1>
           <p className="text-xs text-muted-foreground mt-1">
             {mode === "signin" ? "Sign in to your account" : "Create an account"}
           </p>
@@ -101,12 +109,21 @@ function AuthPage() {
                 autoComplete="username"
                 required
               />
-              <p className="text-[10px] text-muted-foreground">3–32 letters, numbers, underscores. People invite you with this.</p>
+              <p className="text-[10px] text-muted-foreground">
+                3–32 letters, numbers, underscores. People invite you with this.
+              </p>
             </div>
           )}
           <div className="space-y-1">
             <Label htmlFor="email">Email</Label>
-            <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
+              autoComplete="email"
+            />
           </div>
           <div className="space-y-1">
             <Label htmlFor="password">Password</Label>
@@ -128,7 +145,10 @@ function AuthPage() {
                 onCheckedChange={(v) => setAgreedToToS(v === true)}
                 className="mt-0.5"
               />
-              <label htmlFor="tos" className="text-xs text-muted-foreground leading-snug cursor-pointer">
+              <label
+                htmlFor="tos"
+                className="text-xs text-muted-foreground leading-snug cursor-pointer"
+              >
                 I agree to the{" "}
                 <button
                   type="button"
@@ -152,12 +172,18 @@ function AuthPage() {
         </form>
         <div className="text-center text-xs text-muted-foreground">
           {mode === "signin" ? (
-            <>No account yet?{" "}
-              <button className="underline text-foreground" onClick={() => setMode("signup")}>Sign up</button>
+            <>
+              No account yet?{" "}
+              <button className="underline text-foreground" onClick={() => setMode("signup")}>
+                Sign up
+              </button>
             </>
           ) : (
-            <>Already have one?{" "}
-              <button className="underline text-foreground" onClick={() => setMode("signin")}>Sign in</button>
+            <>
+              Already have one?{" "}
+              <button className="underline text-foreground" onClick={() => setMode("signin")}>
+                Sign in
+              </button>
             </>
           )}
         </div>
@@ -174,49 +200,100 @@ function AuthPage() {
           <div className="space-y-4 text-sm leading-relaxed text-muted-foreground">
             <p>
               Welcome to Writer Creators. By creating an account, you agree to these fair and
-              binding rules. These terms protect your creative work while keeping our community
-              safe and clean.
+              binding rules. These terms protect your creative work while keeping our community safe
+              and clean.
             </p>
 
             <div>
-              <h3 className="text-foreground font-semibold mb-1">1. Your Content, Your Rules (Intellectual Property)</h3>
+              <h3 className="text-foreground font-semibold mb-1">
+                1. Your Content, Your Rules (Intellectual Property)
+              </h3>
               <ul className="list-disc pl-5 space-y-1">
-                <li><span className="text-foreground">100% Ownership:</span> You retain full ownership, copyright, and intellectual property rights over every story, character description, lore entry, and tactical map you create. Writer Creators claims zero ownership over your original work.</li>
-                <li><span className="text-foreground">Privacy Guarantee:</span> Your private notebooks and tactical sandbox maps are strictly confidential. The system will never share, read, or distribute your private drafts without your explicit permission.</li>
+                <li>
+                  <span className="text-foreground">100% Ownership:</span> You retain full
+                  ownership, copyright, and intellectual property rights over every story, character
+                  description, lore entry, and tactical map you create. Writer Creators claims zero
+                  ownership over your original work.
+                </li>
+                <li>
+                  <span className="text-foreground">Privacy Guarantee:</span> Your private notebooks
+                  and tactical sandbox maps are strictly confidential. The system will never share,
+                  read, or distribute your private drafts without your explicit permission.
+                </li>
               </ul>
             </div>
 
             <div>
-              <h3 className="text-foreground font-semibold mb-1">2. Community Guidelines (What is Forbidden)</h3>
-              <p>To keep the platform safe for all writers, you agree not to publish public content that contains:</p>
+              <h3 className="text-foreground font-semibold mb-1">
+                2. Community Guidelines (What is Forbidden)
+              </h3>
+              <p>
+                To keep the platform safe for all writers, you agree not to publish public content
+                that contains:
+              </p>
               <ul className="list-disc pl-5 space-y-1 mt-1">
-                <li><span className="text-foreground">Harassment &amp; Hate:</span> Targeted bullying, personal attacks, or hate speech against other users.</li>
-                <li><span className="text-foreground">Plagiarism:</span> Copying someone else's story word-for-word and claiming it as your own.</li>
-                <li><span className="text-foreground">Spam &amp; Disruption:</span> Flooding the public feed with repetitive posts, advertisements, or malicious links/code designed to break the app.</li>
+                <li>
+                  <span className="text-foreground">Harassment &amp; Hate:</span> Targeted bullying,
+                  personal attacks, or hate speech against other users.
+                </li>
+                <li>
+                  <span className="text-foreground">Plagiarism:</span> Copying someone else's story
+                  word-for-word and claiming it as your own.
+                </li>
+                <li>
+                  <span className="text-foreground">Spam &amp; Disruption:</span> Flooding the
+                  public feed with repetitive posts, advertisements, or malicious links/code
+                  designed to break the app.
+                </li>
               </ul>
             </div>
 
             <div>
-              <h3 className="text-foreground font-semibold mb-1">3. Fair Moderation Enforcement (No Loopholes)</h3>
-              <p>We believe in a fair warning system, but severe violations require immediate action. By agreeing to these terms, you acknowledge that our administration team handles platform protection through two distinct methods:</p>
+              <h3 className="text-foreground font-semibold mb-1">
+                3. Fair Moderation Enforcement (No Loopholes)
+              </h3>
+              <p>
+                We believe in a fair warning system, but severe violations require immediate action.
+                By agreeing to these terms, you acknowledge that our administration team handles
+                platform protection through two distinct methods:
+              </p>
               <ul className="list-disc pl-5 space-y-1 mt-1">
-                <li><span className="text-foreground">The Shadow Ban:</span> If an account is found consistently disrupting the community, spamming, or violating guidelines, the system may filter their public posts and comments so they are only visible to the author. This prevents platform disruption without deleting the user's private drafts.</li>
-                <li><span className="text-foreground">The System Lock:</span> For extreme violations (such as hacking attempts, severe harassment, or malicious platform abuse), an account will be immediately and permanently suspended. The active session will be terminated, and access to the account will be fully revoked.</li>
+                <li>
+                  <span className="text-foreground">The Shadow Ban:</span> If an account is found
+                  consistently disrupting the community, spamming, or violating guidelines, the
+                  system may filter their public posts and comments so they are only visible to the
+                  author. This prevents platform disruption without deleting the user's private
+                  drafts.
+                </li>
+                <li>
+                  <span className="text-foreground">The System Lock:</span> For extreme violations
+                  (such as hacking attempts, severe harassment, or malicious platform abuse), an
+                  account will be immediately and permanently suspended. The active session will be
+                  terminated, and access to the account will be fully revoked.
+                </li>
               </ul>
             </div>
 
             <div>
-              <h3 className="text-foreground font-semibold mb-1">4. Account Security &amp; Responsibility</h3>
+              <h3 className="text-foreground font-semibold mb-1">
+                4. Account Security &amp; Responsibility
+              </h3>
               <ul className="list-disc pl-5 space-y-1">
                 <li>You are responsible for keeping your login credentials secure.</li>
-                <li>If you discover any security bugs or platform exploits, you agree to report them to the site administration rather than exploiting them.</li>
+                <li>
+                  If you discover any security bugs or platform exploits, you agree to report them
+                  to the site administration rather than exploiting them.
+                </li>
               </ul>
             </div>
 
             <div>
               <h3 className="text-foreground font-semibold mb-1">5. Termination of Service</h3>
               <ul className="list-disc pl-5 space-y-1">
-                <li>You have the right to delete your account and remove all of your saved writing data at any given time.</li>
+                <li>
+                  You have the right to delete your account and remove all of your saved writing
+                  data at any given time.
+                </li>
               </ul>
             </div>
           </div>
@@ -224,7 +301,10 @@ function AuthPage() {
             <Button
               type="button"
               className="w-full"
-              onClick={() => { setAgreedToToS(true); setTosOpen(false); }}
+              onClick={() => {
+                setAgreedToToS(true);
+                setTosOpen(false);
+              }}
             >
               I Understand &amp; Agree
             </Button>
