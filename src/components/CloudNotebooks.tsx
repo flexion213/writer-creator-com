@@ -65,6 +65,41 @@ type Lore = {
 };
 const LORE_CATEGORIES = ["Location", "Faction", "Power System", "Item", "Race", "Other"] as const;
 
+// Structured extras stored inside existing text columns as JSON so we don't
+// need a migration. Fully backward-compatible: legacy plain strings are
+// treated as `keySkills` / `description` respectively.
+type CharExtras = {
+  faction: string;
+  status: "Alive" | "Missing" | "Deceased" | "Unknown" | string;
+  inventory: string;
+  keySkills: string;
+  psych: string;
+  relationships: string;
+};
+const EMPTY_CHAR_EXTRAS: CharExtras = { faction: "", status: "Alive", inventory: "", keySkills: "", psych: "", relationships: "" };
+function parseCharExtras(raw: string): CharExtras {
+  if (!raw) return { ...EMPTY_CHAR_EXTRAS };
+  try {
+    const j = JSON.parse(raw);
+    if (j && typeof j === "object" && "keySkills" in j) return { ...EMPTY_CHAR_EXTRAS, ...j };
+  } catch {}
+  return { ...EMPTY_CHAR_EXTRAS, keySkills: raw };
+}
+const serializeCharExtras = (e: CharExtras) => JSON.stringify(e);
+
+const EVENT_CATEGORIES = ["Major Plot Point", "Character Arc", "Tactical Conflict/Battle", "Discovery", "Turning Point", "Other"] as const;
+type EventExtras = { location: string; category: string; description: string; impact: string };
+const EMPTY_EVENT_EXTRAS: EventExtras = { location: "", category: "Major Plot Point", description: "", impact: "" };
+function parseEventExtras(raw: string): EventExtras {
+  if (!raw) return { ...EMPTY_EVENT_EXTRAS };
+  try {
+    const j = JSON.parse(raw);
+    if (j && typeof j === "object" && "impact" in j) return { ...EMPTY_EVENT_EXTRAS, ...j };
+  } catch {}
+  return { ...EMPTY_EVENT_EXTRAS, description: raw };
+}
+const serializeEventExtras = (e: EventExtras) => JSON.stringify(e);
+
 export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<string | null> }) {
   const { user, profile, loading, isAdmin, isModerator } = useAuth();
   const navigate = useNavigate();
