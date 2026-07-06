@@ -105,7 +105,7 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
     };
   };
 
-  // Flood fill implementation
+  // Flood fill implementation - STABILIZED FIX
   const floodFill = (sx: number, sy: number, hex: string) => {
     const c = canvasRef.current!;
     const ctx = ctxRef.current!;
@@ -115,21 +115,35 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
     const idx = (x: number, y: number) => (y * w + x) * 4;
     const sx0 = Math.floor(sx), sy0 = Math.floor(sy);
     if (sx0 < 0 || sy0 < 0 || sx0 >= w || sy0 >= h) return;
+    
     const start = idx(sx0, sy0);
     const tr = data[start], tg = data[start + 1], tb = data[start + 2], ta = data[start + 3];
     const r = parseInt(hex.slice(1, 3), 16), g = parseInt(hex.slice(3, 5), 16), b = parseInt(hex.slice(5, 7), 16);
+    
     if (tr === r && tg === g && tb === b && ta === 255) return;
+    
     const tol = 24;
     const stack: number[] = [sx0, sy0];
+    const visited = new Uint8Array(w * h);
+    
     while (stack.length) {
       const y = stack.pop()!, x = stack.pop()!;
       if (x < 0 || y < 0 || x >= w || y >= h) continue;
+      
+      const vIdx = y * w + x;
+      if (visited[vIdx]) continue;
+      visited[vIdx] = 1;
+
       const p = idx(x, y);
       const dr = data[p] - tr, dg = data[p + 1] - tg, db = data[p + 2] - tb, da = data[p + 3] - ta;
       if (dr * dr + dg * dg + db * db + da * da > tol * tol * 4) continue;
-      if (data[p] === r && data[p + 1] === g && data[p + 2] === b && data[p + 3] === 255) continue;
+      
       data[p] = r; data[p + 1] = g; data[p + 2] = b; data[p + 3] = 255;
-      stack.push(x + 1, y, x - 1, y, x, y + 1, x, y - 1);
+      
+      if (x + 1 < w) stack.push(x + 1, y);
+      if (x - 1 >= 0) stack.push(x - 1, y);
+      if (y + 1 < h) stack.push(x, y + 1);
+      if (y - 1 >= 0) stack.push(x, y - 1);
     }
     ctx.putImageData(img, 0, 0);
     persistCanvas();
@@ -243,7 +257,7 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
   const PRESET_COLORS = ["#22c55e", "#ef4444", "#3b82f6", "#f59e0b", "#a855f7", "#e11d48", "#ffffff", "#0f172a"];
 
   return (
-    <div className="fixed inset-0 flex flex-col bg-background text-foreground">
+    <div className="w-full h-screen flex flex-col bg-background text-foreground overflow-hidden">
       {/* Top bar */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-border/60 glass-panel">
         <Button variant="ghost" size="icon" className="h-9 w-9" onClick={onOpenMenu} aria-label="Menu">
@@ -327,7 +341,7 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
       </div>
 
       {/* Canvas + markers */}
-      <div className="flex-1 relative overflow-hidden">
+      <div className="relative w-full h-[calc(100vh-140px)] overflow-hidden">
         <div
           ref={wrapRef}
           className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.04),transparent_60%)]"
