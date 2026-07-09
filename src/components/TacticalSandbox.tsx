@@ -3,19 +3,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Upload, Brush, Eraser, Route as RouteIcon, PaintBucket, Trash2,
-  Download, Home, Skull, Target, Package, Tag, X, Menu, Undo2, ImageOff,
+  Download, Tag, X, Menu, ImageOff,
 } from "lucide-react";
 
 type MarkerType = "Safehouse" | "Enemy Territory" | "Objective" | "Resource Stash" | "Custom Label";
 type Marker = { id: string; type: MarkerType; label: string; x: number; y: number };
 type Tool = "brush" | "eraser" | "route" | "bucket" | "move";
 
-const MARKER_META: Record<MarkerType, { icon: React.ComponentType<{ className?: string }>; color: string }> = {
-  "Safehouse":        { icon: Home,    color: "#10b981" },
-  "Enemy Territory":  { icon: Skull,   color: "#ef4444" },
-  "Objective":        { icon: Target,  color: "#f59e0b" },
-  "Resource Stash":   { icon: Package, color: "#3b82f6" },
-  "Custom Label":     { icon: Tag,     color: "#a855f7" },
+// Marker style: each type is a glowing dot in a signature color.
+const MARKER_META: Record<MarkerType, { color: string }> = {
+  "Safehouse":        { color: "#10b981" },
+  "Enemy Territory":  { color: "#ef4444" },
+  "Objective":        { color: "#f59e0b" },
+  "Resource Stash":   { color: "#3b82f6" },
+  "Custom Label":     { color: "#a855f7" },
 };
 
 const LS = {
