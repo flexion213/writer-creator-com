@@ -199,7 +199,14 @@ export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<s
       owner_id: user.id, title: "Untitled", body: "",
     }).select("*").single();
     if (error) { toast.error(error.message); return; }
-    if (data) setOpenId((data as Notebook).id);
+    if (data) {
+      const row = data as Notebook;
+      // Optimistically add so the fullscreen editor opens immediately —
+      // otherwise it waits on the realtime INSERT event and the "New"
+      // button appears to do nothing.
+      setNotebooks((prev) => (prev.some((n) => n.id === row.id) ? prev : [row, ...prev]));
+      setOpenId(row.id);
+    }
   };
 
   const remove = async (id: string) => {

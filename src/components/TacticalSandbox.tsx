@@ -3,19 +3,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
   Upload, Brush, Eraser, Route as RouteIcon, PaintBucket, Trash2,
-  Download, Home, Skull, Target, Package, Tag, X, Menu, Undo2, ImageOff,
+  Download, Tag, X, Menu, ImageOff,
 } from "lucide-react";
 
 type MarkerType = "Safehouse" | "Enemy Territory" | "Objective" | "Resource Stash" | "Custom Label";
 type Marker = { id: string; type: MarkerType; label: string; x: number; y: number };
 type Tool = "brush" | "eraser" | "route" | "bucket" | "move";
 
-const MARKER_META: Record<MarkerType, { icon: React.ComponentType<{ className?: string }>; color: string }> = {
-  "Safehouse":        { icon: Home,    color: "#10b981" },
-  "Enemy Territory":  { icon: Skull,   color: "#ef4444" },
-  "Objective":        { icon: Target,  color: "#f59e0b" },
-  "Resource Stash":   { icon: Package, color: "#3b82f6" },
-  "Custom Label":     { icon: Tag,     color: "#a855f7" },
+// Marker style: each type is a glowing dot in a signature color.
+const MARKER_META: Record<MarkerType, { color: string }> = {
+  "Safehouse":        { color: "#10b981" },
+  "Enemy Territory":  { color: "#ef4444" },
+  "Objective":        { color: "#f59e0b" },
+  "Resource Stash":   { color: "#3b82f6" },
+  "Custom Label":     { color: "#a855f7" },
 };
 
 const LS = {
@@ -41,6 +42,9 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
   const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
   const drawing = useRef(false);
   const lastPt = useRef<{ x: number; y: number } | null>(null);
+  // Track the full path of the current route stroke so we can render an
+  // arrowhead at the tail when the pointer lifts.
+  const routePts = useRef<Array<{ x: number; y: number }>>([]);
   const draggingMarker = useRef<{ id: string; dx: number; dy: number } | null>(null);
 
   // Hydrate
@@ -150,6 +154,7 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
     ctx.beginPath();
     ctx.arc(p.x, p.y, ctx.lineWidth / 2, 0, Math.PI * 2);
     ctx.fill();
+    if (tool === "route") routePts.current = [p];
   };
   const onPointerMove = (e: React.PointerEvent) => {
     if (!drawing.current) return;
@@ -161,11 +166,41 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
     ctx.lineTo(p.x, p.y);
     ctx.stroke();
     lastPt.current = p;
+    if (tool === "route") routePts.current.push(p);
   };
   const onPointerUp = () => {
     if (!drawing.current) return;
     drawing.current = false;
     lastPt.current = null;
+    // If this was a route stroke, cap it with an arrowhead pointing along the
+    // final direction of travel.
+    if (tool === "route" && routePts.current.length >= 2) {
+      const ctx = ctxRef.current!;
+      const pts = routePts.current;
+      const tip = pts[pts.length - 1];
+      // Look back a few points so the direction is stable, not jittery.
+      const back = pts[Math.max(0, pts.length - 6)];
+      const dx = tip.x - back.x, dy = tip.y - back.y;
+      const len = Math.hypot(dx, dy);
+      if (len > 0.5) {
+        const ux = dx / len, uy = dy / len;
+        const head = Math.max(12, size * 1.6);
+        const halfW = head * 0.55;
+        const bx = tip.x - ux * head;
+        const by = tip.y - uy * head;
+        // perpendicular
+        const px = -uy, py = ux;
+        ctx.globalCompositeOperation = "source-over";
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(tip.x, tip.y);
+        ctx.lineTo(bx + px * halfW, by + py * halfW);
+        ctx.lineTo(bx - px * halfW, by - py * halfW);
+        ctx.closePath();
+        ctx.fill();
+      }
+      routePts.current = [];
+    }
     persistCanvas();
   };
 
@@ -354,7 +389,6 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
           {/* Markers */}
           {markers.map((m) => {
             const meta = MARKER_META[m.type];
-            const Icon = meta.icon;
             return (
               <div
                 key={m.id}
@@ -365,12 +399,15 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
                   onPointerDown={(e) => onMarkerPointerDown(e, m)}
                   className="flex flex-col items-center gap-1 cursor-move touch-none"
                 >
-                  <div
-                    className="h-8 w-8 rounded-full flex items-center justify-center shadow-elegant border-2"
-                    style={{ background: meta.color, borderColor: "rgba(0,0,0,0.4)" }}
-                  >
-                    <Icon className="h-4 w-4 text-white" />
-                  </div>
+                  {/* Glowing dot marker */}
+                  <span
+                    className="glow-dot"
+                    style={{
+                      background: meta.color,
+                      boxShadow: `0 0 6px ${meta.color}, 0 0 14px ${meta.color}, 0 0 28px ${meta.color}80`,
+                    }}
+                    aria-hidden
+                  />
                   {editingLabelId === m.id ? (
                     <input
                       autoFocus
@@ -417,7 +454,6 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
             </div>
             {(Object.keys(MARKER_META) as MarkerType[]).map((t) => {
               const meta = MARKER_META[t];
-              const Icon = meta.icon;
               return (
                 <button
                   key={t}
@@ -425,11 +461,13 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
                   className="w-full flex items-center gap-2 rounded-xl border border-border/60 bg-card/60 hover:bg-accent hover:text-accent-foreground px-2 py-2 text-left text-xs"
                 >
                   <span
-                    className="h-6 w-6 rounded-full flex items-center justify-center"
-                    style={{ background: meta.color }}
-                  >
-                    <Icon className="h-3.5 w-3.5 text-white" />
-                  </span>
+                    className="h-3 w-3 rounded-full shrink-0"
+                    style={{
+                      background: meta.color,
+                      boxShadow: `0 0 6px ${meta.color}, 0 0 12px ${meta.color}`,
+                    }}
+                    aria-hidden
+                  />
                   {t}
                 </button>
               );

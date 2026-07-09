@@ -21,7 +21,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import {
   BadgeCheck, Bug, Lightbulb, Video, Upload, Send,
   NotebookPen, Globe, MessageSquare, Pencil, ImagePlus, X, Eraser, Megaphone,
-  Brush, PenTool, Highlighter, SprayCan, Sparkles, Droplet, Undo2, Redo2, Download, Trash2,
+  Brush, PenTool, Highlighter, SprayCan, Sparkles, Droplet, PaintBucket, Undo2, Redo2, Download, Trash2,
   ShieldAlert, Crown,
   Plus, Wand2, Loader2, Search, Heart, MessageCircle, Menu,
   BookOpen, BookCopy, Flag, Type, Layers, Link as LinkIcon, ZoomIn, ZoomOut, Map as MapIcon,
@@ -700,7 +700,7 @@ function Suggestions({
   );
 }
 
-type BrushId = "pencil" | "pen" | "marker" | "ink" | "highlighter" | "airbrush" | "spray" | "neon" | "calligraphy" | "eraser";
+type BrushId = "pencil" | "pen" | "marker" | "ink" | "highlighter" | "airbrush" | "spray" | "neon" | "calligraphy" | "eraser" | "bucket";
 
 const BRUSHES: { id: BrushId; label: string; icon: React.ComponentType<{ className?: string }>; defaultSize: number; defaultOpacity: number }[] = [
   { id: "pencil",      label: "Pencil",      icon: Pencil,      defaultSize: 2,  defaultOpacity: 0.85 },
@@ -713,10 +713,45 @@ const BRUSHES: { id: BrushId; label: string; icon: React.ComponentType<{ classNa
   { id: "neon",        label: "Neon",        icon: Sparkles,    defaultSize: 6,  defaultOpacity: 1 },
   { id: "calligraphy", label: "Calligraphy", icon: PenTool,     defaultSize: 14, defaultOpacity: 1 },
   { id: "eraser",      label: "Eraser",      icon: Eraser,      defaultSize: 18, defaultOpacity: 1 },
+  { id: "bucket",      label: "Fill",        icon: PaintBucket, defaultSize: 1,  defaultOpacity: 1 },
 ];
 
 // All brushes are free for every user.
 const PREMIUM_BRUSHES: BrushId[] = [];
+
+// Flood-fill a canvas region with the given color, matching pixels within a
+// small tolerance so anti-aliased edges get filled too.
+function floodFill(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  sx: number,
+  sy: number,
+  rgba: { r: number; g: number; b: number },
+  alpha: number,
+) {
+  if (sx < 0 || sy < 0 || sx >= w || sy >= h) return;
+  const img = ctx.getImageData(0, 0, w, h);
+  const data = img.data;
+  const idx = (x: number, y: number) => (y * w + x) * 4;
+  const start = idx(sx, sy);
+  const tr = data[start], tg = data[start + 1], tb = data[start + 2], ta = data[start + 3];
+  const fillA = Math.round(Math.max(0, Math.min(1, alpha)) * 255);
+  if (tr === rgba.r && tg === rgba.g && tb === rgba.b && ta === fillA) return;
+  const tol2 = 32 * 32 * 4;
+  const stack: number[] = [sx, sy];
+  while (stack.length) {
+    const y = stack.pop()!, x = stack.pop()!;
+    if (x < 0 || y < 0 || x >= w || y >= h) continue;
+    const p = idx(x, y);
+    const dr = data[p] - tr, dg = data[p + 1] - tg, db = data[p + 2] - tb, da = data[p + 3] - ta;
+    if (dr * dr + dg * dg + db * db + da * da > tol2) continue;
+    if (data[p] === rgba.r && data[p + 1] === rgba.g && data[p + 2] === rgba.b && data[p + 3] === fillA) continue;
+    data[p] = rgba.r; data[p + 1] = rgba.g; data[p + 2] = rgba.b; data[p + 3] = fillA;
+    stack.push(x + 1, y, x - 1, y, x, y + 1, x, y - 1);
+  }
+  ctx.putImageData(img, 0, 0);
+}
 
 function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMenu: () => void }) {
   type Layer = { id: string; name: string; visible: boolean };
@@ -1061,6 +1096,15 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
     const c = activeCanvas(); if (!c) return;
     rectCache.current = null; // refresh in case layout changed
+    // Bucket fill is a one-shot action, not a stroke.
+    if (brush === "bucket") {
+      const ctx = c.getContext("2d"); if (!ctx) return;
+      const p = computePos(e.clientX, e.clientY, c);
+      snapshot();
+      floodFill(ctx, c.width, c.height, Math.floor(p.x), Math.floor(p.y), hsvaToRgba(hsva), opacity);
+      persistLayer(activeLayerId);
+      return;
+    }
     drawing.current = true;
     snapshot();
     const ctx = c.getContext("2d")!;

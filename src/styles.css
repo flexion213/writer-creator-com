@@ -228,6 +228,28 @@
 }
 .tool-glow { animation: tool-glow 2.2s ease-in-out infinite; }
 
+/* Tactical Sandbox: glowing dot markers */
+@keyframes glow-dot-pulse {
+  0%, 100% { transform: scale(1);   filter: brightness(1); }
+  50%      { transform: scale(1.15); filter: brightness(1.35); }
+}
+.glow-dot {
+  display: block;
+  width: 14px;
+  height: 14px;
+  border-radius: 9999px;
+  animation: glow-dot-pulse 2s ease-in-out infinite;
+  position: relative;
+}
+.glow-dot::after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.75);
+  filter: blur(1px);
+}
+
 /* Circular native color picker */
 .color-picker-round {
   -webkit-appearance: none;
