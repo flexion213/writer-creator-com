@@ -42,6 +42,9 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
   const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
   const drawing = useRef(false);
   const lastPt = useRef<{ x: number; y: number } | null>(null);
+  // Track the full path of the current route stroke so we can render an
+  // arrowhead at the tail when the pointer lifts.
+  const routePts = useRef<Array<{ x: number; y: number }>>([]);
   const draggingMarker = useRef<{ id: string; dx: number; dy: number } | null>(null);
 
   // Hydrate
@@ -151,6 +154,7 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
     ctx.beginPath();
     ctx.arc(p.x, p.y, ctx.lineWidth / 2, 0, Math.PI * 2);
     ctx.fill();
+    if (tool === "route") routePts.current = [p];
   };
   const onPointerMove = (e: React.PointerEvent) => {
     if (!drawing.current) return;
@@ -162,11 +166,41 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
     ctx.lineTo(p.x, p.y);
     ctx.stroke();
     lastPt.current = p;
+    if (tool === "route") routePts.current.push(p);
   };
   const onPointerUp = () => {
     if (!drawing.current) return;
     drawing.current = false;
     lastPt.current = null;
+    // If this was a route stroke, cap it with an arrowhead pointing along the
+    // final direction of travel.
+    if (tool === "route" && routePts.current.length >= 2) {
+      const ctx = ctxRef.current!;
+      const pts = routePts.current;
+      const tip = pts[pts.length - 1];
+      // Look back a few points so the direction is stable, not jittery.
+      const back = pts[Math.max(0, pts.length - 6)];
+      const dx = tip.x - back.x, dy = tip.y - back.y;
+      const len = Math.hypot(dx, dy);
+      if (len > 0.5) {
+        const ux = dx / len, uy = dy / len;
+        const head = Math.max(12, size * 1.6);
+        const halfW = head * 0.55;
+        const bx = tip.x - ux * head;
+        const by = tip.y - uy * head;
+        // perpendicular
+        const px = -uy, py = ux;
+        ctx.globalCompositeOperation = "source-over";
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.moveTo(tip.x, tip.y);
+        ctx.lineTo(bx + px * halfW, by + py * halfW);
+        ctx.lineTo(bx - px * halfW, by - py * halfW);
+        ctx.closePath();
+        ctx.fill();
+      }
+      routePts.current = [];
+    }
     persistCanvas();
   };
 
