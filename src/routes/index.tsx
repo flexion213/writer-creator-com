@@ -719,6 +719,40 @@ const BRUSHES: { id: BrushId; label: string; icon: React.ComponentType<{ classNa
 // All brushes are free for every user.
 const PREMIUM_BRUSHES: BrushId[] = [];
 
+// Flood-fill a canvas region with the given color, matching pixels within a
+// small tolerance so anti-aliased edges get filled too.
+function floodFill(
+  ctx: CanvasRenderingContext2D,
+  w: number,
+  h: number,
+  sx: number,
+  sy: number,
+  rgba: { r: number; g: number; b: number },
+  alpha: number,
+) {
+  if (sx < 0 || sy < 0 || sx >= w || sy >= h) return;
+  const img = ctx.getImageData(0, 0, w, h);
+  const data = img.data;
+  const idx = (x: number, y: number) => (y * w + x) * 4;
+  const start = idx(sx, sy);
+  const tr = data[start], tg = data[start + 1], tb = data[start + 2], ta = data[start + 3];
+  const fillA = Math.round(Math.max(0, Math.min(1, alpha)) * 255);
+  if (tr === rgba.r && tg === rgba.g && tb === rgba.b && ta === fillA) return;
+  const tol2 = 32 * 32 * 4;
+  const stack: number[] = [sx, sy];
+  while (stack.length) {
+    const y = stack.pop()!, x = stack.pop()!;
+    if (x < 0 || y < 0 || x >= w || y >= h) continue;
+    const p = idx(x, y);
+    const dr = data[p] - tr, dg = data[p + 1] - tg, db = data[p + 2] - tb, da = data[p + 3] - ta;
+    if (dr * dr + dg * dg + db * db + da * da > tol2) continue;
+    if (data[p] === rgba.r && data[p + 1] === rgba.g && data[p + 2] === rgba.b && data[p + 3] === fillA) continue;
+    data[p] = rgba.r; data[p + 1] = rgba.g; data[p + 2] = rgba.b; data[p + 3] = fillA;
+    stack.push(x + 1, y, x - 1, y, x, y + 1, x, y - 1);
+  }
+  ctx.putImageData(img, 0, 0);
+}
+
 function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMenu: () => void }) {
   type Layer = { id: string; name: string; visible: boolean };
   type LayerSnapshot = string | null;
