@@ -389,7 +389,6 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
           {/* Markers */}
           {markers.map((m) => {
             const meta = MARKER_META[m.type];
-            const Icon = meta.icon;
             return (
               <div
                 key={m.id}
@@ -400,12 +399,15 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
                   onPointerDown={(e) => onMarkerPointerDown(e, m)}
                   className="flex flex-col items-center gap-1 cursor-move touch-none"
                 >
-                  <div
-                    className="h-8 w-8 rounded-full flex items-center justify-center shadow-elegant border-2"
-                    style={{ background: meta.color, borderColor: "rgba(0,0,0,0.4)" }}
-                  >
-                    <Icon className="h-4 w-4 text-white" />
-                  </div>
+                  {/* Glowing dot marker */}
+                  <span
+                    className="glow-dot"
+                    style={{
+                      background: meta.color,
+                      boxShadow: `0 0 6px ${meta.color}, 0 0 14px ${meta.color}, 0 0 28px ${meta.color}80`,
+                    }}
+                    aria-hidden
+                  />
                   {editingLabelId === m.id ? (
                     <input
                       autoFocus
@@ -452,7 +454,6 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
             </div>
             {(Object.keys(MARKER_META) as MarkerType[]).map((t) => {
               const meta = MARKER_META[t];
-              const Icon = meta.icon;
               return (
                 <button
                   key={t}
@@ -460,11 +461,13 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
                   className="w-full flex items-center gap-2 rounded-xl border border-border/60 bg-card/60 hover:bg-accent hover:text-accent-foreground px-2 py-2 text-left text-xs"
                 >
                   <span
-                    className="h-6 w-6 rounded-full flex items-center justify-center"
-                    style={{ background: meta.color }}
-                  >
-                    <Icon className="h-3.5 w-3.5 text-white" />
-                  </span>
+                    className="h-3 w-3 rounded-full shrink-0"
+                    style={{
+                      background: meta.color,
+                      boxShadow: `0 0 6px ${meta.color}, 0 0 12px ${meta.color}`,
+                    }}
+                    aria-hidden
+                  />
                   {t}
                 </button>
               );
