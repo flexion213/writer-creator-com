@@ -1062,6 +1062,15 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
     const c = activeCanvas(); if (!c) return;
     rectCache.current = null; // refresh in case layout changed
+    // Bucket fill is a one-shot action, not a stroke.
+    if (brush === "bucket") {
+      const ctx = c.getContext("2d"); if (!ctx) return;
+      const p = computePos(e.clientX, e.clientY, c);
+      snapshot();
+      floodFill(ctx, c.width, c.height, Math.floor(p.x), Math.floor(p.y), hsvaToRgba(hsva), opacity);
+      persistLayer(activeLayerId);
+      return;
+    }
     drawing.current = true;
     snapshot();
     const ctx = c.getContext("2d")!;
