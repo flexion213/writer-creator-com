@@ -22,3 +22,9 @@ export const startInstance = createStart(() => ({
   requestMiddleware: [errorMiddleware],
   functionMiddleware: [attachSupabaseAuth],
 }));
+if (typeof document !== 'undefined') {
+  const meta = document.createElement('meta');
+  meta.name = 'google-site-verification';
+  meta.content = '1th1qMoK7E8YtmZiLx9_A9bSAJN2ASEHEZxCEG_53zc';
+  document.head.appendChild(meta);
+}
