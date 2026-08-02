@@ -80,6 +80,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "Writer creator" },
       { property: "og:description", content: "An app where writer can write their story draw their characters and can even upload the story for feedback" },
       { property: "og:type", content: "website" },
+      { property: "og:site_name", content: "Writer Creator" },
       { name: "twitter:card", content: "summary" },
       { name: "twitter:site", content: "@Lovable" },
       { name: "twitter:title", content: "Writer creator" },
@@ -97,6 +98,25 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         rel: "stylesheet",
         href: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap",
+      },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify([
+          {
+            "@context": "https://schema.org",
+            "@type": "WebSite",
+            name: "Writer Creator",
+            url: "https://writer-creator-com.lovable.app/",
+          },
+          {
+            "@context": "https://schema.org",
+            "@type": "Organization",
+            name: "Writer Creator",
+            url: "https://writer-creator-com.lovable.app/",
+          },
+        ]),
       },
     ],
   }),
