@@ -420,14 +420,14 @@ function Dashboard() {
             style={{ color: "#FFFFD7" }}
             className="flex-1 text-center text-xl font-bold tracking-tight select-none cursor-default"
           >
-            Dev Dashboard
+            Writer Creator
           </h1>
           <div className="w-9" />
         </div>
 
-        <p className="text-center text-[11px] text-muted-foreground -mt-2">
+        <h2 className="text-center text-[11px] font-medium text-muted-foreground -mt-2">
           {currentLabel}
-        </p>
+        </h2>
 
         {section === "notebooks" && (
           <CloudNotebooks runFix={runFix} />
