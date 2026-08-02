@@ -11,7 +11,16 @@ import { ArrowLeft, Bug, Lightbulb, Video, ShieldAlert, Loader2, Check, Trash2, 
 
 export const Route = createFileRoute("/admin/reports")({
   component: ReportsPage,
-  head: () => ({ meta: [{ title: "Reports — Admin" }] }),
+  head: () => ({
+    meta: [
+      { title: "Reports · Writer Creator Admin" },
+      { name: "description", content: "Staff-only queue of bug reports, suggestions and user reports for Writer Creator." },
+      { property: "og:title", content: "Reports · Writer Creator Admin" },
+      { property: "og:description", content: "Staff-only report and suggestion queue for Writer Creator." },
+      { property: "og:url", content: "https://writer-creator-com.lovable.app/admin/reports" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
 });
 
 type Kind = "bug" | "feature" | "video" | "user";

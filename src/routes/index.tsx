@@ -35,8 +35,38 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
   head: () => ({
     meta: [
-      { title: "Dev Dashboard" },
-      { name: "description", content: "Lightweight single-screen developer dashboard." },
+      { title: "Writer Creator — Write Stories & Draw Your Characters" },
+      {
+        name: "description",
+        content:
+          "Write novels and comics in a distraction-free workspace, build characters, lore and timelines, draw your characters, and share your stories for feedback.",
+      },
+      { property: "og:title", content: "Writer Creator — Write Stories & Draw Your Characters" },
+      {
+        property: "og:description",
+        content:
+          "A creative home for fiction writers and comic artists: writing workspace, character and lore trackers, drawing studio, and a community story feed.",
+      },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://writer-creator-com.lovable.app/" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+    links: [{ rel: "canonical", href: "https://writer-creator-com.lovable.app/" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          name: "Writer Creator",
+          url: "https://writer-creator-com.lovable.app/",
+          applicationCategory: "CreativeWorkApplication",
+          operatingSystem: "Web",
+          description:
+            "Writing workspace for novels and comics with character and lore trackers, timelines, a drawing studio, and a community story feed.",
+          offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" },
+        }),
+      },
     ],
   }),
 });
@@ -390,14 +420,14 @@ function Dashboard() {
             style={{ color: "#FFFFD7" }}
             className="flex-1 text-center text-xl font-bold tracking-tight select-none cursor-default"
           >
-            Dev Dashboard
+            Writer Creator
           </h1>
           <div className="w-9" />
         </div>
 
-        <p className="text-center text-[11px] text-muted-foreground -mt-2">
+        <h2 className="text-center text-[11px] font-medium text-muted-foreground -mt-2">
           {currentLabel}
-        </p>
+        </h2>
 
         {section === "notebooks" && (
           <CloudNotebooks runFix={runFix} />
@@ -1181,6 +1211,20 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   };
 
   const swatches = ["#FFFFD7","#FFFFFF","#000000","#EF4444","#F97316","#EAB308","#22C55E","#06B6D4","#3B82F6","#A855F7","#EC4899","#78350F"];
+  const swatchNames: Record<string, string> = {
+    "#FFFFD7": "Pale cream",
+    "#FFFFFF": "White",
+    "#000000": "Black",
+    "#EF4444": "Red",
+    "#F97316": "Orange",
+    "#EAB308": "Yellow",
+    "#22C55E": "Green",
+    "#06B6D4": "Cyan",
+    "#3B82F6": "Blue",
+    "#A855F7": "Purple",
+    "#EC4899": "Pink",
+    "#78350F": "Dark brown",
+  };
   const currentHex = hsvaToHex(hsva);
 
   return (
@@ -1291,7 +1335,8 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
                 <div className="grid grid-cols-6 gap-1.5">
                   {swatches.map((s) => (
                     <button key={s} onClick={() => setHsva(hexToHsva(s))}
-                      className="h-7 rounded-md border border-white/10" style={{ background: s }} aria-label={s} />
+                      className="h-7 rounded-md border border-white/10" style={{ background: s }}
+                      aria-label={`${swatchNames[s] ?? s} swatch`} />
                   ))}
                 </div>
               </div>
@@ -1330,7 +1375,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
                 onClick={() => setHsva(hexToHsva(s))}
                 className={`h-8 w-8 shrink-0 rounded-full border transition-transform ${selected ? "border-white scale-110 ring-2 ring-white/60" : "border-white/20"}`}
                 style={{ background: s }}
-                aria-label={`Color ${s}`}
+                aria-label={`${swatchNames[s] ?? s} swatch`}
               />
             );
           })}
@@ -1898,7 +1943,7 @@ function FeedReel(props: FeedReelProps) {
                   <div className="grid grid-cols-3 gap-2">
                     {comicPages.map((p, i) => (
                       <div key={i} className="relative aspect-[2/3] rounded-lg overflow-hidden border border-white/10">
-                        <img src={p} alt={`Page ${i + 1}`} className="w-full h-full object-cover" />
+                        <img src={p} alt={`Comic page ${i + 1}`} className="w-full h-full object-cover" />
                         <button
                           onClick={() => setComicPages((cur) => cur.filter((_, idx) => idx !== i))}
                           className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/70 flex items-center justify-center"
@@ -2338,9 +2383,9 @@ function ComicViewer({ pages }: { pages: string[] }) {
             onClick={() => setZoomed(i)}
             className="relative shrink-0 snap-start rounded-[16px] overflow-hidden border border-white/10 bg-black/40"
             style={{ width: "78vw", maxWidth: 320, aspectRatio: "2 / 3" }}
-            aria-label={`Open page ${i + 1}`}
+            aria-label={`Open comic page ${i + 1} of ${pages.length}`}
           >
-            <img src={src} alt={`Page ${i + 1}`} className="w-full h-full object-contain" loading="lazy" />
+            <img src={src} alt={`Comic page ${i + 1} of ${pages.length}`} className="w-full h-full object-contain" loading="lazy" />
             <span className="absolute bottom-1.5 right-1.5 text-[10px] bg-black/70 px-1.5 py-0.5 rounded text-white">
               {i + 1} / {pages.length}
             </span>
@@ -2392,7 +2437,7 @@ function ComicZoom({ pages, startIndex, onClose }: { pages: string[]; startIndex
           <div key={i} className="shrink-0 w-screen h-full snap-start flex items-center justify-center overflow-auto">
             <img
               src={src}
-              alt={`Page ${i + 1}`}
+              alt={`Comic page ${i + 1} of ${pages.length}`}
               style={{ transform: `scale(${scale})`, transformOrigin: "center center", maxWidth: "100%", maxHeight: "100%" }}
               className="select-none"
               draggable={false}

@@ -12,7 +12,16 @@ import { Crown, Shield, ArrowLeft, Loader2, Search, MessageSquare, EyeOff, Lock 
 
 export const Route = createFileRoute("/admin/")({
   component: AdminDashboard,
-  head: () => ({ meta: [{ title: "Admin Dashboard" }] }),
+  head: () => ({
+    meta: [
+      { title: "Admin Dashboard · Writer Creator" },
+      { name: "description", content: "Staff-only moderation dashboard for Writer Creator accounts and roles." },
+      { property: "og:title", content: "Admin Dashboard · Writer Creator" },
+      { property: "og:description", content: "Staff-only moderation dashboard for Writer Creator." },
+      { property: "og:url", content: "https://writer-creator-com.lovable.app/admin" },
+      { name: "robots", content: "noindex" },
+    ],
+  }),
 });
 
 type AppRole = "admin" | "moderator" | "user";

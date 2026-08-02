@@ -19,7 +19,24 @@ import { Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/auth")({
   component: AuthPage,
-  head: () => ({ meta: [{ title: "Sign in · Writer Creator" }] }),
+  head: () => ({
+    meta: [
+      { title: "Sign in · Writer Creator" },
+      {
+        name: "description",
+        content:
+          "Sign in or create a free Writer Creator account to sync your notebooks, characters, lore and artwork across devices.",
+      },
+      { property: "og:title", content: "Sign in · Writer Creator" },
+      {
+        property: "og:description",
+        content: "Sign in or create a free account to sync your stories, characters and artwork.",
+      },
+      { property: "og:url", content: "https://writer-creator-com.lovable.app/auth" },
+      { name: "robots", content: "noindex" },
+    ],
+    links: [{ rel: "canonical", href: "https://writer-creator-com.lovable.app/auth" }],
+  }),
 });
 
 function AuthPage() {

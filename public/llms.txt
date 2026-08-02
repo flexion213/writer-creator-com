@@ -1,0 +1,9 @@
+# Writer Creator
+
+> A workspace for fiction writers and comic artists: write stories, build characters and lore, draw art, and share work with a community feed.
+
+Writer Creator combines a distraction-free writing workspace (chapters, characters, world-building lore, timelines), a drawing studio with layers and brushes, a tactical map sandbox, and a public feed for novels and comics.
+
+## Pages
+
+- [Home](/): Writing workspace, drawing studio, tactical sandbox, and the public story feed.
