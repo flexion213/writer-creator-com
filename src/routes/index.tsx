@@ -1211,6 +1211,20 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   };
 
   const swatches = ["#FFFFD7","#FFFFFF","#000000","#EF4444","#F97316","#EAB308","#22C55E","#06B6D4","#3B82F6","#A855F7","#EC4899","#78350F"];
+  const swatchNames: Record<string, string> = {
+    "#FFFFD7": "Pale cream",
+    "#FFFFFF": "White",
+    "#000000": "Black",
+    "#EF4444": "Red",
+    "#F97316": "Orange",
+    "#EAB308": "Yellow",
+    "#22C55E": "Green",
+    "#06B6D4": "Cyan",
+    "#3B82F6": "Blue",
+    "#A855F7": "Purple",
+    "#EC4899": "Pink",
+    "#78350F": "Dark brown",
+  };
   const currentHex = hsvaToHex(hsva);
 
   return (
@@ -1321,7 +1335,8 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
                 <div className="grid grid-cols-6 gap-1.5">
                   {swatches.map((s) => (
                     <button key={s} onClick={() => setHsva(hexToHsva(s))}
-                      className="h-7 rounded-md border border-white/10" style={{ background: s }} aria-label={s} />
+                      className="h-7 rounded-md border border-white/10" style={{ background: s }}
+                      aria-label={`${swatchNames[s] ?? s} swatch`} />
                   ))}
                 </div>
               </div>
@@ -1360,7 +1375,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
                 onClick={() => setHsva(hexToHsva(s))}
                 className={`h-8 w-8 shrink-0 rounded-full border transition-transform ${selected ? "border-white scale-110 ring-2 ring-white/60" : "border-white/20"}`}
                 style={{ background: s }}
-                aria-label={`Color ${s}`}
+                aria-label={`${swatchNames[s] ?? s} swatch`}
               />
             );
           })}
