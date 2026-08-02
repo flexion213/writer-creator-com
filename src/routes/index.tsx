@@ -1943,7 +1943,7 @@ function FeedReel(props: FeedReelProps) {
                   <div className="grid grid-cols-3 gap-2">
                     {comicPages.map((p, i) => (
                       <div key={i} className="relative aspect-[2/3] rounded-lg overflow-hidden border border-white/10">
-                        <img src={p} alt={`Page ${i + 1}`} className="w-full h-full object-cover" />
+                        <img src={p} alt={`Comic page ${i + 1}`} className="w-full h-full object-cover" />
                         <button
                           onClick={() => setComicPages((cur) => cur.filter((_, idx) => idx !== i))}
                           className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/70 flex items-center justify-center"
@@ -2383,9 +2383,9 @@ function ComicViewer({ pages }: { pages: string[] }) {
             onClick={() => setZoomed(i)}
             className="relative shrink-0 snap-start rounded-[16px] overflow-hidden border border-white/10 bg-black/40"
             style={{ width: "78vw", maxWidth: 320, aspectRatio: "2 / 3" }}
-            aria-label={`Open page ${i + 1}`}
+            aria-label={`Open comic page ${i + 1} of ${pages.length}`}
           >
-            <img src={src} alt={`Page ${i + 1}`} className="w-full h-full object-contain" loading="lazy" />
+            <img src={src} alt={`Comic page ${i + 1} of ${pages.length}`} className="w-full h-full object-contain" loading="lazy" />
             <span className="absolute bottom-1.5 right-1.5 text-[10px] bg-black/70 px-1.5 py-0.5 rounded text-white">
               {i + 1} / {pages.length}
             </span>
@@ -2437,7 +2437,7 @@ function ComicZoom({ pages, startIndex, onClose }: { pages: string[]; startIndex
           <div key={i} className="shrink-0 w-screen h-full snap-start flex items-center justify-center overflow-auto">
             <img
               src={src}
-              alt={`Page ${i + 1}`}
+              alt={`Comic page ${i + 1} of ${pages.length}`}
               style={{ transform: `scale(${scale})`, transformOrigin: "center center", maxWidth: "100%", maxHeight: "100%" }}
               className="select-none"
               draggable={false}
