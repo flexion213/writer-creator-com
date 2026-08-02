@@ -35,8 +35,38 @@ export const Route = createFileRoute("/")({
   component: Dashboard,
   head: () => ({
     meta: [
-      { title: "Dev Dashboard" },
-      { name: "description", content: "Lightweight single-screen developer dashboard." },
+      { title: "Writer Creator — Write Stories & Draw Your Characters" },
+      {
+        name: "description",
+        content:
+          "Write novels and comics in a distraction-free workspace, build characters, lore and timelines, draw your characters, and share your stories for feedback.",
+      },
+      { property: "og:title", content: "Writer Creator — Write Stories & Draw Your Characters" },
+      {
+        property: "og:description",
+        content:
+          "A creative home for fiction writers and comic artists: writing workspace, character and lore trackers, drawing studio, and a community story feed.",
+      },
+      { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://writer-creator-com.lovable.app/" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+    links: [{ rel: "canonical", href: "https://writer-creator-com.lovable.app/" }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "SoftwareApplication",
+          name: "Writer Creator",
+          url: "https://writer-creator-com.lovable.app/",
+          applicationCategory: "CreativeWorkApplication",
+          operatingSystem: "Web",
+          description:
+            "Writing workspace for novels and comics with character and lore trackers, timelines, a drawing studio, and a community story feed.",
+          offers: { "@type": "Offer", price: "0", priceCurrency: "EUR" },
+        }),
+      },
     ],
   }),
 });
