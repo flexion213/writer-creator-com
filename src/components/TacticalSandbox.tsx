@@ -220,7 +220,6 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
     ctx.lineTo(p.x, p.y);
     ctx.stroke();
     lastPt.current = p;
-    if (tool === "route") routePts.current.push(p);
   };
   const onPointerUp = () => {
     if (!drawing.current) return;
