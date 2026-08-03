@@ -451,6 +451,110 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
             onPointerUp={onPointerUp}
             onPointerCancel={onPointerUp}
           />
+          {/* Vector route arrows (SVG overlay above raster ink, below markers) */}
+          <svg
+            className="absolute inset-0 h-full w-full"
+            style={{ pointerEvents: "none", overflow: "visible" }}
+          >
+            <defs>
+              {[...routes, ...(draftRoute ? [{ id: "draft", color, width: Math.max(3, size / 2), pts: draftRoute }] : [])].map((r) => (
+                <marker
+                  key={`arrow-${r.id}`}
+                  id={`ts-arrow-${r.id}`}
+                  viewBox="0 0 10 10"
+                  refX="8"
+                  refY="5"
+                  markerWidth="5"
+                  markerHeight="5"
+                  orient="auto-start-reverse"
+                >
+                  <path d="M 0 0 L 10 5 L 0 10 z" fill={r.color} />
+                </marker>
+              ))}
+            </defs>
+            {routes.map((r) => {
+              const selected = r.id === selectedRouteId;
+              return (
+                <g key={r.id}>
+                  {/* Fat invisible hit area for easy tapping */}
+                  <path
+                    d={smoothPath(r.pts)}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth={Math.max(18, r.width * 3)}
+                    style={{ pointerEvents: tool === "move" ? "stroke" : "none", cursor: "pointer" }}
+                    onPointerDown={(e) => { e.stopPropagation(); setSelectedRouteId(r.id); }}
+                  />
+                  <path
+                    d={smoothPath(r.pts)}
+                    fill="none"
+                    stroke={r.color}
+                    strokeWidth={r.width}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    markerEnd={`url(#ts-arrow-${r.id})`}
+                    style={{
+                      pointerEvents: "none",
+                      filter: selected ? `drop-shadow(0 0 6px ${r.color})` : undefined,
+                      opacity: selected ? 1 : 0.95,
+                    }}
+                  />
+                  {selected && r.pts.map((p, i) => (
+                    <circle
+                      key={i}
+                      cx={p.x}
+                      cy={p.y}
+                      r={7}
+                      fill="rgba(255,255,255,0.9)"
+                      stroke={r.color}
+                      strokeWidth={2}
+                      style={{ pointerEvents: "auto", cursor: "grab", touchAction: "none" }}
+                      onPointerDown={(e) => onVertexDown(e, r.id, i)}
+                    />
+                  ))}
+                </g>
+              );
+            })}
+            {draftRoute && draftRoute.length > 1 && (
+              <path
+                d={smoothPath(draftRoute)}
+                fill="none"
+                stroke={color}
+                strokeWidth={Math.max(3, size / 2)}
+                strokeLinecap="round"
+                strokeDasharray="8 6"
+                markerEnd="url(#ts-arrow-draft)"
+                style={{ pointerEvents: "none" }}
+              />
+            )}
+          </svg>
+
+          {/* Selected route inspector */}
+          {selectedRouteId && (() => {
+            const r = routes.find((x) => x.id === selectedRouteId);
+            if (!r) return null;
+            return (
+              <div className="absolute left-3 bottom-3 z-20 flex items-center gap-2 rounded-2xl glass-panel border border-border/60 px-3 py-2 text-xs">
+                <span className="font-semibold">Route</span>
+                <input
+                  type="color"
+                  value={r.color}
+                  onChange={(e) => recolorRoute(r.id, e.target.value)}
+                  className="color-picker-round"
+                  aria-label="Route color"
+                />
+                <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-full" onClick={() => resizeRoute(r.id, -2)} aria-label="Thinner route">−</Button>
+                <span className="tabular-nums w-6 text-center">{Math.round(r.width)}</span>
+                <Button size="sm" variant="outline" className="h-7 w-7 p-0 rounded-full" onClick={() => resizeRoute(r.id, 2)} aria-label="Thicker route">+</Button>
+                <Button size="sm" variant="destructive" className="h-7 rounded-full" onClick={() => removeRoute(r.id)}>
+                  <Trash2 className="h-3 w-3 mr-1" /> Delete
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 rounded-full" onClick={() => setSelectedRouteId(null)}>
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            );
+          })()}
           {/* Markers */}
           {markers.map((m) => {
             const meta = MARKER_META[m.type];
