@@ -1193,6 +1193,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     applyStroke(ctx);
     const p = computePos(e.clientX, e.clientY, c);
     lastPt.current = p;
+    smoothPt.current = p;
     // initial dot
     drawSegment(ctx, p, { x: p.x + 0.01, y: p.y + 0.01 });
   };
