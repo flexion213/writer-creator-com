@@ -1482,6 +1482,72 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
             <input type="range" min={5} max={100} value={Math.round(opacity * 100)} onChange={(e) => setOpacity(Number(e.target.value) / 100)} className="w-full accent-white" />
           </div>
         </div>
+        <div className="flex items-end gap-3 text-[10px] text-white/70">
+          <div className="flex-1">
+            <div className="flex items-center justify-between">
+              <span>Stabilizer</span>
+              <span>{stabilizer === 0 ? "Off" : `${stabilizer}%`}</span>
+            </div>
+            <input
+              type="range" min={0} max={90} value={stabilizer}
+              onChange={(e) => setStabilizer(Number(e.target.value))}
+              className="w-full accent-white"
+              aria-label="Stroke stabilizer strength"
+            />
+          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" variant="secondary" className="h-8 rounded-xl shrink-0 text-[10px]">
+                <Settings2 className="h-3.5 w-3.5 mr-1" /> {CANVAS_W}×{CANVAS_H}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="top" align="end" className="w-[240px] p-3 bg-black/90 backdrop-blur-xl border-white/10 space-y-2">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-white/60">Canvas size</p>
+              <div className="space-y-1">
+                {CANVAS_PRESETS.map((p) => {
+                  const active = p.w === CANVAS_W && p.h === CANVAS_H;
+                  return (
+                    <button
+                      key={p.label}
+                      onClick={() => applyCanvasSize(p.w, p.h)}
+                      className={`w-full rounded-lg px-2 py-1.5 text-left text-xs ${active ? "bg-white/20 ring-1 ring-white/40" : "bg-white/5 hover:bg-white/10"}`}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="border-t border-white/10 pt-2 space-y-2">
+                <p className="text-[10px] uppercase tracking-widest text-white/60">Custom</p>
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    value={customW}
+                    onChange={(e) => setCustomW(e.target.value.replace(/[^0-9]/g, ""))}
+                    inputMode="numeric"
+                    className="h-8 text-xs bg-white/5 border-white/10"
+                    aria-label="Custom canvas width"
+                  />
+                  <span className="text-white/40">×</span>
+                  <Input
+                    value={customH}
+                    onChange={(e) => setCustomH(e.target.value.replace(/[^0-9]/g, ""))}
+                    inputMode="numeric"
+                    className="h-8 text-xs bg-white/5 border-white/10"
+                    aria-label="Custom canvas height"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  className="w-full rounded-xl text-xs"
+                  onClick={() => applyCanvasSize(Number(customW), Number(customH))}
+                >
+                  Apply
+                </Button>
+                <p className="text-[10px] text-white/40">320–4096 px per side. Existing art is rescaled to the new canvas.</p>
+              </div>
+            </PopoverContent>
+          </Popover>
+        </div>
       </div>
     </div>
   );
