@@ -9,6 +9,29 @@ import {
 type MarkerType = "Safehouse" | "Enemy Territory" | "Objective" | "Resource Stash" | "Custom Label";
 type Marker = { id: string; type: MarkerType; label: string; x: number; y: number };
 type Tool = "brush" | "eraser" | "route" | "bucket" | "move";
+type Pt = { x: number; y: number };
+type RoutePath = { id: string; pts: Pt[]; color: string; width: number };
+
+// Build a smooth Catmull-Rom -> cubic bezier path so hand-drawn routes render
+// as slick vector curves instead of jagged polylines.
+function smoothPath(pts: Pt[]): string {
+  if (pts.length === 0) return "";
+  if (pts.length === 1) return `M ${pts[0].x} ${pts[0].y}`;
+  if (pts.length === 2) return `M ${pts[0].x} ${pts[0].y} L ${pts[1].x} ${pts[1].y}`;
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const p0 = pts[i - 1] ?? pts[i];
+    const p1 = pts[i];
+    const p2 = pts[i + 1];
+    const p3 = pts[i + 2] ?? p2;
+    const c1x = p1.x + (p2.x - p0.x) / 6;
+    const c1y = p1.y + (p2.y - p0.y) / 6;
+    const c2x = p2.x - (p3.x - p1.x) / 6;
+    const c2y = p2.y - (p3.y - p1.y) / 6;
+    d += ` C ${c1x} ${c1y}, ${c2x} ${c2y}, ${p2.x} ${p2.y}`;
+  }
+  return d;
+}
 
 // Marker style: each type is a glowing dot in a signature color.
 const MARKER_META: Record<MarkerType, { color: string }> = {
@@ -26,6 +49,7 @@ const LS = {
   tool: "ts:tool",
   color: "ts:color",
   size: "ts:size",
+  routes: "ts:routes",
 };
 
 export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
@@ -40,12 +64,15 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
   const [size, setSize] = useState<number>(8);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
+  const [routes, setRoutes] = useState<RoutePath[]>([]);
+  const [draftRoute, setDraftRoute] = useState<Pt[] | null>(null);
+  const [selectedRouteId, setSelectedRouteId] = useState<string | null>(null);
   const drawing = useRef(false);
   const lastPt = useRef<{ x: number; y: number } | null>(null);
-  // Track the full path of the current route stroke so we can render an
-  // arrowhead at the tail when the pointer lifts.
+  // Route strokes are captured as vector points (wrap-relative CSS coords).
   const routePts = useRef<Array<{ x: number; y: number }>>([]);
   const draggingMarker = useRef<{ id: string; dx: number; dy: number } | null>(null);
+  const draggingVertex = useRef<{ routeId: string; index: number } | null>(null);
 
   // Hydrate
   useEffect(() => {
@@ -60,6 +87,8 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
       if (rawT) setTool(rawT as Tool);
       if (rawC) setColor(rawC);
       if (rawS) setSize(Number(rawS) || 8);
+      const rawR = localStorage.getItem(LS.routes);
+      if (rawR) setRoutes(JSON.parse(rawR));
     } catch {}
     setHydrated(true);
   }, []);
@@ -69,6 +98,7 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
   useEffect(() => { if (hydrated) try { localStorage.setItem(LS.color, color); } catch {} }, [color, hydrated]);
   useEffect(() => { if (hydrated) try { localStorage.setItem(LS.size, String(size)); } catch {} }, [size, hydrated]);
   useEffect(() => { if (hydrated) try { localStorage.setItem(LS.markers, JSON.stringify(markers)); } catch {} }, [markers, hydrated]);
+  useEffect(() => { if (hydrated) try { localStorage.setItem(LS.routes, JSON.stringify(routes)); } catch {} }, [routes, hydrated]);
 
   // Init canvas + restore saved drawing
   useEffect(() => {
@@ -109,6 +139,13 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
     };
   };
 
+  // Wrap-relative CSS coordinates, used for vector routes and markers.
+  const getWrapPt = (e: React.PointerEvent): Pt => {
+    const wrap = wrapRef.current!;
+    const r = wrap.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  };
+
   // Flood fill implementation
   const floodFill = (sx: number, sy: number, hex: string) => {
     const c = canvasRef.current!;
@@ -144,20 +181,37 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
     (e.target as Element).setPointerCapture?.(e.pointerId);
     const p = getPt(e);
     if (tool === "bucket") { floodFill(p.x, p.y, color); return; }
+    if (tool === "route") {
+      drawing.current = true;
+      const wp = getWrapPt(e);
+      routePts.current = [wp];
+      setDraftRoute([wp]);
+      setSelectedRouteId(null);
+      return;
+    }
     const ctx = ctxRef.current!;
     drawing.current = true;
     lastPt.current = p;
     ctx.globalCompositeOperation = tool === "eraser" ? "destination-out" : "source-over";
     ctx.strokeStyle = color;
     ctx.fillStyle = color;
-    ctx.lineWidth = tool === "route" ? Math.max(3, size / 2) : size;
+    ctx.lineWidth = size;
     ctx.beginPath();
     ctx.arc(p.x, p.y, ctx.lineWidth / 2, 0, Math.PI * 2);
     ctx.fill();
-    if (tool === "route") routePts.current = [p];
   };
   const onPointerMove = (e: React.PointerEvent) => {
     if (!drawing.current) return;
+    if (tool === "route") {
+      const wp = getWrapPt(e);
+      const pts = routePts.current;
+      const last = pts[pts.length - 1];
+      if (!last || Math.hypot(wp.x - last.x, wp.y - last.y) > 6) {
+        pts.push(wp);
+        setDraftRoute([...pts]);
+      }
+      return;
+    }
     const ctx = ctxRef.current!;
     const p = getPt(e);
     const from = lastPt.current!;
@@ -172,34 +226,17 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
     if (!drawing.current) return;
     drawing.current = false;
     lastPt.current = null;
-    // If this was a route stroke, cap it with an arrowhead pointing along the
-    // final direction of travel.
-    if (tool === "route" && routePts.current.length >= 2) {
-      const ctx = ctxRef.current!;
+    // Route strokes become interactive vector arrows instead of raster ink.
+    if (tool === "route") {
       const pts = routePts.current;
-      const tip = pts[pts.length - 1];
-      // Look back a few points so the direction is stable, not jittery.
-      const back = pts[Math.max(0, pts.length - 6)];
-      const dx = tip.x - back.x, dy = tip.y - back.y;
-      const len = Math.hypot(dx, dy);
-      if (len > 0.5) {
-        const ux = dx / len, uy = dy / len;
-        const head = Math.max(12, size * 1.6);
-        const halfW = head * 0.55;
-        const bx = tip.x - ux * head;
-        const by = tip.y - uy * head;
-        // perpendicular
-        const px = -uy, py = ux;
-        ctx.globalCompositeOperation = "source-over";
-        ctx.fillStyle = color;
-        ctx.beginPath();
-        ctx.moveTo(tip.x, tip.y);
-        ctx.lineTo(bx + px * halfW, by + py * halfW);
-        ctx.lineTo(bx - px * halfW, by - py * halfW);
-        ctx.closePath();
-        ctx.fill();
-      }
       routePts.current = [];
+      setDraftRoute(null);
+      if (pts.length >= 2) {
+        const id = crypto.randomUUID();
+        setRoutes((r) => [...r, { id, pts, color, width: Math.max(3, size / 2) }]);
+        setSelectedRouteId(id);
+      }
+      return;
     }
     persistCanvas();
   };
@@ -240,6 +277,34 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
   const removeMarker = (id: string) => setMarkers((m) => m.filter((x) => x.id !== id));
   const renameMarker = (id: string, label: string) => setMarkers((m) => m.map((x) => x.id === id ? { ...x, label } : x));
 
+  // ---- Vector route editing ----
+  const removeRoute = (id: string) => {
+    setRoutes((r) => r.filter((x) => x.id !== id));
+    setSelectedRouteId((s) => (s === id ? null : s));
+  };
+  const recolorRoute = (id: string, hex: string) =>
+    setRoutes((r) => r.map((x) => (x.id === id ? { ...x, color: hex } : x)));
+  const resizeRoute = (id: string, delta: number) =>
+    setRoutes((r) => r.map((x) => (x.id === id ? { ...x, width: Math.max(2, Math.min(40, x.width + delta)) } : x)));
+  const onVertexDown = (e: React.PointerEvent, routeId: string, index: number) => {
+    e.stopPropagation();
+    draggingVertex.current = { routeId, index };
+    (e.target as Element).setPointerCapture?.(e.pointerId);
+  };
+  const onVertexMove = (e: React.PointerEvent) => {
+    const d = draggingVertex.current;
+    if (!d) return;
+    const wp = getWrapPt(e);
+    setRoutes((all) =>
+      all.map((r) =>
+        r.id === d.routeId
+          ? { ...r, pts: r.pts.map((p, i) => (i === d.index ? wp : p)) }
+          : r,
+      ),
+    );
+  };
+  const onVertexUp = () => { draggingVertex.current = null; };
+
   const onMarkerPointerDown = (e: React.PointerEvent, m: Marker) => {
     e.stopPropagation();
     const wrap = wrapRef.current!;
@@ -248,6 +313,7 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
     (e.target as Element).setPointerCapture(e.pointerId);
   };
   const onMarkerPointerMove = (e: React.PointerEvent) => {
+    onVertexMove(e);
     const d = draggingMarker.current;
     if (!d) return;
     const wrap = wrapRef.current!;
@@ -256,7 +322,7 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
     const ny = Math.max(0, Math.min(r.height, e.clientY - r.top - d.dy));
     setMarkers((all) => all.map((x) => x.id === d.id ? { ...x, x: nx, y: ny } : x));
   };
-  const onMarkerPointerUp = () => { draggingMarker.current = null; };
+  const onMarkerPointerUp = () => { draggingMarker.current = null; onVertexUp(); };
 
   const exportPng = () => {
     const c = canvasRef.current;
