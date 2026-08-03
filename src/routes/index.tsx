@@ -25,6 +25,7 @@ import {
   ShieldAlert, Crown,
   Plus, Wand2, Loader2, Search, Heart, MessageCircle, Menu,
   BookOpen, BookCopy, Flag, Type, Layers, Link as LinkIcon, ZoomIn, ZoomOut, Map as MapIcon,
+  Settings2,
 } from "lucide-react";
 import Wheel from "@uiw/react-color-wheel";
 import ShadeSlider from "@uiw/react-color-shade-slider";
@@ -787,8 +788,24 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   type Layer = { id: string; name: string; visible: boolean };
   type LayerSnapshot = string | null;
   const isMobileViewport = typeof window !== "undefined" ? window.innerWidth < 768 : false;
-  const CANVAS_W = isMobileViewport ? 1200 : 2000;
-  const CANVAS_H = isMobileViewport ? 1600 : 2600;
+  const DEFAULT_W = isMobileViewport ? 1200 : 2000;
+  const DEFAULT_H = isMobileViewport ? 1600 : 2600;
+  const CANVAS_PRESETS: { label: string; w: number; h: number }[] = [
+    { label: "Portrait (1200×1600)", w: 1200, h: 1600 },
+    { label: "Landscape (1600×1200)", w: 1600, h: 1200 },
+    { label: "Square (1600×1600)", w: 1600, h: 1600 },
+    { label: "A4 Print (2480×3508)", w: 2480, h: 3508 },
+    { label: "HD (1920×1080)", w: 1920, h: 1080 },
+    { label: "Large (2000×2600)", w: 2000, h: 2600 },
+  ];
+  const [canvasDims, setCanvasDims] = useState<{ w: number; h: number }>({ w: DEFAULT_W, h: DEFAULT_H });
+  const CANVAS_W = canvasDims.w;
+  const CANVAS_H = canvasDims.h;
+  const [customW, setCustomW] = useState(String(DEFAULT_W));
+  const [customH, setCustomH] = useState(String(DEFAULT_H));
+  // Stroke stabilizer: 0 = raw input, 90 = heavily smoothed lines.
+  const [stabilizer, setStabilizer] = useState(0);
+  const smoothPt = useRef<{ x: number; y: number } | null>(null);
 
   const layerRefs = useRef<Map<string, HTMLCanvasElement>>(new Map());
   const stageHostRef = useRef<HTMLDivElement | null>(null);
@@ -832,6 +849,42 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     if (typeof window === "undefined") return false;
     return window.localStorage.getItem("dd:drawing-show-color") === "true";
   });
+
+  // Hydrate canvas size + stabilizer after mount (SSR-safe).
+  useEffect(() => {
+    try {
+      const rawDims = window.localStorage.getItem("dd:canvas-dims");
+      if (rawDims) {
+        const parsed = JSON.parse(rawDims) as { w?: number; h?: number };
+        if (parsed?.w && parsed?.h) {
+          const w = Math.max(320, Math.min(4096, Math.round(parsed.w)));
+          const h = Math.max(320, Math.min(4096, Math.round(parsed.h)));
+          setCanvasDims({ w, h });
+          setCustomW(String(w));
+          setCustomH(String(h));
+        }
+      }
+      const rawStab = Number(window.localStorage.getItem("dd:drawing-stabilizer") ?? 0);
+      if (Number.isFinite(rawStab)) setStabilizer(Math.max(0, Math.min(90, rawStab)));
+    } catch {}
+  }, []);
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem("dd:canvas-dims", JSON.stringify(canvasDims));
+      window.localStorage.setItem("dd:drawing-stabilizer", String(stabilizer));
+    } catch {}
+  }, [canvasDims, stabilizer]);
+
+  const applyCanvasSize = (w: number, h: number) => {
+    const nw = Math.max(320, Math.min(4096, Math.round(w)));
+    const nh = Math.max(320, Math.min(4096, Math.round(h)));
+    if (!Number.isFinite(nw) || !Number.isFinite(nh)) { toast.error("Enter valid dimensions."); return; }
+    setCanvasDims({ w: nw, h: nh });
+    setCustomW(String(nw));
+    setCustomH(String(nh));
+    toast.success(`Canvas set to ${nw}×${nh}`);
+  };
 
   const drawing = useRef(false);
   const lastPt = useRef<{ x: number; y: number } | null>(null);
@@ -905,7 +958,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [layers.length]);
+  }, [layers.length, CANVAS_W, CANVAS_H]);
 
   // Invalidate cached bounding rect on viewport changes
   useEffect(() => {
@@ -1141,6 +1194,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     applyStroke(ctx);
     const p = computePos(e.clientX, e.clientY, c);
     lastPt.current = p;
+    smoothPt.current = p;
     // initial dot
     drawSegment(ctx, p, { x: p.x + 0.01, y: p.y + 0.01 });
   };
@@ -1151,13 +1205,23 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     // Use the primary event coords only. Coalesced events on iOS Safari can
     // report stale (0,0) coordinates, which caused strokes to "jump" off-canvas
     // and made drawing appear completely broken on mobile.
-    pendingPts.current.push(computePos(e.clientX, e.clientY, c));
+    const raw = computePos(e.clientX, e.clientY, c);
+    // Stroke stabilizer: exponential smoothing toward the raw pointer position
+    // so shaky hand movement renders as a clean line.
+    const alpha = 1 - Math.max(0, Math.min(90, stabilizer)) / 100;
+    const prev = smoothPt.current ?? lastPt.current ?? raw;
+    const next = alpha >= 1
+      ? raw
+      : { x: prev.x + (raw.x - prev.x) * alpha, y: prev.y + (raw.y - prev.y) * alpha };
+    smoothPt.current = next;
+    pendingPts.current.push(next);
     scheduleFlush();
   };
   const end = () => {
     if (!drawing.current) return;
     drawing.current = false;
     lastPt.current = null;
+    smoothPt.current = null;
     pendingPts.current = [];
     if (rafId.current != null) { cancelAnimationFrame(rafId.current); rafId.current = null; }
     if (sprayTimer.current) { window.clearInterval(sprayTimer.current); sprayTimer.current = null; }
@@ -1418,6 +1482,72 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
             <div className="flex items-center justify-between"><span>Opacity</span><span>{Math.round(opacity * 100)}%</span></div>
             <input type="range" min={5} max={100} value={Math.round(opacity * 100)} onChange={(e) => setOpacity(Number(e.target.value) / 100)} className="w-full accent-white" />
           </div>
+        </div>
+        <div className="flex items-end gap-3 text-[10px] text-white/70">
+          <div className="flex-1">
+            <div className="flex items-center justify-between">
+              <span>Stabilizer</span>
+              <span>{stabilizer === 0 ? "Off" : `${stabilizer}%`}</span>
+            </div>
+            <input
+              type="range" min={0} max={90} value={stabilizer}
+              onChange={(e) => setStabilizer(Number(e.target.value))}
+              className="w-full accent-white"
+              aria-label="Stroke stabilizer strength"
+            />
+          </div>
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button size="sm" variant="secondary" className="h-8 rounded-xl shrink-0 text-[10px]">
+                <Settings2 className="h-3.5 w-3.5 mr-1" /> {CANVAS_W}×{CANVAS_H}
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent side="top" align="end" className="w-[240px] p-3 bg-black/90 backdrop-blur-xl border-white/10 space-y-2">
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-white/60">Canvas size</p>
+              <div className="space-y-1">
+                {CANVAS_PRESETS.map((p) => {
+                  const active = p.w === CANVAS_W && p.h === CANVAS_H;
+                  return (
+                    <button
+                      key={p.label}
+                      onClick={() => applyCanvasSize(p.w, p.h)}
+                      className={`w-full rounded-lg px-2 py-1.5 text-left text-xs ${active ? "bg-white/20 ring-1 ring-white/40" : "bg-white/5 hover:bg-white/10"}`}
+                    >
+                      {p.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <div className="border-t border-white/10 pt-2 space-y-2">
+                <p className="text-[10px] uppercase tracking-widest text-white/60">Custom</p>
+                <div className="flex items-center gap-1.5">
+                  <Input
+                    value={customW}
+                    onChange={(e) => setCustomW(e.target.value.replace(/[^0-9]/g, ""))}
+                    inputMode="numeric"
+                    className="h-8 text-xs bg-white/5 border-white/10"
+                    aria-label="Custom canvas width"
+                  />
+                  <span className="text-white/40">×</span>
+                  <Input
+                    value={customH}
+                    onChange={(e) => setCustomH(e.target.value.replace(/[^0-9]/g, ""))}
+                    inputMode="numeric"
+                    className="h-8 text-xs bg-white/5 border-white/10"
+                    aria-label="Custom canvas height"
+                  />
+                </div>
+                <Button
+                  size="sm"
+                  className="w-full rounded-xl text-xs"
+                  onClick={() => applyCanvasSize(Number(customW), Number(customH))}
+                >
+                  Apply
+                </Button>
+                <p className="text-[10px] text-white/40">320–4096 px per side. Existing art is rescaled to the new canvas.</p>
+              </div>
+            </PopoverContent>
+          </Popover>
         </div>
       </div>
     </div>
