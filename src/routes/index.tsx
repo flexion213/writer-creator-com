@@ -25,6 +25,7 @@ import {
   ShieldAlert, Crown,
   Plus, Wand2, Loader2, Search, Heart, MessageCircle, Menu,
   BookOpen, BookCopy, Flag, Type, Layers, Link as LinkIcon, ZoomIn, ZoomOut, Map as MapIcon,
+  Settings2,
 } from "lucide-react";
 import Wheel from "@uiw/react-color-wheel";
 import ShadeSlider from "@uiw/react-color-shade-slider";
