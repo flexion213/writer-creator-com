@@ -241,10 +241,12 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
   };
 
   const clearAll = () => {
-    if (!confirm("Clear the entire canvas?")) return;
+    if (!confirm("Clear the entire canvas (including routes)?")) return;
     const c = canvasRef.current!, ctx = ctxRef.current!;
     ctx.globalCompositeOperation = "source-over";
     ctx.clearRect(0, 0, c.width, c.height);
+    setRoutes([]);
+    setSelectedRouteId(null);
     persistCanvas();
   };
 
