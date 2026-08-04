@@ -11,6 +11,7 @@ import {
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/hooks/use-auth";
 import { SystemLockGuard } from "@/components/SystemLockScreen";
+import { OnboardingTutorial } from "@/components/OnboardingTutorial";
 
 function NotFoundComponent() {
   return (
@@ -147,6 +148,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <SystemLockGuard>
+          <OnboardingTutorial />
           <Outlet />
         </SystemLockGuard>
       </AuthProvider>
