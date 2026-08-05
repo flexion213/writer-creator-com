@@ -1491,6 +1491,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
           >
             <Trash2 className="h-4 w-4" />
           </button>
+          </div>
           <button
             onClick={undo}
             className="h-9 w-9 shrink-0 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center"
