@@ -1483,15 +1483,15 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
               />
             );
           })}
+          </div>
           <button
             onClick={clearActive}
-            className="ml-auto h-9 w-9 shrink-0 rounded-full bg-rose-500/20 hover:bg-rose-500/40 border border-rose-400/40 text-rose-100 flex items-center justify-center"
+            className="h-9 w-9 shrink-0 rounded-full bg-rose-500/20 hover:bg-rose-500/40 border border-rose-400/40 text-rose-100 flex items-center justify-center"
             aria-label="Clear canvas"
             title="Clear canvas"
           >
             <Trash2 className="h-4 w-4" />
           </button>
-          </div>
           <button
             onClick={undo}
             className="h-9 w-9 shrink-0 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center"
