@@ -7,6 +7,8 @@ import { fixGrammar } from "@/lib/grammar.functions";
 import { CloudNotebooks } from "@/components/CloudNotebooks";
 import { TacticalSandbox } from "@/components/TacticalSandbox";
 import { useAuth } from "@/hooks/use-auth";
+import { useLanguage } from "@/hooks/use-language";
+import { SettingsPanel } from "@/components/SettingsPanel";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -25,7 +27,7 @@ import {
   ShieldAlert, Crown,
   Plus, Wand2, Loader2, Search, Heart, MessageCircle, Menu,
   BookOpen, BookCopy, Flag, Type, Layers, Link as LinkIcon, ZoomIn, ZoomOut, Map as MapIcon,
-  Settings2,
+  Settings2, Settings, Feather,
 } from "lucide-react";
 import Wheel from "@uiw/react-color-wheel";
 import ShadeSlider from "@uiw/react-color-shade-slider";
@@ -88,7 +90,7 @@ type Post = {
   hidden: boolean;
 };
 type Comment = { id: string; author: string; text: string; ts: number };
-type Section = "feed" | "notebooks" | "suggestions" | "drawing" | "sandbox";
+type Section = "feed" | "notebooks" | "suggestions" | "drawing" | "sandbox" | "settings";
 type Notebook = { id: number; title: string; body: string; updated: number };
 type SuggestionDrafts = {
   bugTitle: string;
@@ -120,10 +122,12 @@ const NAV: { id: Section; label: string; icon: React.ComponentType<{ className?:
   { id: "suggestions", label: "Suggestions Box", icon: MessageSquare },
   { id: "drawing", label: "Drawing Studio", icon: Pencil },
   { id: "sandbox", label: "Tactical Sandbox", icon: MapIcon },
+  { id: "settings", label: "Settings", icon: Settings },
 ];
 
 function Dashboard() {
   const { isAdmin, isModerator, profile, user } = useAuth();
+  const { t } = useLanguage();
   const currentUsername =
     profile?.username ||
     profile?.display_name ||
@@ -162,7 +166,7 @@ function Dashboard() {
       if (
         savedSection === "feed" || savedSection === "notebooks" ||
         savedSection === "suggestions" || savedSection === "drawing" ||
-        savedSection === "sandbox"
+        savedSection === "sandbox" || savedSection === "settings"
       ) {
         setSection(savedSection);
       }
@@ -320,7 +324,7 @@ function Dashboard() {
   }, [user]);
 
   const go = (s: Section) => { setSection(s); setNavOpen(false); };
-  const currentLabel = NAV.find((n) => n.id === section)?.label ?? "Global Feed";
+  const currentLabel = t(section);
 
   return (
     <div className="dark min-h-screen bg-background text-foreground">
@@ -332,7 +336,7 @@ function Dashboard() {
             <SheetTitle style={{ color: "#FFFFD7" }} className="text-2xl font-bold tracking-tight">
               Dev Dashboard
             </SheetTitle>
-            <p className="text-xs text-muted-foreground">Jump to a section</p>
+            <p className="text-xs text-muted-foreground">{t("jumpToSection")}</p>
           </SheetHeader>
           <nav className="mt-6 space-y-2">
             {NAV.map((n) => {
@@ -355,7 +359,7 @@ function Dashboard() {
                   >
                     <Icon className="h-5 w-5" />
                   </span>
-                  <span className="text-base font-medium tracking-tight">{n.label}</span>
+                  <span className="text-base font-medium tracking-tight">{t(n.id)}</span>
                 </button>
               );
             })}
@@ -397,7 +401,7 @@ function Dashboard() {
         <TacticalSandbox onOpenMenu={() => setNavOpen(true)} />
       )}
 
-      {(section === "notebooks" || section === "suggestions") && (
+      {(section === "notebooks" || section === "suggestions" || section === "settings") && (
       <main className="mx-auto max-w-md px-4 py-4 space-y-4">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" aria-label="Open menu" className="h-9 w-9" onClick={() => setNavOpen(true)}>
@@ -434,6 +438,7 @@ function Dashboard() {
           <CloudNotebooks runFix={runFix} />
         )}
         {section === "suggestions" && <Suggestions suggestions={suggestions} setSuggestions={setSuggestions} />}
+        {section === "settings" && <SettingsPanel />}
 
         <footer className="pt-6 pb-4 text-center text-[11px] text-muted-foreground/70">
           © 2026 Writer Creators. Made by Abdulkader Alomar.
@@ -731,7 +736,7 @@ function Suggestions({
   );
 }
 
-type BrushId = "pencil" | "pen" | "marker" | "ink" | "highlighter" | "airbrush" | "spray" | "neon" | "calligraphy" | "eraser" | "bucket";
+type BrushId = "pencil" | "pen" | "marker" | "ink" | "highlighter" | "airbrush" | "sketch" | "spray" | "neon" | "calligraphy" | "eraser" | "bucket";
 
 const BRUSHES: { id: BrushId; label: string; icon: React.ComponentType<{ className?: string }>; defaultSize: number; defaultOpacity: number }[] = [
   { id: "pencil",      label: "Pencil",      icon: Pencil,      defaultSize: 2,  defaultOpacity: 0.85 },
@@ -740,6 +745,7 @@ const BRUSHES: { id: BrushId; label: string; icon: React.ComponentType<{ classNa
   { id: "ink",         label: "Ink",         icon: Droplet,     defaultSize: 6,  defaultOpacity: 1 },
   { id: "highlighter", label: "Highlighter", icon: Highlighter, defaultSize: 18, defaultOpacity: 0.35 },
   { id: "airbrush",    label: "Airbrush",    icon: SprayCan,    defaultSize: 24, defaultOpacity: 0.15 },
+  { id: "sketch",      label: "Sketch",      icon: Feather,     defaultSize: 3,  defaultOpacity: 0.55 },
   { id: "spray",       label: "Spray",       icon: SprayCan,    defaultSize: 22, defaultOpacity: 0.6 },
   { id: "neon",        label: "Neon",        icon: Sparkles,    defaultSize: 6,  defaultOpacity: 1 },
   { id: "calligraphy", label: "Calligraphy", icon: PenTool,     defaultSize: 14, defaultOpacity: 1 },
@@ -898,18 +904,9 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   const sprayTimer = useRef<number | null>(null);
 
   const captureLayerSnapshot = useCallback((canvas: HTMLCanvasElement) => {
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    try {
-      const sample = ctx.getImageData(0, 0, 1, 1).data;
-      const hasInk = sample[3] > 0 || ctx.getImageData(Math.max(0, canvas.width - 1), Math.max(0, canvas.height - 1), 1, 1).data[3] > 0;
-      if (!hasInk) {
-        const probe = ctx.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data;
-        if (probe[3] === 0) return null;
-      }
-    } catch {
-      // If probing fails, still try a snapshot fallback.
-    }
+    // Always capture the full bitmap: sampling a few pixels to decide whether
+    // the layer is "empty" throws away valid history states (e.g. a single
+    // thin stroke), which made Redo restore a blank layer.
     try {
       return canvas.toDataURL("image/png");
     } catch {
@@ -917,18 +914,24 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     }
   }, []);
 
-  const restoreLayerSnapshot = useCallback((canvas: HTMLCanvasElement, snapshot: LayerSnapshot) => {
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (!snapshot) return;
-    const img = new Image();
-    img.onload = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    };
-    img.src = snapshot;
-  }, []);
+  const restoreLayerSnapshot = useCallback(
+    (canvas: HTMLCanvasElement, snapshot: LayerSnapshot) =>
+      new Promise<void>((resolve) => {
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (!snapshot) return resolve();
+        const img = new Image();
+        img.onload = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve();
+        };
+        img.onerror = () => resolve();
+        img.src = snapshot;
+      }),
+    [],
+  );
 
   const persistLayer = useCallback((id: string) => {
     const c = layerRefs.current.get(id); if (!c) return;
@@ -1020,7 +1023,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     future.current.set(activeLayerId, []);
   };
 
-  const undo = () => {
+  const undo = async () => {
     const c = activeCanvas(); if (!c) return;
     const h = history.current.get(activeLayerId) ?? [];
     const last = h.pop();
@@ -1029,10 +1032,10 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     f.push(captureLayerSnapshot(c));
     future.current.set(activeLayerId, f);
     history.current.set(activeLayerId, h);
-    restoreLayerSnapshot(c, last);
+    await restoreLayerSnapshot(c, last);
     persistLayer(activeLayerId);
   };
-  const redo = () => {
+  const redo = async () => {
     const c = activeCanvas(); if (!c) return;
     const f = future.current.get(activeLayerId) ?? [];
     const next = f.pop();
@@ -1041,7 +1044,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     h.push(captureLayerSnapshot(c));
     history.current.set(activeLayerId, h);
     future.current.set(activeLayerId, f);
-    restoreLayerSnapshot(c, next);
+    await restoreLayerSnapshot(c, next);
     persistLayer(activeLayerId);
   };
 
@@ -1093,6 +1096,10 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
       case "calligraphy":
         ctx.lineCap = "butt";
         break;
+      case "sketch":
+        ctx.globalAlpha = opacity;
+        ctx.lineWidth = Math.max(1, size * 0.5);
+        break;
       case "eraser":
         ctx.globalCompositeOperation = "destination-out";
         ctx.globalAlpha = 1;
@@ -1127,6 +1134,35 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
           const r = Math.random() * size;
           ctx.fillRect(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 1, 1);
         }
+      }
+      return;
+    }
+    if (brush === "sketch") {
+      // Textured, pencil-like: a few jittered hair-line passes per segment
+      const jitter = Math.max(0.6, size * 0.35);
+      const passes = 3;
+      const baseAlpha = ctx.globalAlpha;
+      for (let p = 0; p < passes; p++) {
+        ctx.globalAlpha = baseAlpha * (0.35 + Math.random() * 0.45);
+        ctx.beginPath();
+        ctx.moveTo(from.x + (Math.random() - 0.5) * jitter, from.y + (Math.random() - 0.5) * jitter);
+        ctx.lineTo(to.x + (Math.random() - 0.5) * jitter, to.y + (Math.random() - 0.5) * jitter);
+        ctx.stroke();
+      }
+      ctx.globalAlpha = baseAlpha;
+      // fine grain speckles for the graphite feel
+      const dist = Math.hypot(to.x - from.x, to.y - from.y);
+      const steps = Math.max(1, Math.floor(dist / 2));
+      for (let i = 0; i <= steps; i++) {
+        const t = i / steps;
+        const cx = from.x + (to.x - from.x) * t;
+        const cy = from.y + (to.y - from.y) * t;
+        if (Math.random() > 0.5) continue;
+        const a = Math.random() * Math.PI * 2;
+        const r = Math.random() * jitter;
+        ctx.globalAlpha = baseAlpha * 0.5;
+        ctx.fillRect(cx + Math.cos(a) * r, cy + Math.sin(a) * r, 1, 1);
+        ctx.globalAlpha = baseAlpha;
       }
       return;
     }
@@ -1412,7 +1448,8 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
       {/* Bottom toolbar dock */}
       <div className="shrink-0 border-t border-white/10 bg-black/70 backdrop-blur-xl p-3 space-y-2">
         {/* Quick color palette + clear */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
           <Popover>
             <PopoverTrigger asChild>
               <button
@@ -1443,13 +1480,30 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
               />
             );
           })}
+          </div>
           <button
             onClick={clearActive}
-            className="ml-auto h-9 w-9 shrink-0 rounded-full bg-rose-500/20 hover:bg-rose-500/40 border border-rose-400/40 text-rose-100 flex items-center justify-center"
+            className="h-9 w-9 shrink-0 rounded-full bg-rose-500/20 hover:bg-rose-500/40 border border-rose-400/40 text-rose-100 flex items-center justify-center"
             aria-label="Clear canvas"
             title="Clear canvas"
           >
             <Trash2 className="h-4 w-4" />
+          </button>
+          <button
+            onClick={undo}
+            className="h-9 w-9 shrink-0 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center"
+            aria-label="Undo last action"
+            title="Undo"
+          >
+            <Undo2 className="h-4 w-4" />
+          </button>
+          <button
+            onClick={redo}
+            className="h-9 w-9 shrink-0 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center"
+            aria-label="Redo last undone action"
+            title="Redo"
+          >
+            <Redo2 className="h-4 w-4" />
           </button>
         </div>
         <div className="flex items-center gap-2 overflow-x-auto pb-1">
