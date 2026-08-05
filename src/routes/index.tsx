@@ -904,18 +904,9 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   const sprayTimer = useRef<number | null>(null);
 
   const captureLayerSnapshot = useCallback((canvas: HTMLCanvasElement) => {
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    try {
-      const sample = ctx.getImageData(0, 0, 1, 1).data;
-      const hasInk = sample[3] > 0 || ctx.getImageData(Math.max(0, canvas.width - 1), Math.max(0, canvas.height - 1), 1, 1).data[3] > 0;
-      if (!hasInk) {
-        const probe = ctx.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data;
-        if (probe[3] === 0) return null;
-      }
-    } catch {
-      // If probing fails, still try a snapshot fallback.
-    }
+    // Always capture the full bitmap: sampling a few pixels to decide whether
+    // the layer is "empty" throws away valid history states (e.g. a single
+    // thin stroke), which made Redo restore a blank layer.
     try {
       return canvas.toDataURL("image/png");
     } catch {
