@@ -1451,7 +1451,8 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
       {/* Bottom toolbar dock */}
       <div className="shrink-0 border-t border-white/10 bg-black/70 backdrop-blur-xl p-3 space-y-2">
         {/* Quick color palette + clear */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
           <Popover>
             <PopoverTrigger asChild>
               <button
