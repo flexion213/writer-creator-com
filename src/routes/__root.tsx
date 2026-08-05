@@ -10,6 +10,7 @@ import {
 
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/hooks/use-auth";
+import { LanguageProvider } from "@/hooks/use-language";
 import { SystemLockGuard } from "@/components/SystemLockScreen";
 import { OnboardingTutorial } from "@/components/OnboardingTutorial";
 
@@ -147,10 +148,12 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <SystemLockGuard>
-          <OnboardingTutorial />
-          <Outlet />
-        </SystemLockGuard>
+        <LanguageProvider>
+          <SystemLockGuard>
+            <OnboardingTutorial />
+            <Outlet />
+          </SystemLockGuard>
+        </LanguageProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
