@@ -914,18 +914,24 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     }
   }, []);
 
-  const restoreLayerSnapshot = useCallback((canvas: HTMLCanvasElement, snapshot: LayerSnapshot) => {
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    if (!snapshot) return;
-    const img = new Image();
-    img.onload = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    };
-    img.src = snapshot;
-  }, []);
+  const restoreLayerSnapshot = useCallback(
+    (canvas: HTMLCanvasElement, snapshot: LayerSnapshot) =>
+      new Promise<void>((resolve) => {
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve();
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        if (!snapshot) return resolve();
+        const img = new Image();
+        img.onload = () => {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve();
+        };
+        img.onerror = () => resolve();
+        img.src = snapshot;
+      }),
+    [],
+  );
 
   const persistLayer = useCallback((id: string) => {
     const c = layerRefs.current.get(id); if (!c) return;
@@ -1017,7 +1023,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     future.current.set(activeLayerId, []);
   };
 
-  const undo = () => {
+  const undo = async () => {
     const c = activeCanvas(); if (!c) return;
     const h = history.current.get(activeLayerId) ?? [];
     const last = h.pop();
@@ -1026,10 +1032,10 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     f.push(captureLayerSnapshot(c));
     future.current.set(activeLayerId, f);
     history.current.set(activeLayerId, h);
-    restoreLayerSnapshot(c, last);
+    await restoreLayerSnapshot(c, last);
     persistLayer(activeLayerId);
   };
-  const redo = () => {
+  const redo = async () => {
     const c = activeCanvas(); if (!c) return;
     const f = future.current.get(activeLayerId) ?? [];
     const next = f.pop();
@@ -1038,7 +1044,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     h.push(captureLayerSnapshot(c));
     history.current.set(activeLayerId, h);
     future.current.set(activeLayerId, f);
-    restoreLayerSnapshot(c, next);
+    await restoreLayerSnapshot(c, next);
     persistLayer(activeLayerId);
   };
 
