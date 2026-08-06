@@ -322,6 +322,7 @@ function NotebookFullscreen({
   const [saving, setSaving] = useState(false);
   const [fixing, setFixing] = useState(false);
   const [tab, setTab] = useState<"write" | "characters" | "timeline" | "lore">("write");
+  const [loreLinks, setLoreLinks] = useState(false);
   const [characters, setCharacters] = useState<Character[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [lore, setLore] = useState<Lore[]>([]);
