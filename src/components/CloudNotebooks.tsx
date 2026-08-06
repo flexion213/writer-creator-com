@@ -317,6 +317,8 @@ function NotebookFullscreen({
   runFix: (text: string) => Promise<string | null>;
   onClose: () => void;
 }) {
+  const { t } = useLanguage();
+  const { entries: wikiEntries } = useWikiEntries();
   const [title, setTitle] = useState(notebook.title);
   const [body, setBody] = useState(notebook.body);
   const [saving, setSaving] = useState(false);
