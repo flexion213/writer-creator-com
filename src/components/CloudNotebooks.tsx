@@ -467,10 +467,10 @@ function NotebookFullscreen({
 
       <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)} className="flex-1 flex flex-col min-h-0">
         <TabsList className="mx-3 mt-3 grid grid-cols-4 rounded-2xl shrink-0">
-          <TabsTrigger value="write" className="rounded-2xl"><BookOpen className="h-3.5 w-3.5 mr-1" /> Write</TabsTrigger>
-          <TabsTrigger value="characters" className="rounded-2xl"><Users className="h-3.5 w-3.5 mr-1" /> Characters</TabsTrigger>
-          <TabsTrigger value="timeline" className="rounded-2xl"><Clock className="h-3.5 w-3.5 mr-1" /> Timeline</TabsTrigger>
-          <TabsTrigger value="lore" className="rounded-2xl"><Globe2 className="h-3.5 w-3.5 mr-1" /> Lore</TabsTrigger>
+          <TabsTrigger value="write" className="rounded-2xl"><BookOpen className="h-3.5 w-3.5 mr-1" /> {t("write")}</TabsTrigger>
+          <TabsTrigger value="characters" className="rounded-2xl"><Users className="h-3.5 w-3.5 mr-1" /> {t("characters")}</TabsTrigger>
+          <TabsTrigger value="timeline" className="rounded-2xl"><Clock className="h-3.5 w-3.5 mr-1" /> {t("timeline")}</TabsTrigger>
+          <TabsTrigger value="lore" className="rounded-2xl"><Globe2 className="h-3.5 w-3.5 mr-1" /> {t("lore")}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="write" className="flex-1 min-h-0 m-0 mt-3 px-3 pb-3 flex flex-col gap-2">
@@ -504,26 +504,42 @@ function NotebookFullscreen({
             </Button>
           </div>
 
-          <Textarea
-            value={body}
-            onChange={(e) => setBody(e.target.value)}
-            placeholder="Start writing your story…"
-            className="flex-1 resize-none border-0 bg-muted/20 rounded-2xl text-base leading-relaxed focus-visible:ring-1 p-4"
-          />
+          {loreLinks ? (
+            <div className="flex-1 min-h-0 overflow-y-auto rounded-2xl bg-muted/20 p-4">
+              <LoreHighlightedText text={body} entries={wikiEntries} />
+            </div>
+          ) : (
+            <Textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              placeholder={t("startWriting")}
+              className="flex-1 resize-none border-0 bg-muted/20 rounded-2xl text-base leading-relaxed focus-visible:ring-1 p-4"
+            />
+          )}
           <div className="flex items-center justify-end gap-2">
+            <Button
+              size="sm"
+              variant={loreLinks ? "default" : "outline"}
+              className="rounded-full"
+              onClick={() => setLoreLinks((v) => !v)}
+            >
+              {loreLinks
+                ? <><Pencil className="h-3.5 w-3.5 mr-1" /> {t("editMode")}</>
+                : <><Link2 className="h-3.5 w-3.5 mr-1" /> {t("highlightLore")}</>}
+            </Button>
             <Button
               size="sm" variant="outline" className="rounded-full"
               disabled={!body.trim()}
               onClick={async () => {
                 try {
                   await navigator.clipboard.writeText(body);
-                  toast.success("Story copied to clipboard");
+                  toast.success(t("copied"));
                 } catch {
-                  toast.error("Couldn't copy — try again");
+                  toast.error(t("copyFailed"));
                 }
               }}
             >
-              <Copy className="h-3.5 w-3.5 mr-1" /> Copy text
+              <Copy className="h-3.5 w-3.5 mr-1" /> {t("copyText")}
             </Button>
             <Button
               size="sm" variant="outline" className="rounded-full"
@@ -536,7 +552,7 @@ function NotebookFullscreen({
               }}
             >
               {fixing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
-              Fix grammar
+              {t("fixGrammar")}
             </Button>
           </div>
         </TabsContent>
