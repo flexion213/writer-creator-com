@@ -9,6 +9,7 @@ import { TacticalSandbox } from "@/components/TacticalSandbox";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
 import { SettingsPanel } from "@/components/SettingsPanel";
+import { WorldWiki } from "@/components/WorldWiki";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
@@ -28,6 +29,7 @@ import {
   Plus, Wand2, Loader2, Search, Heart, MessageCircle, Menu,
   BookOpen, BookCopy, Flag, Type, Layers, Link as LinkIcon, ZoomIn, ZoomOut, Map as MapIcon,
   Settings2, Settings, Feather,
+  BookMarked,
 } from "lucide-react";
 import Wheel from "@uiw/react-color-wheel";
 import ShadeSlider from "@uiw/react-color-shade-slider";
@@ -90,7 +92,7 @@ type Post = {
   hidden: boolean;
 };
 type Comment = { id: string; author: string; text: string; ts: number };
-type Section = "feed" | "notebooks" | "suggestions" | "drawing" | "sandbox" | "settings";
+type Section = "feed" | "notebooks" | "suggestions" | "drawing" | "sandbox" | "wiki" | "settings";
 type Notebook = { id: number; title: string; body: string; updated: number };
 type SuggestionDrafts = {
   bugTitle: string;
@@ -122,6 +124,7 @@ const NAV: { id: Section; label: string; icon: React.ComponentType<{ className?:
   { id: "suggestions", label: "Suggestions Box", icon: MessageSquare },
   { id: "drawing", label: "Drawing Studio", icon: Pencil },
   { id: "sandbox", label: "Tactical Sandbox", icon: MapIcon },
+  { id: "wiki", label: "World Wiki / Codex", icon: BookMarked },
   { id: "settings", label: "Settings", icon: Settings },
 ];
 
@@ -166,7 +169,7 @@ function Dashboard() {
       if (
         savedSection === "feed" || savedSection === "notebooks" ||
         savedSection === "suggestions" || savedSection === "drawing" ||
-        savedSection === "sandbox" || savedSection === "settings"
+        savedSection === "sandbox" || savedSection === "wiki" || savedSection === "settings"
       ) {
         setSection(savedSection);
       }
@@ -401,10 +404,10 @@ function Dashboard() {
         <TacticalSandbox onOpenMenu={() => setNavOpen(true)} />
       )}
 
-      {(section === "notebooks" || section === "suggestions" || section === "settings") && (
+      {(section === "notebooks" || section === "suggestions" || section === "wiki" || section === "settings") && (
       <main className="mx-auto max-w-md px-4 py-4 space-y-4">
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="icon" aria-label="Open menu" className="h-9 w-9" onClick={() => setNavOpen(true)}>
+          <Button variant="ghost" size="icon" aria-label={t("openMenu")} className="h-9 w-9" onClick={() => setNavOpen(true)}>
             <div className="flex flex-col gap-[5px]">
               <span className="block h-[2px] w-5 bg-foreground" />
               <span className="block h-[2px] w-5 bg-foreground" />
@@ -438,10 +441,11 @@ function Dashboard() {
           <CloudNotebooks runFix={runFix} />
         )}
         {section === "suggestions" && <Suggestions suggestions={suggestions} setSuggestions={setSuggestions} />}
+        {section === "wiki" && <WorldWiki />}
         {section === "settings" && <SettingsPanel />}
 
         <footer className="pt-6 pb-4 text-center text-[11px] text-muted-foreground/70">
-          © 2026 Writer Creators. Made by Abdulkader Alomar.
+          © 2026 Writer Creators. {t("madeBy")} Abdulkader Alomar.
         </footer>
       </main>
       )}
