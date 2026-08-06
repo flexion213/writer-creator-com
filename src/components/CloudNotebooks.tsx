@@ -14,10 +14,12 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
+import { useLanguage } from "@/hooks/use-language";
+import { LoreHighlightedText, useWikiEntries } from "@/components/WorldWiki";
 import {
   NotebookPen, Plus, Trash2, Wand2, Loader2, Users, MessageCircle,
   UserPlus, Send, ShieldCheck, X, LogIn, Shield, ArrowLeft, BookOpen,
-  Clock, ChevronUp, ChevronDown, Globe2, Target, StickyNote, Copy,
+  Clock, ChevronUp, ChevronDown, Globe2, Target, StickyNote, Copy, Link2, Pencil,
 } from "lucide-react";
 
 type Notebook = {
