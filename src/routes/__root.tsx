@@ -134,6 +134,8 @@ function RootShell({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent /> 
         <meta name="google-site-verification" content="1th1qMoK7E8YtmZiLx9_A9bSAJN2ASEHEZxCEG_53zc" />
+        <div id="google_translate_element"></div>
+
       </head>
       <body className="min-h-screen bg-background text-foreground antialiased font-sans">
         {children}
