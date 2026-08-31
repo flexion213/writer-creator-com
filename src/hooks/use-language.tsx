@@ -947,7 +947,14 @@ type Ctx = { lang: LangCode; setLang: (l: LangCode) => void; t: (k: Key) => stri
 const LanguageContext = createContext<Ctx | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<LangCode>("en");
+  const [lang, setLangState] = useState<LangCode>(() => {
+    if (typeof window === "undefined") return "en";
+    try {
+      const saved = window.localStorage.getItem("dd:lang") as LangCode | null;
+      if (saved && LANGUAGES.some((l) => l.code === saved)) return saved;
+    } catch {}
+    return "en";
+  });
 
   useEffect(() => {
     try {
@@ -967,13 +974,18 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     try { window.localStorage.setItem("dd:lang", l); } catch {}
   };
 
-  const t = (k: Key) => DICT[lang]?.[k] ?? en[k];
+  // Explicit English fallback: a missing or blank translation never renders empty.
+  const t = (k: Key) => {
+    const v = DICT[lang]?.[k];
+    if (typeof v === "string" && v.trim().length > 0) return v;
+    return en[k] ?? String(k);
+  };
 
   return <LanguageContext.Provider value={{ lang, setLang, t }}>{children}</LanguageContext.Provider>;
 }
 
 export function useLanguage() {
   const ctx = useContext(LanguageContext);
-  if (!ctx) return { lang: "en" as LangCode, setLang: () => {}, t: (k: Key) => en[k] };
+  if (!ctx) return { lang: "en" as LangCode, setLang: () => {}, t: (k: Key) => en[k] ?? String(k) };
   return ctx;
 }
