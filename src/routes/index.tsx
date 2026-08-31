@@ -219,7 +219,7 @@ function Dashboard() {
   const runFix = async (text: string): Promise<string | null> => {
     const trimmed = text.trim();
     if (!trimmed) {
-      toast.error("Nothing to fix yet — write something first.");
+      toast.error(t("tNothingToFix"));
       return null;
     }
     try {
@@ -228,7 +228,7 @@ function Dashboard() {
       toast.success(`Fixed (${r.language})`);
       return r.corrected;
     } catch (e) {
-      toast.error("Couldn't reach the grammar assistant.");
+      toast.error(t("tGrammarFail"));
       return null;
     }
   };
@@ -248,7 +248,7 @@ function Dashboard() {
     const text = draft.trim();
     const title = draftTitle.trim();
     if (!text && !draftImage && !title) return;
-    if (!user) { toast.error("Sign in to post."); return; }
+    if (!user) { toast.error(t("tSignInPost")); return; }
     const { error } = await supabase.from("feed_posts").insert({
       author_id: user.id,
       author_name: adminMode ? "Head Dev" : currentUsername,
@@ -415,7 +415,7 @@ function Dashboard() {
             </div>
           </Button>
           {false && (
-              <Button variant="ghost" size="icon" aria-label="Open menu" className="h-9 w-9">
+              <Button variant="ghost" size="icon" aria-label={t("openMenu")} className="h-9 w-9">
                 <div className="flex flex-col gap-[5px]">
                   <span className="block h-[2px] w-5 bg-foreground" />
                   <span className="block h-[2px] w-5 bg-foreground" />
@@ -503,8 +503,8 @@ function Notebooks({
             <NotebookPen className="h-5 w-5" />
           </span>
           <div>
-            <h2 className="text-lg font-semibold tracking-tight">Notebooks</h2>
-            <p className="text-xs text-muted-foreground">Private scratchpad with AI grammar fix.</p>
+            <h2 className="text-lg font-semibold tracking-tight">{t("nbTitle")}</h2>
+            <p className="text-xs text-muted-foreground">{t("nbSubtitle")}</p>
           </div>
         </div>
         <Button size="sm" onClick={addNotebook} className="rounded-full">
@@ -515,8 +515,8 @@ function Notebooks({
       {notebooks.length === 0 && (
         <Card className="p-8 text-center border-dashed">
           <NotebookPen className="h-8 w-8 mx-auto text-muted-foreground/60" />
-          <p className="mt-2 text-sm font-medium">No notebooks yet</p>
-          <p className="text-xs text-muted-foreground">Tap “New” to start one.</p>
+          <p className="mt-2 text-sm font-medium">{t("nbNone")}</p>
+          <p className="text-xs text-muted-foreground">{t("nbNoneHint")}</p>
         </Card>
       )}
 
@@ -533,7 +533,7 @@ function Notebooks({
                   <Input
                     value={nb.title}
                     onChange={(e) => update(nb.id, { title: e.target.value })}
-                    placeholder="Title"
+                    placeholder={t("phTitle")}
                     className="h-8 border-0 bg-transparent px-0 text-base font-semibold focus-visible:ring-0"
                   />
                   <Button
@@ -541,7 +541,7 @@ function Notebooks({
                     variant="ghost"
                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
                     onClick={() => remove(nb.id)}
-                    aria-label="Delete notebook"
+                    aria-label={t("deleteNotebook")}
                   >
                     <Trash2 className="h-4 w-4" />
                   </Button>
@@ -549,7 +549,7 @@ function Notebooks({
                 <Textarea
                   value={nb.body}
                   onChange={(e) => update(nb.id, { body: e.target.value })}
-                  placeholder="Start writing…"
+                  placeholder={t("startWriting")}
                   className="min-h-24 resize-none border-0 bg-muted/30 rounded-lg focus-visible:ring-1"
                 />
                 <div className="flex items-center justify-between pt-1">
@@ -599,8 +599,8 @@ function Suggestions({
     reportedUsername?: string,
     resetKeys?: (keyof SuggestionDrafts)[],
   ) => {
-    if (!user) { toast.error("Please sign in to submit."); return; }
-    if (!title.trim()) { toast.error("Add a title first."); return; }
+    if (!user) { toast.error(t("tSignInSubmit")); return; }
+    if (!title.trim()) { toast.error(t("tAddTitle")); return; }
     setSubmitting(kind);
     let reportedUserId: string | null = null;
     if (kind === "user" && reportedUsername?.trim()) {
@@ -611,7 +611,7 @@ function Suggestions({
       reportedUserId = p?.id ?? null;
       if (!reportedUserId) {
         setSubmitting(null);
-        toast.error("User not found.");
+        toast.error(t("tUserNotFound"));
         return;
       }
     }
@@ -621,7 +621,7 @@ function Suggestions({
     });
     setSubmitting(null);
     if (error) { toast.error(error.message); return; }
-    toast.success("Submitted — staff will review.");
+    toast.success(t("tSubmitted"));
     if (resetKeys) {
       setSuggestions((cur) => {
         const next = { ...cur };
@@ -636,16 +636,16 @@ function Suggestions({
       <Card className="p-3">
         <div className="flex items-center gap-2 mb-2">
           <Bug className="h-4 w-4 text-destructive" />
-          <p className="text-sm font-medium">Bug Reports</p>
+          <p className="text-sm font-medium">{t("sgBugs")}</p>
         </div>
         <Input
-          placeholder="Title"
+          placeholder={t("phTitle")}
           className="mb-2"
           value={suggestions.bugTitle}
           onChange={(e) => setSuggestions((current) => ({ ...current, bugTitle: e.target.value }))}
         />
         <Textarea
-          placeholder="Steps to reproduce…"
+          placeholder={t("phSteps")}
           className="mb-2 min-h-16 resize-none"
           value={suggestions.bugBody}
           onChange={(e) => setSuggestions((current) => ({ ...current, bugBody: e.target.value }))}
@@ -662,16 +662,16 @@ function Suggestions({
       <Card className="p-3">
         <div className="flex items-center gap-2 mb-2">
           <Lightbulb className="h-4 w-4 text-primary" />
-          <p className="text-sm font-medium">Feature Suggestions</p>
+          <p className="text-sm font-medium">{t("sgFeatures")}</p>
         </div>
         <Input
-          placeholder="Idea title"
+          placeholder={t("phIdeaTitle")}
           className="mb-2"
           value={suggestions.featureTitle}
           onChange={(e) => setSuggestions((current) => ({ ...current, featureTitle: e.target.value }))}
         />
         <Textarea
-          placeholder="Describe the feature…"
+          placeholder={t("phFeature")}
           className="mb-2 min-h-16 resize-none"
           value={suggestions.featureBody}
           onChange={(e) => setSuggestions((current) => ({ ...current, featureBody: e.target.value }))}
@@ -688,16 +688,16 @@ function Suggestions({
       <Card className="p-3">
         <div className="flex items-center gap-2 mb-2">
           <Video className="h-4 w-4 text-primary" />
-          <p className="text-sm font-medium">Video / Media Bug Reports</p>
+          <p className="text-sm font-medium">{t("sgMedia")}</p>
         </div>
         <Input
-          placeholder="What broke?"
+          placeholder={t("phWhatBroke")}
           className="mb-2"
           value={suggestions.videoTitle}
           onChange={(e) => setSuggestions((current) => ({ ...current, videoTitle: e.target.value }))}
         />
         <Textarea
-          placeholder="Context (timestamp, device, etc.)"
+          placeholder={t("phContext")}
           className="mb-2 min-h-16 resize-none"
           value={suggestions.videoBody}
           onChange={(e) => setSuggestions((current) => ({ ...current, videoBody: e.target.value }))}
@@ -714,16 +714,16 @@ function Suggestions({
       <Card className="p-3">
         <div className="flex items-center gap-2 mb-2">
           <ShieldAlert className="h-4 w-4 text-destructive" />
-          <p className="text-sm font-medium">Report a User</p>
+          <p className="text-sm font-medium">{t("sgUser")}</p>
         </div>
         <Input
-          placeholder="Username (e.g. alice)"
+          placeholder={t("phUsername")}
           className="mb-2"
           value={suggestions.userTarget}
           onChange={(e) => setSuggestions((current) => ({ ...current, userTarget: e.target.value }))}
         />
         <Textarea
-          placeholder="What happened? Be specific."
+          placeholder={t("phWhatHappened")}
           className="mb-2 min-h-16 resize-none"
           value={suggestions.userBody}
           onChange={(e) => setSuggestions((current) => ({ ...current, userBody: e.target.value }))}
@@ -892,7 +892,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   const applyCanvasSize = (w: number, h: number) => {
     const nw = Math.max(320, Math.min(4096, Math.round(w)));
     const nh = Math.max(320, Math.min(4096, Math.round(h)));
-    if (!Number.isFinite(nw) || !Number.isFinite(nh)) { toast.error("Enter valid dimensions."); return; }
+    if (!Number.isFinite(nw) || !Number.isFinite(nh)) { toast.error(t("tInvalidDims")); return; }
     setCanvasDims({ w: nw, h: nh });
     setCustomW(String(nw));
     setCustomH(String(nh));
@@ -1299,13 +1299,13 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
   };
 
   const addLayer = () => {
-    if (layers.length >= 8) { toast.error("Layer limit reached (8)."); return; }
+    if (layers.length >= 8) { toast.error(t("tLayerLimit")); return; }
     const id = `layer-${Date.now()}`;
     setLayers((ls) => [...ls, { id, name: `Layer ${ls.length + 1}`, visible: true }]);
     setActiveLayerId(id);
   };
   const removeLayer = (id: string) => {
-    if (layers.length <= 1) { toast.error("Need at least one layer."); return; }
+    if (layers.length <= 1) { toast.error(t("tNeedLayer")); return; }
     try { window.localStorage.removeItem(`dd:canvas:${id}`); } catch {}
     setLayers((ls) => {
       const next = ls.filter((l) => l.id !== id);
@@ -1338,11 +1338,11 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
     <div className="fixed inset-0 z-30 flex flex-col bg-[#0a0a0a] text-white">
       {/* Top mini bar */}
       <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-black/40 backdrop-blur shrink-0">
-        <Button variant="ghost" size="icon" aria-label="Open menu" className="h-9 w-9 text-white" onClick={onOpenMenu}>
+        <Button variant="ghost" size="icon" aria-label={t("openMenu")} className="h-9 w-9 text-white" onClick={onOpenMenu}>
           <Menu className="h-5 w-5" />
         </Button>
-        <span className="text-sm font-semibold flex-1">Drawing Studio</span>
-        <Button variant="ghost" size="icon" className="h-9 w-9 text-white" onClick={() => setShowSide((s) => !s)} aria-label="Toggle side panel">
+        <span className="text-sm font-semibold flex-1">{t("drawing")}</span>
+        <Button variant="ghost" size="icon" className="h-9 w-9 text-white" onClick={() => setShowSide((s) => !s)} aria-label={t("toggleSide")}>
           <Sparkles className="h-4 w-4" />
         </Button>
       </div>
@@ -1386,8 +1386,8 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
         {showSide && (
           <aside className="absolute top-2 right-2 bottom-2 w-64 max-w-[80vw] rounded-2xl bg-black/70 backdrop-blur-xl border border-white/10 p-3 space-y-3 overflow-y-auto z-10">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-widest text-white/70">Layers</span>
-              <Button size="icon" variant="ghost" className="h-7 w-7 text-white" onClick={addLayer} aria-label="Add layer">
+              <span className="text-xs font-semibold uppercase tracking-widest text-white/70">{t("layers")}</span>
+              <Button size="icon" variant="ghost" className="h-7 w-7 text-white" onClick={addLayer} aria-label={t("addLayer")}>
                 <Plus className="h-3.5 w-3.5" />
               </Button>
             </div>
@@ -1412,7 +1412,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
                     <button
                       onClick={(e) => { e.stopPropagation(); removeLayer(layer.id); }}
                       className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-rose-500/20 hover:text-rose-300"
-                      aria-label="Delete layer"
+                      aria-label={t("deleteLayer")}
                     >
                       <Trash2 className="h-3.5 w-3.5" />
                     </button>
@@ -1422,7 +1422,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
             </div>
 
             <div className="border-t border-white/10 pt-3 space-y-2">
-              <span className="text-xs font-semibold uppercase tracking-widest text-white/70">Actions</span>
+              <span className="text-xs font-semibold uppercase tracking-widest text-white/70">{t("actions")}</span>
               <div className="grid grid-cols-2 gap-2">
                 <Button size="sm" variant="secondary" className="rounded-xl" onClick={undo}><Undo2 className="h-3.5 w-3.5 mr-1" /> Undo</Button>
                 <Button size="sm" variant="secondary" className="rounded-xl" onClick={redo}><Redo2 className="h-3.5 w-3.5 mr-1" /> Redo</Button>
@@ -1433,7 +1433,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
 
             {showColor && (
               <div className="border-t border-white/10 pt-3 space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-widest text-white/70">Color</span>
+                <span className="text-xs font-semibold uppercase tracking-widest text-white/70">{t("color")}</span>
                 <div className="flex justify-center">
                   <Wheel color={hsva} onChange={(c) => setHsva({ ...hsva, ...c.hsva })} width={180} height={180} />
                 </div>
@@ -1462,8 +1462,8 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
               <button
                 className="h-9 w-9 shrink-0 rounded-full border-2 border-white/30 shadow-inner"
                 style={{ background: currentHex }}
-                aria-label="Open color wheel"
-                title="Color wheel"
+                aria-label={t("colorWheel")}
+                title={t("colorWheel")}
               />
             </PopoverTrigger>
             <PopoverContent side="top" align="start" className="w-[220px] p-3 bg-black/90 backdrop-blur-xl border-white/10 space-y-2">
@@ -1491,24 +1491,24 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
           <button
             onClick={clearActive}
             className="h-9 w-9 shrink-0 rounded-full bg-rose-500/20 hover:bg-rose-500/40 border border-rose-400/40 text-rose-100 flex items-center justify-center"
-            aria-label="Clear canvas"
-            title="Clear canvas"
+            aria-label={t("clearCanvas")}
+            title={t("clearCanvas")}
           >
             <Trash2 className="h-4 w-4" />
           </button>
           <button
             onClick={undo}
             className="h-9 w-9 shrink-0 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center"
-            aria-label="Undo last action"
-            title="Undo"
+            aria-label={t("undoAria")}
+            title={t("undo")}
           >
             <Undo2 className="h-4 w-4" />
           </button>
           <button
             onClick={redo}
             className="h-9 w-9 shrink-0 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center"
-            aria-label="Redo last undone action"
-            title="Redo"
+            aria-label={t("redoAria")}
+            title={t("redo")}
           >
             <Redo2 className="h-4 w-4" />
           </button>
@@ -1536,25 +1536,25 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
         </div>
         <div className="flex items-center gap-3 text-[10px] text-white/70">
           <div className="flex-1">
-            <div className="flex items-center justify-between"><span>Size</span><span>{size}px</span></div>
+            <div className="flex items-center justify-between"><span>{t("sizeLabel")}</span><span>{size}px</span></div>
             <input type="range" min={1} max={80} value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-full accent-white" />
           </div>
           <div className="flex-1">
-            <div className="flex items-center justify-between"><span>Opacity</span><span>{Math.round(opacity * 100)}%</span></div>
+            <div className="flex items-center justify-between"><span>{t("opacityLabel")}</span><span>{Math.round(opacity * 100)}%</span></div>
             <input type="range" min={5} max={100} value={Math.round(opacity * 100)} onChange={(e) => setOpacity(Number(e.target.value) / 100)} className="w-full accent-white" />
           </div>
         </div>
         <div className="flex items-end gap-3 text-[10px] text-white/70">
           <div className="flex-1">
             <div className="flex items-center justify-between">
-              <span>Stabilizer</span>
+              <span>{t("stabilizer")}</span>
               <span>{stabilizer === 0 ? "Off" : `${stabilizer}%`}</span>
             </div>
             <input
               type="range" min={0} max={90} value={stabilizer}
               onChange={(e) => setStabilizer(Number(e.target.value))}
               className="w-full accent-white"
-              aria-label="Stroke stabilizer strength"
+              aria-label={t("stabilizerAria")}
             />
           </div>
           <Popover>
@@ -1564,7 +1564,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
               </Button>
             </PopoverTrigger>
             <PopoverContent side="top" align="end" className="w-[240px] p-3 bg-black/90 backdrop-blur-xl border-white/10 space-y-2">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-white/60">Canvas size</p>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-white/60">{t("canvasSizeLabel")}</p>
               <div className="space-y-1">
                 {CANVAS_PRESETS.map((p) => {
                   const active = p.w === CANVAS_W && p.h === CANVAS_H;
@@ -1580,14 +1580,14 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
                 })}
               </div>
               <div className="border-t border-white/10 pt-2 space-y-2">
-                <p className="text-[10px] uppercase tracking-widest text-white/60">Custom</p>
+                <p className="text-[10px] uppercase tracking-widest text-white/60">{t("customLabel")}</p>
                 <div className="flex items-center gap-1.5">
                   <Input
                     value={customW}
                     onChange={(e) => setCustomW(e.target.value.replace(/[^0-9]/g, ""))}
                     inputMode="numeric"
                     className="h-8 text-xs bg-white/5 border-white/10"
-                    aria-label="Custom canvas width"
+                    aria-label={t("customWidth")}
                   />
                   <span className="text-white/40">×</span>
                   <Input
@@ -1595,7 +1595,7 @@ function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMe
                     onChange={(e) => setCustomH(e.target.value.replace(/[^0-9]/g, ""))}
                     inputMode="numeric"
                     className="h-8 text-xs bg-white/5 border-white/10"
-                    aria-label="Custom canvas height"
+                    aria-label={t("customHeight")}
                   />
                 </div>
                 <Button
@@ -1735,14 +1735,14 @@ function FeedReel(props: FeedReelProps) {
   const onPickCover = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0]; if (!f) return;
     try { setCover(await fileToCompressedDataUrl(f, 800, 1200, 0.8)); }
-    catch { toast.error("Couldn't read that image."); }
+    catch { toast.error(t("tImageFail")); }
     finally { if (coverRef.current) coverRef.current.value = ""; }
   };
   const onPickComic = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     if (files.length === 0) return;
     if (comicPages.length + files.length > 30) {
-      toast.error("Max 30 pages per comic post.");
+      toast.error(t("tMaxPages"));
       if (comicRef.current) comicRef.current.value = "";
       return;
     }
@@ -1750,7 +1750,7 @@ function FeedReel(props: FeedReelProps) {
       const next: string[] = [];
       for (const f of files) next.push(await fileToCompressedDataUrl(f, 1400, 2000, 0.78));
       setComicPages((cur) => [...cur, ...next]);
-    } catch { toast.error("One of those images failed to load."); }
+    } catch { toast.error(t("tImageLoadFail")); }
     finally { if (comicRef.current) comicRef.current.value = ""; }
   };
 
@@ -1865,14 +1865,14 @@ function FeedReel(props: FeedReelProps) {
   const overLimit = composerWordCount > 500;
 
   const submitFullPost = async () => {
-    if (!currentUserId) { toast.error("Sign in to post."); return; }
+    if (!currentUserId) { toast.error(t("tSignInPost")); return; }
     const text = draft.trim();
     const title = draftTitle.trim();
     if (composerKind === "comic") {
-      if (comicPages.length === 0) { toast.error("Add at least one comic page."); return; }
+      if (comicPages.length === 0) { toast.error(t("tAddComicPage")); return; }
     } else {
-      if (!text && !title && !draftImage) { toast.error("Write something or add a title."); return; }
-      if (overLimit) { toast.error("500-word limit reached."); return; }
+      if (!text && !title && !draftImage) { toast.error(t("tWriteSomething")); return; }
+      if (overLimit) { toast.error(t("tWordLimit")); return; }
     }
     setPosting(true);
     const { error } = await supabase.from("feed_posts").insert({
@@ -1893,11 +1893,11 @@ function FeedReel(props: FeedReelProps) {
     setDraft(""); setDraftTitle(""); setDraftImage(undefined);
     setCover(undefined); setComicPages([]); setProjectId(null);
     if (fileRef.current) fileRef.current.value = "";
-    toast.success("Posted.");
+    toast.success(t("tPosted"));
   };
 
   const reportPost = async (postId: string) => {
-    if (!currentUserId) { toast.error("Sign in to report."); return; }
+    if (!currentUserId) { toast.error(t("tSignInReport")); return; }
     if (reportedIds.has(postId)) { toast.info("Already reported — staff will review."); return; }
     const reason = window.prompt("Briefly, what's wrong with this post?", "")?.trim() ?? "";
     const { error } = await supabase.from("feed_post_reports").insert({
@@ -1905,11 +1905,11 @@ function FeedReel(props: FeedReelProps) {
     });
     if (error) { toast.error(error.message); return; }
     setReportedIds((s) => new Set(s).add(postId));
-    toast.success("Reported — sent to the mod queue.");
+    toast.success(t("tReported"));
   };
 
   const toggleLike = async (id: string) => {
-    if (!currentUserId) { toast.error("Sign in to like."); return; }
+    if (!currentUserId) { toast.error(t("tSignInLike")); return; }
     const wasLiked = !!liked[id];
     // Optimistic
     setLiked((l) => ({ ...l, [id]: !wasLiked }));
@@ -1924,7 +1924,7 @@ function FeedReel(props: FeedReelProps) {
   const addComment = async (id: string) => {
     const t = commentDraft.trim();
     if (!t) return;
-    if (!currentUserId) { toast.error("Sign in to comment."); return; }
+    if (!currentUserId) { toast.error(t("tSignInComment")); return; }
     setCommentDraft("");
     const { error } = await supabase.from("feed_post_comments").insert({
       post_id: id, author_id: currentUserId, author_name: currentUsername, body: t,
@@ -1955,7 +1955,7 @@ function FeedReel(props: FeedReelProps) {
         <button
           type="button"
           onClick={onOpenMenu}
-          aria-label="Open menu"
+          aria-label={t("openMenu")}
           className={`${glass} h-11 w-11 shrink-0 flex items-center justify-center text-white/90`}
         >
           <Menu className="h-5 w-5" />
@@ -1965,7 +1965,7 @@ function FeedReel(props: FeedReelProps) {
           <input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search #tags or @users"
+            placeholder={t("searchPh")}
             className="w-full h-full bg-transparent pl-10 pr-4 text-sm text-white placeholder:text-white/50 outline-none rounded-[20px]"
           />
         </div>
@@ -2012,7 +2012,7 @@ function FeedReel(props: FeedReelProps) {
             onWheelCapture={(e) => e.stopPropagation()}
             onTouchMoveCapture={(e) => e.stopPropagation()}
           >
-            <p className="text-xs uppercase tracking-widest text-white/60 mb-3">Share a story</p>
+            <p className="text-xs uppercase tracking-widest text-white/60 mb-3">{t("shareStory")}</p>
 
             {/* Mode toggle */}
             <div className={`${glass} flex items-center gap-1 p-1 mb-3 text-xs`}>
@@ -2055,14 +2055,14 @@ function FeedReel(props: FeedReelProps) {
                     const words = next.trim() ? next.trim().split(/\s+/) : [];
                     if (words.length > 500) {
                       setDraft(words.slice(0, 500).join(" "));
-                      toast.error("500-word limit reached.");
+                      toast.error(t("tWordLimit"));
                     } else setDraft(next);
                   }}
                   placeholder={composerKind === "novel" ? "Write your scene (max 500 words)…" : "What's the story?"}
                   className="mt-2 min-h-28 resize-none rounded-[20px] bg-white/5 border-white/10 text-white placeholder:text-white/40"
                 />
                 <div className="mt-1 flex items-center justify-between text-[10px]">
-                  <span className="text-white/40">Auto-saved as draft</span>
+                  <span className="text-white/40">{t("autoSavedDraft")}</span>
                   <span className={overLimit ? "text-rose-400 font-semibold" : "text-white/60"}>
                     {composerWordCount} / 500 words
                   </span>
@@ -2076,7 +2076,7 @@ function FeedReel(props: FeedReelProps) {
                 <button
                   onClick={() => { setDraftImage(undefined); if (fileRef.current) fileRef.current.value = ""; }}
                   className="absolute top-2 right-2 h-7 w-7 rounded-full bg-black/60 backdrop-blur flex items-center justify-center"
-                  aria-label="Remove image"
+                  aria-label={t("removeImage")}
                 >
                   <X className="h-3.5 w-3.5 text-white" />
                 </button>
@@ -2091,7 +2091,7 @@ function FeedReel(props: FeedReelProps) {
                     <button
                       onClick={() => setCover(undefined)}
                       className="absolute top-2 right-2 h-7 w-7 rounded-full bg-black/60 flex items-center justify-center"
-                      aria-label="Remove cover"
+                      aria-label={t("removeCover")}
                     ><X className="h-3.5 w-3.5 text-white" /></button>
                   </div>
                 )}
@@ -2108,7 +2108,7 @@ function FeedReel(props: FeedReelProps) {
                     onChange={(e) => setProjectId(e.target.value || null)}
                     className={`${glass} h-9 px-3 text-xs text-white/90 bg-transparent`}
                   >
-                    <option value="" className="bg-black">Link to a project…</option>
+                    <option value="" className="bg-black">{t("linkProject")}</option>
                     {myNotebooks.map((n) => (
                       <option key={n.id} value={n.id} className="bg-black">{n.title || "Untitled"}</option>
                     ))}
@@ -2139,7 +2139,7 @@ function FeedReel(props: FeedReelProps) {
                         <button
                           onClick={() => setComicPages((cur) => cur.filter((_, idx) => idx !== i))}
                           className="absolute top-1 right-1 h-6 w-6 rounded-full bg-black/70 flex items-center justify-center"
-                          aria-label="Remove page"
+                          aria-label={t("removePage")}
                         ><X className="h-3 w-3 text-white" /></button>
                         <span className="absolute bottom-1 left-1 text-[10px] bg-black/70 px-1.5 rounded text-white">{i + 1}</span>
                       </div>
@@ -2186,7 +2186,7 @@ function FeedReel(props: FeedReelProps) {
                 {posting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />} Post
               </button>
             </div>
-            <p className="mt-4 text-center text-[11px] text-white/40">Swipe up to explore stories</p>
+            <p className="mt-4 text-center text-[11px] text-white/40">{t("swipeHint")}</p>
           </div>
         </FeedSlide>
 
@@ -2267,7 +2267,7 @@ function FeedReel(props: FeedReelProps) {
           className="rounded-t-[24px] border-white/10 bg-[#0a0a0a]/95 backdrop-blur-xl text-white h-[70vh] flex flex-col"
         >
           <SheetHeader className="text-left">
-            <SheetTitle className="text-white">Comments</SheetTitle>
+            <SheetTitle className="text-white">{t("commentsLabel")}</SheetTitle>
           </SheetHeader>
           <div className="flex-1 overflow-y-auto py-3 space-y-2">
             {(openCommentsFor !== null ? comments[openCommentsFor] ?? [] : []).map((c, i) => (
@@ -2277,7 +2277,7 @@ function FeedReel(props: FeedReelProps) {
               </div>
             ))}
             {openCommentsFor !== null && (comments[openCommentsFor] ?? []).length === 0 && (
-              <p className="text-center text-sm text-white/50 py-6">Be the first to comment.</p>
+              <p className="text-center text-sm text-white/50 py-6">{t("beFirstComment")}</p>
             )}
           </div>
           <div className="flex items-center gap-2 pt-2">
@@ -2285,7 +2285,7 @@ function FeedReel(props: FeedReelProps) {
             <input
               value={commentDraft}
               onChange={(e) => setCommentDraft(e.target.value)}
-              placeholder="Add a comment…"
+              placeholder={t("addCommentPh")}
               onKeyDown={(e) => { if (e.key === "Enter" && openCommentsFor !== null) addComment(openCommentsFor); }}
               className="flex-1 h-11 rounded-[20px] bg-white/5 border border-white/10 px-4 text-sm text-white placeholder:text-white/40 outline-none"
             />
@@ -2351,10 +2351,10 @@ function FeedPostCard({
         <p className="text-sm font-medium text-white ml-1">{post.author}</p>
         {post.verified && <BadgeCheck className="h-3.5 w-3.5 text-sky-400" />}
         {post.kind === "novel" && (
-          <span className="ml-2 text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/10 text-white/80">Novel</span>
+          <span className="ml-2 text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/10 text-white/80">{t("novelTag")}</span>
         )}
         {post.kind === "comic" && (
-          <span className="ml-2 text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/10 text-white/80">Comic</span>
+          <span className="ml-2 text-[9px] uppercase tracking-widest px-2 py-0.5 rounded-full bg-white/10 text-white/80">{t("comicTag")}</span>
         )}
         <button
           type="button"
@@ -2422,7 +2422,7 @@ function FeedPostCard({
         <button
           type="button"
           onClick={onToggleLike}
-          aria-label="Like"
+          aria-label={t("likeLabel")}
           className={`${glass} h-11 w-11 flex items-center justify-center transition-transform active:scale-90`}
         >
           <Heart
@@ -2433,7 +2433,7 @@ function FeedPostCard({
         <button
           type="button"
           onClick={onOpenComments}
-          aria-label="Comments"
+          aria-label={t("commentsLabel")}
           className={`${glass} h-11 w-11 flex items-center justify-center transition-transform active:scale-90`}
         >
           <MessageCircle className="h-5 w-5 text-white" />
@@ -2478,7 +2478,7 @@ function ExpandedStoryView({
           onClick={onClose}
           className={`${glass} h-10 px-3 flex items-center gap-1.5 text-xs text-white/90`}
         >
-          <X className="h-4 w-4" /> Close
+          <X className="h-4 w-4" /> {t("close")}
         </button>
         <p className="ml-2 text-xs uppercase tracking-widest text-white/50 truncate">@{post.author}</p>
         <button
@@ -2516,7 +2516,7 @@ function ExpandedStoryView({
                 </div>
               ))}
               {comments.length === 0 && (
-                <p className="text-center text-sm text-white/50 py-6">Be the first to comment.</p>
+                <p className="text-center text-sm text-white/50 py-6">{t("beFirstComment")}</p>
               )}
             </div>
           </div>
@@ -2532,7 +2532,7 @@ function ExpandedStoryView({
         <input
           value={commentDraft}
           onChange={(e) => setCommentDraft(e.target.value)}
-          placeholder="Add a comment…"
+          placeholder={t("addCommentPh")}
           onKeyDown={(e) => { if (e.key === "Enter") onAddComment(); }}
           className="flex-1 h-11 rounded-[20px] bg-white/5 border border-white/10 px-4 text-sm text-white placeholder:text-white/40 outline-none"
         />
@@ -2607,15 +2607,15 @@ function ComicZoom({ pages, startIndex, onClose }: { pages: string[]; startIndex
           <button
             onClick={() => setScale((s) => Math.max(1, +(s - 0.25).toFixed(2)))}
             className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center"
-            aria-label="Zoom out"
+            aria-label={t("zoomOut")}
           ><ZoomOut className="h-4 w-4" /></button>
           <span className="w-10 text-center">{Math.round(scale * 100)}%</span>
           <button
             onClick={() => setScale((s) => Math.min(3, +(s + 0.25).toFixed(2)))}
             className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center"
-            aria-label="Zoom in"
+            aria-label={t("zoomIn")}
           ><ZoomIn className="h-4 w-4" /></button>
-          <button onClick={onClose} className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center" aria-label="Close">
+          <button onClick={onClose} className="h-9 w-9 rounded-full bg-white/10 flex items-center justify-center" aria-label={t("close")}>
             <X className="h-4 w-4" />
           </button>
         </div>
