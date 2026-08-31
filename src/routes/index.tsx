@@ -2330,6 +2330,7 @@ function FeedPostCard({
   onOpenComments: () => void;
   onExpand: () => void;
 }) {
+  const { t } = useLanguage();
   // Truncate long text so each card shows a preview; full read via "See more".
   const LIMIT = 340;
   const isLong = post.text.length > LIMIT;
