@@ -477,6 +477,7 @@ function Notebooks({
   setNotebooks: React.Dispatch<React.SetStateAction<Notebook[]>>;
   runFix: (text: string) => Promise<string | null>;
 }) {
+  const { t } = useLanguage();
   const [fixingId, setFixingId] = useState<number | null>(null);
 
   const addNotebook = () => {
@@ -587,6 +588,7 @@ function Suggestions({
   suggestions: SuggestionDrafts;
   setSuggestions: React.Dispatch<React.SetStateAction<SuggestionDrafts>>;
 }) {
+  const { t } = useLanguage();
   const { user } = useAuth();
   const [submitting, setSubmitting] = useState<string | null>(null);
 
@@ -795,6 +797,7 @@ function floodFill(
 }
 
 function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMenu: () => void }) {
+  const { t } = useLanguage();
   type Layer = { id: string; name: string; visible: boolean };
   type LayerSnapshot = string | null;
   const isMobileViewport = typeof window !== "undefined" ? window.innerWidth < 768 : false;
@@ -1647,6 +1650,7 @@ function FeedReel(props: FeedReelProps) {
     submitPost, runFix, draftFixing, setDraftFixing, currentUserId,
   } = props;
 
+  const { t } = useLanguage();
   const navigate = useNavigate();
   // Composer extensions
   // Init with SSR-safe defaults; hydrate from localStorage in an effect below
@@ -2549,6 +2553,7 @@ function ExpandedStoryView({
 }
 
 function ComicViewer({ pages }: { pages: string[] }) {
+  const { t } = useLanguage();
   const [zoomed, setZoomed] = useState<number | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   return (
@@ -2588,6 +2593,7 @@ function ComicViewer({ pages }: { pages: string[] }) {
 }
 
 function ComicZoom({ pages, startIndex, onClose }: { pages: string[]; startIndex: number; onClose: () => void }) {
+  const { t } = useLanguage();
   const [scale, setScale] = useState(1);
   const [index, setIndex] = useState(startIndex);
   return (
