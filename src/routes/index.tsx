@@ -2460,7 +2460,9 @@ function ExpandedStoryView({
   onAddComment: () => void;
   onClose: () => void;
 }) {
+  const { t } = useLanguage();
   return (
+
     <div
       className="fixed inset-0 z-[70] flex flex-col animate-fade-in"
       style={{
