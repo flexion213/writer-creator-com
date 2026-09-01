@@ -15,6 +15,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useLanguage } from "@/hooks/use-language";
+import { useDebouncedPatcher } from "@/hooks/use-debounced-patcher";
 import { LoreHighlightedText, useWikiEntries } from "@/components/WorldWiki";
 import {
   NotebookPen, Plus, Trash2, Wand2, Loader2, Users, MessageCircle,
@@ -329,6 +330,7 @@ function NotebookFullscreen({
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [lore, setLore] = useState<Lore[]>([]);
   const [loreFilter, setLoreFilter] = useState<string>("All");
+  const [charFilter, setCharFilter] = useState<string>("all");
   const [wordGoal, setWordGoal] = useState<number>(() => {
     if (typeof window === "undefined") return 500;
     const v = Number(window.localStorage.getItem(`nb:goal:${notebook.id}`) ?? 500);
