@@ -606,20 +606,49 @@ function NotebookFullscreen({
 
         <TabsContent value="characters" className="flex-1 min-h-0 m-0 mt-3 px-3 pb-3 overflow-y-auto space-y-3">
           <Button size="sm" variant="outline" className="w-full rounded-2xl" onClick={addCharacter}>
-            <Plus className="h-3.5 w-3.5 mr-1" /> Add character
+            <Plus className="h-3.5 w-3.5 mr-1" /> {t("addCharacter")}
           </Button>
-          {characters.length === 0 && (
-            <p className="text-xs text-muted-foreground text-center py-6">No characters yet.</p>
+
+          {charTags.length > 0 && (
+            <div className="flex items-center gap-1 overflow-x-auto pb-1" aria-label={t("filterByRole")}>
+              {[{ id: "all", label: t("filterAll") }, ...charTags.map((tag) => ({ id: tag, label: tag }))].map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setCharFilter(f.id)}
+                  className={`shrink-0 px-3 h-7 rounded-full text-[11px] transition ${
+                    charFilter === f.id
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted/40 text-muted-foreground hover:bg-muted/70"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {visibleCharacters.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-6">{t("noCharacters")}</p>
           )}
           <div className="space-y-3">
-            {characters.map((c) => {
+            {visibleCharacters.map((c) => {
               const ex = parseCharExtras(c.traits);
               const setEx = (patch: Partial<CharExtras>) =>
                 updateCharacter(c.id, { traits: serializeCharExtras({ ...ex, ...patch }) });
+              const invalid = !c.name.trim();
               return (
-                <div key={c.id} className="rounded-2xl border bg-background/60 p-3 space-y-2">
+                <div key={c.id} className={`rounded-2xl border bg-background/60 p-3 space-y-2 ${invalid ? "border-destructive/60" : ""}`}>
                   <div className="flex items-center gap-2">
-                    <Input value={c.name} onChange={(e) => updateCharacter(c.id, { name: e.target.value })} className="h-9 rounded-xl font-medium" placeholder="Character name" />
+                    <Input
+                      value={c.name}
+                      onChange={(e) => updateCharacter(c.id, { name: e.target.value })}
+                      onBlur={() => { if (!c.name.trim()) updateCharacter(c.id, { name: "Untitled character" }); }}
+                      className="h-9 rounded-xl font-medium"
+                      placeholder={t("charNamePh")}
+                      aria-invalid={invalid}
+                    />
+
                     <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive" onClick={() => removeCharacter(c.id)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
