@@ -359,16 +359,22 @@ function NotebookFullscreen({
 
   // Load characters + timeline
   useEffect(() => {
+    let alive = true;
     void (async () => {
       const [{ data: cd }, { data: td }, { data: ld }] = await Promise.all([
-        supabase.from("notebook_characters").select("*").eq("notebook_id", notebook.id),
+        supabase.from("notebook_characters").select("*").eq("notebook_id", notebook.id).order("created_at", { ascending: true }),
         supabase.from("notebook_timeline_events").select("*").eq("notebook_id", notebook.id).order("event_order"),
         supabase.from("notebook_lore").select("*").eq("notebook_id", notebook.id).order("created_at"),
       ]);
-      setCharacters((cd as Character[]) ?? []);
-      setTimeline((td as TimelineEvent[]) ?? []);
-      setLore((ld as Lore[]) ?? []);
+      if (!alive) return;
+      // De-duplicate by id so a re-run of this effect can never double cards.
+      const dedupe = <T extends { id: string }>(xs: T[]) =>
+        [...new Map(xs.map((x) => [x.id, x])).values()];
+      setCharacters(dedupe((cd as Character[]) ?? []));
+      setTimeline(dedupe((td as TimelineEvent[]) ?? []));
+      setLore(dedupe((ld as Lore[]) ?? []));
     })();
+    return () => { alive = false; };
   }, [notebook.id]);
 
   // Debounced autosave
@@ -383,20 +389,59 @@ function NotebookFullscreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, body]);
 
+  // One coalesced write per character row instead of one per keystroke.
+  const charPatcher = useDebouncedPatcher<Character>(
+    async (id, patch) => { await supabase.from("notebook_characters").update(patch).eq("id", id); },
+  );
+
+  const addingChar = useRef(false);
   const addCharacter = async () => {
-    const { data } = await supabase.from("notebook_characters").insert({
-      notebook_id: notebook.id, name: "New character",
-    }).select("*").single();
-    if (data) setCharacters((cs) => [...cs, data as Character]);
+    if (addingChar.current) return; // blocks duplicate cards from a double tap
+    const blank = characters.find((c) => !c.name.trim());
+    if (blank) { toast.error(t("blankCardWarning")); return; }
+    addingChar.current = true;
+    try {
+      const { data, error } = await supabase.from("notebook_characters").insert({
+        notebook_id: notebook.id, name: "New character",
+      }).select("*").single();
+      if (error || !data) { toast.error(t("tGrammarFail")); return; }
+      setCharacters((cs) => (cs.some((c) => c.id === data.id) ? cs : [...cs, data as Character]));
+    } finally {
+      addingChar.current = false;
+    }
   };
-  const updateCharacter = async (id: string, patch: Partial<Character>) => {
+  const updateCharacter = (id: string, patch: Partial<Character>) => {
     setCharacters((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-    await supabase.from("notebook_characters").update(patch).eq("id", id);
+    charPatcher.queue(id, patch);
   };
   const removeCharacter = async (id: string) => {
+    charPatcher.drop(id); // never write to a row we're deleting
     setCharacters((cs) => cs.filter((c) => c.id !== id));
     await supabase.from("notebook_characters").delete().eq("id", id);
   };
+
+  // Tag filtering (role or faction) derived from state, so it never resets edits.
+  const charTags = useMemo(() => {
+    const tags = new Set<string>();
+    for (const c of characters) {
+      const role = c.role?.trim();
+      const faction = parseCharExtras(c.traits).faction.trim();
+      if (role) tags.add(role);
+      if (faction) tags.add(faction);
+    }
+    return [...tags].sort((a, b) => a.localeCompare(b));
+  }, [characters]);
+
+  const visibleCharacters = useMemo(() => {
+    if (charFilter === "all") return characters;
+    return characters.filter((c) => {
+      const role = c.role?.trim().toLowerCase();
+      const faction = parseCharExtras(c.traits).faction.trim().toLowerCase();
+      const f = charFilter.toLowerCase();
+      return role === f || faction === f;
+    });
+  }, [characters, charFilter]);
+
 
   const addEvent = async () => {
     const { data } = await supabase.from("notebook_timeline_events").insert({
