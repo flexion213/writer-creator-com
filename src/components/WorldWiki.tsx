@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useDebouncedPatcher } from "@/hooks/use-debounced-patcher";
 import { useLanguage, type Key } from "@/hooks/use-language";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { BookMarked, Plus, Trash2, X } from "lucide-react";
+import { toast } from "sonner";
 
 export type WikiEntry = {
   id: string;
@@ -40,31 +42,47 @@ export function useWikiEntries() {
         .select("*")
         .order("created_at", { ascending: true });
       if (!alive) return;
-      setEntries((data as WikiEntry[]) ?? []);
+      setEntries([...new Map(((data as WikiEntry[]) ?? []).map((e) => [e.id, e])).values()]);
       setLoading(false);
     })();
     return () => { alive = false; };
   }, [user?.id]);
 
-  const add = useCallback(async (category: string) => {
-    if (!user) return;
-    const { data } = await supabase
-      .from("wiki_entries")
-      .insert({ user_id: user.id, category, title: "", summary: "", details: "" })
-      .select()
-      .single();
-    if (data) setEntries((xs) => [...xs, data as WikiEntry]);
-  }, [user?.id]);
+  // Coalesce keystrokes into one write per entry so edits never race or reset.
+  const patcher = useDebouncedPatcher<WikiEntry>(
+    async (id, patch) => { await supabase.from("wiki_entries").update(patch).eq("id", id); },
+  );
+  const adding = useRef(false);
 
-  const update = useCallback(async (id: string, patch: Partial<WikiEntry>) => {
+  const add = useCallback(async (category: string) => {
+    if (!user || adding.current) return;
+    // Validation: never stack a second blank card on top of an unfinished one.
+    if (entries.some((e) => !e.title.trim() && !e.summary.trim() && !e.details.trim())) {
+      return "blank" as const;
+    }
+    adding.current = true;
+    try {
+      const { data } = await supabase
+        .from("wiki_entries")
+        .insert({ user_id: user.id, category, title: "", summary: "", details: "" })
+        .select()
+        .single();
+      if (data) setEntries((xs) => (xs.some((x) => x.id === data.id) ? xs : [...xs, data as WikiEntry]));
+    } finally {
+      adding.current = false;
+    }
+  }, [user?.id, entries]);
+
+  const update = useCallback((id: string, patch: Partial<WikiEntry>) => {
     setEntries((xs) => xs.map((x) => (x.id === id ? { ...x, ...patch } : x)));
-    await supabase.from("wiki_entries").update(patch).eq("id", id);
-  }, []);
+    patcher.queue(id, patch);
+  }, [patcher]);
 
   const remove = useCallback(async (id: string) => {
+    patcher.drop(id);
     setEntries((xs) => xs.filter((x) => x.id !== id));
     await supabase.from("wiki_entries").delete().eq("id", id);
-  }, []);
+  }, [patcher]);
 
   return { entries, loading, add, update, remove, signedIn: !!user };
 }
@@ -240,7 +258,7 @@ export function WorldWiki() {
           {WIKI_CATEGORIES.map((c) => (
             <Button
               key={c.id} size="sm" variant="outline" className="rounded-full"
-              onClick={() => add(c.id)}
+              onClick={async () => { if ((await add(c.id)) === "blank") toast.error(t("blankCardWarning")); }}
             >
               <Plus className="h-3 w-3 mr-1" /> {t(c.key)}
             </Button>

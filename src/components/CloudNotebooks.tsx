@@ -15,6 +15,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useLanguage } from "@/hooks/use-language";
+import { useDebouncedPatcher } from "@/hooks/use-debounced-patcher";
 import { LoreHighlightedText, useWikiEntries } from "@/components/WorldWiki";
 import {
   NotebookPen, Plus, Trash2, Wand2, Loader2, Users, MessageCircle,
@@ -329,6 +330,7 @@ function NotebookFullscreen({
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [lore, setLore] = useState<Lore[]>([]);
   const [loreFilter, setLoreFilter] = useState<string>("All");
+  const [charFilter, setCharFilter] = useState<string>("all");
   const [wordGoal, setWordGoal] = useState<number>(() => {
     if (typeof window === "undefined") return 500;
     const v = Number(window.localStorage.getItem(`nb:goal:${notebook.id}`) ?? 500);
@@ -359,16 +361,22 @@ function NotebookFullscreen({
 
   // Load characters + timeline
   useEffect(() => {
+    let alive = true;
     void (async () => {
       const [{ data: cd }, { data: td }, { data: ld }] = await Promise.all([
-        supabase.from("notebook_characters").select("*").eq("notebook_id", notebook.id),
+        supabase.from("notebook_characters").select("*").eq("notebook_id", notebook.id).order("created_at", { ascending: true }),
         supabase.from("notebook_timeline_events").select("*").eq("notebook_id", notebook.id).order("event_order"),
         supabase.from("notebook_lore").select("*").eq("notebook_id", notebook.id).order("created_at"),
       ]);
-      setCharacters((cd as Character[]) ?? []);
-      setTimeline((td as TimelineEvent[]) ?? []);
-      setLore((ld as Lore[]) ?? []);
+      if (!alive) return;
+      // De-duplicate by id so a re-run of this effect can never double cards.
+      const dedupe = <T extends { id: string }>(xs: T[]) =>
+        [...new Map(xs.map((x) => [x.id, x])).values()];
+      setCharacters(dedupe((cd as Character[]) ?? []));
+      setTimeline(dedupe((td as TimelineEvent[]) ?? []));
+      setLore(dedupe((ld as Lore[]) ?? []));
     })();
+    return () => { alive = false; };
   }, [notebook.id]);
 
   // Debounced autosave
@@ -383,20 +391,59 @@ function NotebookFullscreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, body]);
 
+  // One coalesced write per character row instead of one per keystroke.
+  const charPatcher = useDebouncedPatcher<Character>(
+    async (id, patch) => { await supabase.from("notebook_characters").update(patch).eq("id", id); },
+  );
+
+  const addingChar = useRef(false);
   const addCharacter = async () => {
-    const { data } = await supabase.from("notebook_characters").insert({
-      notebook_id: notebook.id, name: "New character",
-    }).select("*").single();
-    if (data) setCharacters((cs) => [...cs, data as Character]);
+    if (addingChar.current) return; // blocks duplicate cards from a double tap
+    const blank = characters.find((c) => !c.name.trim());
+    if (blank) { toast.error(t("blankCardWarning")); return; }
+    addingChar.current = true;
+    try {
+      const { data, error } = await supabase.from("notebook_characters").insert({
+        notebook_id: notebook.id, name: "New character",
+      }).select("*").single();
+      if (error || !data) { toast.error(t("tGrammarFail")); return; }
+      setCharacters((cs) => (cs.some((c) => c.id === data.id) ? cs : [...cs, data as Character]));
+    } finally {
+      addingChar.current = false;
+    }
   };
-  const updateCharacter = async (id: string, patch: Partial<Character>) => {
+  const updateCharacter = (id: string, patch: Partial<Character>) => {
     setCharacters((cs) => cs.map((c) => (c.id === id ? { ...c, ...patch } : c)));
-    await supabase.from("notebook_characters").update(patch).eq("id", id);
+    charPatcher.queue(id, patch);
   };
   const removeCharacter = async (id: string) => {
+    charPatcher.drop(id); // never write to a row we're deleting
     setCharacters((cs) => cs.filter((c) => c.id !== id));
     await supabase.from("notebook_characters").delete().eq("id", id);
   };
+
+  // Tag filtering (role or faction) derived from state, so it never resets edits.
+  const charTags = useMemo(() => {
+    const tags = new Set<string>();
+    for (const c of characters) {
+      const role = c.role?.trim();
+      const faction = parseCharExtras(c.traits).faction.trim();
+      if (role) tags.add(role);
+      if (faction) tags.add(faction);
+    }
+    return [...tags].sort((a, b) => a.localeCompare(b));
+  }, [characters]);
+
+  const visibleCharacters = useMemo(() => {
+    if (charFilter === "all") return characters;
+    return characters.filter((c) => {
+      const role = c.role?.trim().toLowerCase();
+      const faction = parseCharExtras(c.traits).faction.trim().toLowerCase();
+      const f = charFilter.toLowerCase();
+      return role === f || faction === f;
+    });
+  }, [characters, charFilter]);
+
 
   const addEvent = async () => {
     const { data } = await supabase.from("notebook_timeline_events").insert({
@@ -559,20 +606,49 @@ function NotebookFullscreen({
 
         <TabsContent value="characters" className="flex-1 min-h-0 m-0 mt-3 px-3 pb-3 overflow-y-auto space-y-3">
           <Button size="sm" variant="outline" className="w-full rounded-2xl" onClick={addCharacter}>
-            <Plus className="h-3.5 w-3.5 mr-1" /> Add character
+            <Plus className="h-3.5 w-3.5 mr-1" /> {t("addCharacter")}
           </Button>
-          {characters.length === 0 && (
-            <p className="text-xs text-muted-foreground text-center py-6">No characters yet.</p>
+
+          {charTags.length > 0 && (
+            <div className="flex items-center gap-1 overflow-x-auto pb-1" aria-label={t("filterByRole")}>
+              {[{ id: "all", label: t("filterAll") }, ...charTags.map((tag) => ({ id: tag, label: tag }))].map((f) => (
+                <button
+                  key={f.id}
+                  type="button"
+                  onClick={() => setCharFilter(f.id)}
+                  className={`shrink-0 px-3 h-7 rounded-full text-[11px] transition ${
+                    charFilter === f.id
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted/40 text-muted-foreground hover:bg-muted/70"
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {visibleCharacters.length === 0 && (
+            <p className="text-xs text-muted-foreground text-center py-6">{t("noCharacters")}</p>
           )}
           <div className="space-y-3">
-            {characters.map((c) => {
+            {visibleCharacters.map((c) => {
               const ex = parseCharExtras(c.traits);
               const setEx = (patch: Partial<CharExtras>) =>
                 updateCharacter(c.id, { traits: serializeCharExtras({ ...ex, ...patch }) });
+              const invalid = !c.name.trim();
               return (
-                <div key={c.id} className="rounded-2xl border bg-background/60 p-3 space-y-2">
+                <div key={c.id} className={`rounded-2xl border bg-background/60 p-3 space-y-2 ${invalid ? "border-destructive/60" : ""}`}>
                   <div className="flex items-center gap-2">
-                    <Input value={c.name} onChange={(e) => updateCharacter(c.id, { name: e.target.value })} className="h-9 rounded-xl font-medium" placeholder="Character name" />
+                    <Input
+                      value={c.name}
+                      onChange={(e) => updateCharacter(c.id, { name: e.target.value })}
+                      onBlur={() => { if (!c.name.trim()) updateCharacter(c.id, { name: "Untitled character" }); }}
+                      className="h-9 rounded-xl font-medium"
+                      placeholder={t("charNamePh")}
+                      aria-invalid={invalid}
+                    />
+
                     <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive" onClick={() => removeCharacter(c.id)}>
                       <Trash2 className="h-3.5 w-3.5" />
                     </Button>
