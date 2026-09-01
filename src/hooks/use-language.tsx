@@ -165,6 +165,14 @@ const en = {
   likeLabel: "Like",
   zoomIn: "Zoom in",
   zoomOut: "Zoom out",
+
+  // Character wiki additions
+  addCharacter: "Add character",
+  noCharacters: "No characters yet.",
+  filterByRole: "Filter by tag",
+  filterAll: "All",
+  blankCardWarning: "Finish the blank card before adding another.",
+  charNamePh: "Character name",
 } as const;
 
 export type Key = keyof typeof en;
@@ -1207,14 +1215,6 @@ const DICT: Record<LangCode, Partial<Record<Key, string>>> = {
     blankCardWarning: "\u8bf7\u5148\u5b8c\u6210\u7a7a\u767d\u5361\u7247\u518d\u6dfb\u52a0\u65b0\u7684\u3002",
     charNamePh: "\u89d2\u8272\u540d\u79f0",
   },
-
-  // Character wiki additions
-  addCharacter: "Add character",
-  noCharacters: "No characters yet.",
-  filterByRole: "Filter by tag",
-  filterAll: "All",
-  blankCardWarning: "Finish the blank card before adding another.",
-  charNamePh: "Character name",
 };
 
 type Ctx = { lang: LangCode; setLang: (l: LangCode) => void; t: (k: Key) => string };
