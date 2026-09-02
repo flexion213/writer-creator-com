@@ -397,7 +397,7 @@ function Dashboard() {
       )}
 
       {section === "drawing" && (
-        <DrawingStudio adminMode={adminMode} onOpenMenu={() => setNavOpen(true)} />
+        <DrawingStudio adminMode={adminMode} onOpenMenu={() => setNavOpen(true)} onExit={() => go("feed")} />
       )}
 
       {section === "sandbox" && (
