@@ -796,7 +796,7 @@ function floodFill(
   ctx.putImageData(img, 0, 0);
 }
 
-function DrawingStudio({ adminMode, onOpenMenu }: { adminMode: boolean; onOpenMenu: () => void }) {
+function DrawingStudio({ adminMode, onOpenMenu, onExit }: { adminMode: boolean; onOpenMenu: () => void; onExit: () => void }) {
   const { t } = useLanguage();
   type Layer = { id: string; name: string; visible: boolean };
   type LayerSnapshot = string | null;
