@@ -998,19 +998,22 @@ function DrawingStudio({ adminMode, onOpenMenu, onExit }: { adminMode: boolean; 
 
     const updateStageSize = () => {
       const bounds = host.getBoundingClientRect();
-      const maxW = Math.max(0, bounds.width - 16);
-      const maxH = Math.max(0, bounds.height - 16);
+      const maxW = Math.max(0, bounds.width);
+      const maxH = Math.max(0, bounds.height);
       if (!maxW || !maxH) return;
       const aspect = CANVAS_W / CANVAS_H;
-      let width = Math.min(maxW, maxH * aspect);
+      // Cover the whole viewport edge-to-edge (Ibis Paint style full-screen
+      // canvas). Overflowing area is reachable with the Pan tool / zoom.
+      let width = Math.max(maxW, maxH * aspect);
       let height = width / aspect;
-      if (height > maxH) {
+      if (height < maxH) {
         height = maxH;
         width = height * aspect;
       }
-      setStageSize({ width: Math.floor(width), height: Math.floor(height) });
+      setStageSize({ width: Math.round(width), height: Math.round(height) });
       rectCache.current = null;
     };
+
 
     updateStageSize();
     const ro = new ResizeObserver(updateStageSize);
