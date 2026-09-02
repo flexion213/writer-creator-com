@@ -29,7 +29,7 @@ import {
   Plus, Wand2, Loader2, Search, Heart, MessageCircle, Menu,
   BookOpen, BookCopy, Flag, Type, Layers, Link as LinkIcon, ZoomIn, ZoomOut, Map as MapIcon,
   Settings2, Settings, Feather,
-  BookMarked,
+  BookMarked, Hand, Minus, ArrowLeft, Eye, EyeOff,
 } from "lucide-react";
 import Wheel from "@uiw/react-color-wheel";
 import ShadeSlider from "@uiw/react-color-shade-slider";
