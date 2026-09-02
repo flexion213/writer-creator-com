@@ -1415,106 +1415,145 @@ function DrawingStudio({ adminMode, onOpenMenu, onExit }: { adminMode: boolean; 
   };
   const currentHex = hsvaToHex(hsva);
 
+  const TOOLS: { id: "brush" | "eraser" | "line" | "pan"; label: string; icon: typeof Brush }[] = [
+    { id: "brush", label: t("brush") || "Brush", icon: Brush },
+    { id: "eraser", label: t("eraser") || "Eraser", icon: Eraser },
+    { id: "line", label: "Line", icon: Minus },
+    { id: "pan", label: "Pan", icon: Hand },
+  ];
+  const activeTool: "brush" | "eraser" | "line" | "pan" =
+    mode === "pan" ? "pan" : mode === "line" ? "line" : brush === "eraser" ? "eraser" : "brush";
+  const pickTool = (id: "brush" | "eraser" | "line" | "pan") => {
+    if (id === "pan") { setMode("pan"); return; }
+    if (id === "line") { setMode("line"); return; }
+    setMode("brush");
+    if (id === "eraser") setBrush("eraser");
+    else if (brush === "eraser") setBrush("pen");
+  };
+
   return (
-    <div className="fixed inset-0 z-30 flex flex-col bg-[#0a0a0a] text-white">
-      {/* Top mini bar */}
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-white/10 bg-black/40 backdrop-blur shrink-0">
-        <Button variant="ghost" size="icon" aria-label={t("openMenu")} className="h-9 w-9 text-white" onClick={onOpenMenu}>
-          <Menu className="h-5 w-5" />
-        </Button>
-        <span className="text-sm font-semibold flex-1">{t("drawing")}</span>
-        <Button variant="ghost" size="icon" className="h-9 w-9 text-white" onClick={() => setShowSide((s) => !s)} aria-label={t("toggleSide")}>
-          <Sparkles className="h-4 w-4" />
-        </Button>
+    <div className="fixed inset-0 z-50 overflow-hidden bg-[#0a0a0a] text-white select-none" style={{ touchAction: "none" }}>
+      {/* Full-screen canvas stage */}
+      <div ref={stageHostRef} className="absolute inset-0 overflow-hidden">
+        <div
+          className="absolute left-1/2 top-1/2 bg-white"
+          style={{
+            width: stageSize.width > 0 ? `${stageSize.width}px` : "100%",
+            height: stageSize.height > 0 ? `${stageSize.height}px` : "100%",
+            transform: `translate(-50%, -50%) translate(${pan.x}px, ${pan.y}px) scale(${zoom})`,
+            touchAction: "none",
+            cursor: mode === "pan" ? "grab" : "crosshair",
+          }}
+        >
+          {layers.map((layer) => (
+            <canvas
+              key={layer.id}
+              ref={setLayerRef(layer.id)}
+              width={CANVAS_W}
+              height={CANVAS_H}
+              onPointerDown={layer.id === activeLayerId ? start : undefined}
+              onPointerMove={layer.id === activeLayerId ? move : undefined}
+              onPointerUp={layer.id === activeLayerId ? end : undefined}
+              onPointerLeave={layer.id === activeLayerId ? end : undefined}
+              onPointerCancel={layer.id === activeLayerId ? end : undefined}
+              className="absolute inset-0 w-full h-full touch-none"
+              style={{
+                pointerEvents: layer.id === activeLayerId ? "auto" : "none",
+                visibility: layer.visible ? "visible" : "hidden",
+                opacity: layer.visible ? 1 : 0,
+                zIndex: layers.indexOf(layer),
+              }}
+            />
+          ))}
+          {/* Line-tool preview overlay */}
+          <canvas
+            ref={previewRef}
+            width={CANVAS_W}
+            height={CANVAS_H}
+            className="absolute inset-0 w-full h-full pointer-events-none"
+            style={{ zIndex: layers.length + 1 }}
+          />
+        </div>
       </div>
 
-      {/* Canvas area (fills remaining space) */}
-      <div ref={stageHostRef} className="flex-1 min-h-0 relative overflow-hidden bg-[#0a0a0a]">
-        <div className="absolute inset-0 flex items-center justify-center p-0.5">
-          <div
-            className="relative rounded-xl overflow-hidden bg-white border border-white/10"
-            style={{
-              width: stageSize.width > 0 ? `${stageSize.width}px` : "min(100%, 42vh)",
-              height: stageSize.height > 0 ? `${stageSize.height}px` : "min(70vh, calc(100vw * 1.3333))",
-              touchAction: "none",
-              boxShadow:
-                "0 30px 60px -20px rgba(0,0,0,0.75), 0 12px 24px -10px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.05)",
-            }}
-          >
-            {layers.map((layer) => (
-              <canvas
-                key={layer.id}
-                ref={setLayerRef(layer.id)}
-                width={CANVAS_W}
-                height={CANVAS_H}
-                onPointerDown={layer.id === activeLayerId ? start : undefined}
-                onPointerMove={layer.id === activeLayerId ? move : undefined}
-                onPointerUp={layer.id === activeLayerId ? end : undefined}
-                onPointerLeave={layer.id === activeLayerId ? end : undefined}
-                onPointerCancel={layer.id === activeLayerId ? end : undefined}
-                className="absolute inset-0 w-full h-full touch-none"
-                style={{
-                  pointerEvents: layer.id === activeLayerId ? "auto" : "none",
-                  visibility: layer.visible ? "visible" : "hidden",
-                  zIndex: layers.indexOf(layer),
-                }}
-              />
-            ))}
-          </div>
-        </div>
+      {/* Floating back / exit button */}
+      <button
+        onClick={onExit}
+        className="absolute left-3 top-3 z-20 flex h-10 items-center gap-2 rounded-full border border-white/15 bg-black/45 px-3.5 text-xs font-medium text-white backdrop-blur-xl transition hover:bg-black/70"
+        aria-label={t("back") || "Back"}
+      >
+        <ArrowLeft className="h-4 w-4" />
+        <span>{t("back") || "Back"}</span>
+      </button>
 
-        {/* Side utilities panel */}
-        {showSide && (
-          <aside className="absolute top-2 right-2 bottom-2 w-64 max-w-[80vw] rounded-2xl bg-black/70 backdrop-blur-xl border border-white/10 p-3 space-y-3 overflow-y-auto z-10">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-widest text-white/70">{t("layers")}</span>
-              <Button size="icon" variant="ghost" className="h-7 w-7 text-white" onClick={addLayer} aria-label={t("addLayer")}>
-                <Plus className="h-3.5 w-3.5" />
-              </Button>
-            </div>
-            <div className="space-y-1">
-              {[...layers].reverse().map((layer) => {
-                const active = layer.id === activeLayerId;
+      {/* Top-right quick utilities */}
+      <div className="absolute right-3 top-3 z-20 flex items-center gap-2">
+        <button
+          onClick={() => setZoom((z) => Math.max(0.2, Math.round((z - 0.1) * 10) / 10))}
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/45 backdrop-blur-xl hover:bg-black/70"
+          aria-label={t("zoomOut") || "Zoom out"}
+        >
+          <ZoomOut className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); rectCache.current = null; }}
+          className="h-10 rounded-full border border-white/15 bg-black/45 px-3 text-[11px] font-mono backdrop-blur-xl hover:bg-black/70"
+          aria-label="Reset view"
+        >
+          {Math.round(zoom * 100)}%
+        </button>
+        <button
+          onClick={() => setZoom((z) => Math.min(5, Math.round((z + 0.1) * 10) / 10))}
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/45 backdrop-blur-xl hover:bg-black/70"
+          aria-label={t("zoomIn") || "Zoom in"}
+        >
+          <ZoomIn className="h-4 w-4" />
+        </button>
+        <button
+          onClick={onOpenMenu}
+          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/45 backdrop-blur-xl hover:bg-black/70"
+          aria-label={t("openMenu")}
+        >
+          <Menu className="h-4 w-4" />
+        </button>
+      </div>
+
+      {/* Bottom floating toolbar */}
+      <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20 flex justify-center p-2 sm:p-3">
+        <div className="pointer-events-auto w-full max-w-3xl rounded-3xl border border-white/10 bg-black/65 p-2.5 shadow-premium backdrop-blur-2xl">
+          {/* Row 1 — tools + actions */}
+          <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1 rounded-2xl bg-white/5 p-1">
+              {TOOLS.map((tool) => {
+                const Icon = tool.icon;
+                const active = activeTool === tool.id;
                 return (
-                  <div
-                    key={layer.id}
-                    className={`flex items-center gap-2 rounded-xl px-2 py-1.5 text-sm cursor-pointer ${active ? "bg-white/15 ring-1 ring-white/30" : "hover:bg-white/5"}`}
-                    onClick={() => setActiveLayerId(layer.id)}
+                  <button
+                    key={tool.id}
+                    onClick={() => pickTool(tool.id)}
+                    title={tool.label}
+                    aria-label={tool.label}
+                    className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${
+                      active ? "bg-white/20 ring-1 ring-white/50 tool-glow" : "hover:bg-white/10"
+                    }`}
                   >
-                    <button
-                      onClick={(e) => { e.stopPropagation(); toggleLayer(layer.id); }}
-                      className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-white/10"
-                      aria-label={layer.visible ? "Hide layer" : "Show layer"}
-                      title={layer.visible ? "Hide" : "Show"}
-                    >
-                      <span className={`block h-2 w-2 rounded-full ${layer.visible ? "bg-emerald-400" : "bg-white/20"}`} />
-                    </button>
-                    <span className="flex-1 truncate">{layer.name}</span>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); removeLayer(layer.id); }}
-                      className="h-6 w-6 flex items-center justify-center rounded-md hover:bg-rose-500/20 hover:text-rose-300"
-                      aria-label={t("deleteLayer")}
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
+                    <Icon className="h-4 w-4" />
+                  </button>
                 );
               })}
             </div>
 
-            <div className="border-t border-white/10 pt-3 space-y-2">
-              <span className="text-xs font-semibold uppercase tracking-widest text-white/70">{t("actions")}</span>
-              <div className="grid grid-cols-2 gap-2">
-                <Button size="sm" variant="secondary" className="rounded-xl" onClick={undo}><Undo2 className="h-3.5 w-3.5 mr-1" /> Undo</Button>
-                <Button size="sm" variant="secondary" className="rounded-xl" onClick={redo}><Redo2 className="h-3.5 w-3.5 mr-1" /> Redo</Button>
-                <Button size="sm" variant="secondary" className="rounded-xl" onClick={save}><Download className="h-3.5 w-3.5 mr-1" /> Save</Button>
-                <Button size="sm" variant="secondary" className="rounded-xl" onClick={clearActive}><Trash2 className="h-3.5 w-3.5 mr-1" /> Clear</Button>
-              </div>
-            </div>
-
-            {showColor && (
-              <div className="border-t border-white/10 pt-3 space-y-2">
-                <span className="text-xs font-semibold uppercase tracking-widest text-white/70">{t("color")}</span>
+            {/* Active color → wheel popup */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className="h-9 w-9 shrink-0 rounded-full border-2 border-white/40 shadow-inner"
+                  style={{ background: currentHex }}
+                  aria-label={t("colorWheel")}
+                  title={t("colorWheel")}
+                />
+              </PopoverTrigger>
+              <PopoverContent side="top" align="center" className="w-[230px] space-y-2 border-white/10 bg-black/90 p-3 text-white backdrop-blur-xl">
                 <div className="flex justify-center">
                   <Wheel color={hsva} onChange={(c) => setHsva({ ...hsva, ...c.hsva })} width={180} height={180} />
                 </div>
@@ -1522,178 +1561,202 @@ function DrawingStudio({ adminMode, onOpenMenu, onExit }: { adminMode: boolean; 
                 <Alpha hsva={hsva} onChange={(a) => setHsva({ ...hsva, ...a })} style={{ width: "100%", height: 14 }} />
                 <div className="grid grid-cols-6 gap-1.5">
                   {swatches.map((s) => (
-                    <button key={s} onClick={() => setHsva(hexToHsva(s))}
-                      className="h-7 rounded-md border border-white/10" style={{ background: s }}
-                      aria-label={`${swatchNames[s] ?? s} swatch`} />
+                    <button
+                      key={s}
+                      onClick={() => setHsva(hexToHsva(s))}
+                      className="h-6 rounded-md border border-white/10"
+                      style={{ background: s }}
+                      aria-label={`${swatchNames[s] ?? s} swatch`}
+                    />
                   ))}
                 </div>
-              </div>
-            )}
-          </aside>
-        )}
-      </div>
+                <div className="text-center font-mono text-[10px] uppercase tracking-widest text-white/70">{currentHex}</div>
+              </PopoverContent>
+            </Popover>
 
-      {/* Bottom toolbar dock */}
-      <div className="shrink-0 border-t border-white/10 bg-black/70 backdrop-blur-xl p-3 space-y-2">
-        {/* Quick color palette + clear */}
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 overflow-x-auto pb-1 flex-1 min-w-0">
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                className="h-9 w-9 shrink-0 rounded-full border-2 border-white/30 shadow-inner"
-                style={{ background: currentHex }}
-                aria-label={t("colorWheel")}
-                title={t("colorWheel")}
-              />
-            </PopoverTrigger>
-            <PopoverContent side="top" align="start" className="w-[220px] p-3 bg-black/90 backdrop-blur-xl border-white/10 space-y-2">
-              <div className="flex justify-center">
-                <Wheel color={hsva} onChange={(c) => setHsva({ ...hsva, ...c.hsva })} width={180} height={180} />
-              </div>
-              <ShadeSlider hsva={hsva} onChange={(s) => setHsva({ ...hsva, ...s })} style={{ width: "100%" }} />
-              <Alpha hsva={hsva} onChange={(a) => setHsva({ ...hsva, ...a })} style={{ width: "100%", height: 14 }} />
-              <div className="text-center text-[10px] font-mono text-white/70 uppercase tracking-widest">{currentHex}</div>
-            </PopoverContent>
-          </Popover>
-          {swatches.map((s) => {
-            const selected = s.toLowerCase() === currentHex.toLowerCase();
-            return (
-              <button
-                key={s}
-                onClick={() => setHsva(hexToHsva(s))}
-                className={`h-8 w-8 shrink-0 rounded-full border transition-transform ${selected ? "border-white scale-110 ring-2 ring-white/60" : "border-white/20"}`}
-                style={{ background: s }}
-                aria-label={`${swatchNames[s] ?? s} swatch`}
-              />
-            );
-          })}
-          </div>
-          <button
-            onClick={clearActive}
-            className="h-9 w-9 shrink-0 rounded-full bg-rose-500/20 hover:bg-rose-500/40 border border-rose-400/40 text-rose-100 flex items-center justify-center"
-            aria-label={t("clearCanvas")}
-            title={t("clearCanvas")}
-          >
-            <Trash2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={undo}
-            className="h-9 w-9 shrink-0 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center"
-            aria-label={t("undoAria")}
-            title={t("undo")}
-          >
-            <Undo2 className="h-4 w-4" />
-          </button>
-          <button
-            onClick={redo}
-            className="h-9 w-9 shrink-0 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white flex items-center justify-center"
-            aria-label={t("redoAria")}
-            title={t("redo")}
-          >
-            <Redo2 className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          {BRUSHES.map((b) => {
-            const Icon = b.icon;
-            const active = brush === b.id;
-            return (
-              <button
-                key={b.id}
-                onClick={() => selectBrush(b.id)}
-                title={b.label}
-                className={`relative shrink-0 flex flex-col items-center gap-0.5 rounded-xl px-2.5 py-1.5 text-[10px] transition-all duration-200 ${
-                  active
-                    ? "bg-white/20 ring-1 ring-white/60 tool-glow scale-105"
-                    : "bg-white/5 hover:bg-white/10 hover:scale-105"
-                }`}
-              >
-                <Icon className="h-4 w-4" />
-                <span className="leading-none">{b.label}</span>
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex items-center gap-3 text-[10px] text-white/70">
-          <div className="flex-1">
-            <div className="flex items-center justify-between"><span>{t("sizeLabel")}</span><span>{size}px</span></div>
-            <input type="range" min={1} max={80} value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-full accent-white" />
-          </div>
-          <div className="flex-1">
-            <div className="flex items-center justify-between"><span>{t("opacityLabel")}</span><span>{Math.round(opacity * 100)}%</span></div>
-            <input type="range" min={5} max={100} value={Math.round(opacity * 100)} onChange={(e) => setOpacity(Number(e.target.value) / 100)} className="w-full accent-white" />
-          </div>
-        </div>
-        <div className="flex items-end gap-3 text-[10px] text-white/70">
-          <div className="flex-1">
-            <div className="flex items-center justify-between">
-              <span>{t("stabilizer")}</span>
-              <span>{stabilizer === 0 ? "Off" : `${stabilizer}%`}</span>
-            </div>
-            <input
-              type="range" min={0} max={90} value={stabilizer}
-              onChange={(e) => setStabilizer(Number(e.target.value))}
-              className="w-full accent-white"
-              aria-label={t("stabilizerAria")}
-            />
-          </div>
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button size="sm" variant="secondary" className="h-8 rounded-xl shrink-0 text-[10px]">
-                <Settings2 className="h-3.5 w-3.5 mr-1" /> {CANVAS_W}×{CANVAS_H}
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent side="top" align="end" className="w-[240px] p-3 bg-black/90 backdrop-blur-xl border-white/10 space-y-2">
-              <p className="text-[10px] font-semibold uppercase tracking-widest text-white/60">{t("canvasSizeLabel")}</p>
-              <div className="space-y-1">
-                {CANVAS_PRESETS.map((p) => {
-                  const active = p.w === CANVAS_W && p.h === CANVAS_H;
-                  return (
-                    <button
-                      key={p.label}
-                      onClick={() => applyCanvasSize(p.w, p.h)}
-                      className={`w-full rounded-lg px-2 py-1.5 text-left text-xs ${active ? "bg-white/20 ring-1 ring-white/40" : "bg-white/5 hover:bg-white/10"}`}
-                    >
-                      {p.label}
-                    </button>
-                  );
-                })}
-              </div>
-              <div className="border-t border-white/10 pt-2 space-y-2">
-                <p className="text-[10px] uppercase tracking-widest text-white/60">{t("customLabel")}</p>
-                <div className="flex items-center gap-1.5">
-                  <Input
-                    value={customW}
-                    onChange={(e) => setCustomW(e.target.value.replace(/[^0-9]/g, ""))}
-                    inputMode="numeric"
-                    className="h-8 text-xs bg-white/5 border-white/10"
-                    aria-label={t("customWidth")}
-                  />
-                  <span className="text-white/40">×</span>
-                  <Input
-                    value={customH}
-                    onChange={(e) => setCustomH(e.target.value.replace(/[^0-9]/g, ""))}
-                    inputMode="numeric"
-                    className="h-8 text-xs bg-white/5 border-white/10"
-                    aria-label={t("customHeight")}
-                  />
-                </div>
-                <Button
-                  size="sm"
-                  className="w-full rounded-xl text-xs"
-                  onClick={() => applyCanvasSize(Number(customW), Number(customH))}
+            {/* Brush family picker */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <button
+                  className="flex h-9 items-center gap-1.5 rounded-xl bg-white/5 px-2.5 text-[11px] hover:bg-white/10"
+                  aria-label={t("brushes") || "Brushes"}
                 >
-                  Apply
-                </Button>
-                <p className="text-[10px] text-white/40">320–4096 px per side. Existing art is rescaled to the new canvas.</p>
-              </div>
-            </PopoverContent>
-          </Popover>
+                  <PenTool className="h-4 w-4" />
+                  <span className="hidden sm:inline">{BRUSHES.find((b) => b.id === brush)?.label ?? "Brush"}</span>
+                </button>
+              </PopoverTrigger>
+              <PopoverContent side="top" align="center" className="w-[280px] border-white/10 bg-black/90 p-2 text-white backdrop-blur-xl">
+                <div className="grid grid-cols-4 gap-1.5">
+                  {BRUSHES.map((b) => {
+                    const Icon = b.icon;
+                    const active = brush === b.id && mode !== "pan";
+                    return (
+                      <button
+                        key={b.id}
+                        onClick={() => { setMode("brush"); selectBrush(b.id); }}
+                        title={b.label}
+                        className={`flex flex-col items-center gap-1 rounded-xl px-1.5 py-2 text-[10px] transition ${
+                          active ? "bg-white/20 ring-1 ring-white/50" : "bg-white/5 hover:bg-white/10"
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        <span className="leading-none">{b.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            <div className="ml-auto flex items-center gap-1.5">
+              <button onClick={undo} title={t("undo")} aria-label={t("undoAria")} className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 hover:bg-white/15">
+                <Undo2 className="h-4 w-4" />
+              </button>
+              <button onClick={redo} title={t("redo")} aria-label={t("redoAria")} className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 hover:bg-white/15">
+                <Redo2 className="h-4 w-4" />
+              </button>
+              <button onClick={clearActive} title={t("clearCanvas")} aria-label={t("clearCanvas")} className="flex h-9 w-9 items-center justify-center rounded-xl border border-rose-400/30 bg-rose-500/15 text-rose-100 hover:bg-rose-500/30">
+                <Trash2 className="h-4 w-4" />
+              </button>
+              <button onClick={save} title="Export PNG" aria-label="Export PNG" className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 hover:bg-white/15">
+                <Download className="h-4 w-4" />
+              </button>
+
+              {/* Layers popup */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 hover:bg-white/15" aria-label={t("layers")} title={t("layers")}>
+                    <Layers className="h-4 w-4" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent side="top" align="end" className="w-[260px] space-y-2 border-white/10 bg-black/90 p-3 text-white backdrop-blur-xl">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-semibold uppercase tracking-widest text-white/60">{t("layers")}</span>
+                    <button onClick={addLayer} aria-label={t("addLayer")} className="flex h-7 w-7 items-center justify-center rounded-lg bg-white/10 hover:bg-white/20">
+                      <Plus className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                  <div className="space-y-1">
+                    {[...layers].reverse().map((layer) => {
+                      const active = layer.id === activeLayerId;
+                      return (
+                        <div
+                          key={layer.id}
+                          onClick={() => setActiveLayerId(layer.id)}
+                          className={`flex cursor-pointer items-center gap-2 rounded-xl px-2 py-1.5 text-xs ${active ? "bg-white/15 ring-1 ring-white/30" : "hover:bg-white/5"}`}
+                        >
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleLayer(layer.id); }}
+                            className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-white/10"
+                            aria-label={layer.visible ? "Hide layer" : "Show layer"}
+                          >
+                            {layer.visible ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5 text-white/40" />}
+                          </button>
+                          <span className="flex-1 truncate">{layer.name}</span>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); removeLayer(layer.id); }}
+                            className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-rose-500/20 hover:text-rose-300"
+                            aria-label={t("deleteLayer")}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                  <div className="border-t border-white/10 pt-2">
+                    <div className="flex items-center justify-between text-[10px] text-white/60">
+                      <span>{t("opacityLabel")}</span>
+                      <span>{Math.round(opacity * 100)}%</span>
+                    </div>
+                    <input
+                      type="range" min={5} max={100} value={Math.round(opacity * 100)}
+                      onChange={(e) => setOpacity(Number(e.target.value) / 100)}
+                      className="w-full accent-white"
+                      aria-label={t("opacityLabel")}
+                    />
+                  </div>
+                </PopoverContent>
+              </Popover>
+
+              {/* Canvas size */}
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 hover:bg-white/15" aria-label={t("canvasSizeLabel")} title={`${CANVAS_W}×${CANVAS_H}`}>
+                    <Settings2 className="h-4 w-4" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent side="top" align="end" className="w-[240px] space-y-2 border-white/10 bg-black/90 p-3 text-white backdrop-blur-xl">
+                  <p className="text-[10px] font-semibold uppercase tracking-widest text-white/60">{t("canvasSizeLabel")}</p>
+                  <div className="space-y-1">
+                    {CANVAS_PRESETS.map((p) => {
+                      const active = p.w === CANVAS_W && p.h === CANVAS_H;
+                      return (
+                        <button
+                          key={p.label}
+                          onClick={() => applyCanvasSize(p.w, p.h)}
+                          className={`w-full rounded-lg px-2 py-1.5 text-left text-xs ${active ? "bg-white/20 ring-1 ring-white/40" : "bg-white/5 hover:bg-white/10"}`}
+                        >
+                          {p.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="space-y-2 border-t border-white/10 pt-2">
+                    <p className="text-[10px] uppercase tracking-widest text-white/60">{t("customLabel")}</p>
+                    <div className="flex items-center gap-1.5">
+                      <Input
+                        value={customW}
+                        onChange={(e) => setCustomW(e.target.value.replace(/[^0-9]/g, ""))}
+                        inputMode="numeric"
+                        className="h-8 border-white/10 bg-white/5 text-xs"
+                        aria-label={t("customWidth")}
+                      />
+                      <span className="text-white/40">×</span>
+                      <Input
+                        value={customH}
+                        onChange={(e) => setCustomH(e.target.value.replace(/[^0-9]/g, ""))}
+                        inputMode="numeric"
+                        className="h-8 border-white/10 bg-white/5 text-xs"
+                        aria-label={t("customHeight")}
+                      />
+                    </div>
+                    <Button size="sm" className="w-full rounded-xl text-xs" onClick={() => applyCanvasSize(Number(customW), Number(customH))}>
+                      Apply
+                    </Button>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+
+          {/* Row 2 — size / opacity / smoothing */}
+          <div className="mt-2 flex items-center gap-3 text-[10px] text-white/70">
+            <div className="flex-1">
+              <div className="flex items-center justify-between"><span>{t("sizeLabel")}</span><span>{size}px</span></div>
+              <input type="range" min={1} max={120} value={size} onChange={(e) => setSize(Number(e.target.value))} className="w-full accent-white" aria-label={t("sizeLabel")} />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between"><span>{t("opacityLabel")}</span><span>{Math.round(opacity * 100)}%</span></div>
+              <input type="range" min={5} max={100} value={Math.round(opacity * 100)} onChange={(e) => setOpacity(Number(e.target.value) / 100)} className="w-full accent-white" aria-label={t("opacityLabel")} />
+            </div>
+            <button
+              onClick={() => setStabilizer((s) => (s > 0 ? 0 : 55))}
+              className={`h-8 shrink-0 rounded-xl px-3 text-[10px] font-medium transition ${
+                stabilizer > 0 ? "bg-white/20 ring-1 ring-white/50" : "bg-white/5 hover:bg-white/10"
+              }`}
+              aria-label={t("stabilizerAria")}
+              title={t("stabilizer")}
+            >
+              <Sparkles className="mr-1 inline h-3.5 w-3.5" />
+              {stabilizer > 0 ? `${stabilizer}%` : "Off"}
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
+
 }
 
 // ============== TikTok-style vertical scroll-snap feed ==============
