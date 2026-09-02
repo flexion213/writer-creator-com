@@ -831,6 +831,14 @@ function DrawingStudio({ adminMode, onOpenMenu, onExit }: { adminMode: boolean; 
   const [activeLayerId, setActiveLayerId] = useState<string>("base");
   const [showSide, setShowSide] = useState(false);
   const [stageSize, setStageSize] = useState({ width: 0, height: 0 });
+  // Ibis-style tool modes. "brush" uses the selected brush, eraser is a brush id.
+  const [mode, setMode] = useState<"brush" | "line" | "pan">("brush");
+  const [pan, setPan] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const panStart = useRef<{ x: number; y: number; px: number; py: number } | null>(null);
+  const lineStart = useRef<{ x: number; y: number } | null>(null);
+  const previewRef = useRef<HTMLCanvasElement | null>(null);
+
 
   const activeCanvas = () => layerRefs.current.get(activeLayerId) ?? null;
 
