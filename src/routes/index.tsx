@@ -1233,6 +1233,20 @@ function DrawingStudio({ adminMode, onOpenMenu, onExit }: { adminMode: boolean; 
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch {}
     const c = activeCanvas(); if (!c) return;
     rectCache.current = null; // refresh in case layout changed
+
+    // Pan/Hand tool: drag the whole stage instead of painting.
+    if (mode === "pan") {
+      panStart.current = { x: e.clientX, y: e.clientY, px: pan.x, py: pan.y };
+      return;
+    }
+
+    // Line tool: remember the anchor, preview until release.
+    if (mode === "line") {
+      drawing.current = true;
+      lineStart.current = computePos(e.clientX, e.clientY, c);
+      return;
+    }
+
     // Bucket fill is a one-shot action, not a stroke.
     if (brush === "bucket") {
       const ctx = c.getContext("2d"); if (!ctx) return;
@@ -1253,9 +1267,40 @@ function DrawingStudio({ adminMode, onOpenMenu, onExit }: { adminMode: boolean; 
     drawSegment(ctx, p, { x: p.x + 0.01, y: p.y + 0.01 });
   };
   const move = (e: React.PointerEvent<HTMLCanvasElement>) => {
+    if (mode === "pan") {
+      const ps = panStart.current;
+      if (!ps) return;
+      e.preventDefault();
+      setPan({ x: ps.px + (e.clientX - ps.x), y: ps.py + (e.clientY - ps.y) });
+      rectCache.current = null;
+      return;
+    }
     if (!drawing.current) return;
     e.preventDefault();
     const c = activeCanvas(); if (!c) return;
+
+    // Line tool preview on the overlay canvas.
+    if (mode === "line") {
+      const pv = previewRef.current;
+      const from = lineStart.current;
+      if (!pv || !from) return;
+      const pctx = pv.getContext("2d"); if (!pctx) return;
+      pctx.clearRect(0, 0, pv.width, pv.height);
+      applyStroke(pctx);
+      if (brush === "eraser") {
+        // A destination-out preview would be invisible on the empty overlay.
+        pctx.globalCompositeOperation = "source-over";
+        pctx.strokeStyle = "rgba(255,80,80,0.6)";
+      }
+      const to = computePos(e.clientX, e.clientY, c);
+      pctx.beginPath();
+      pctx.moveTo(from.x, from.y);
+      pctx.lineTo(to.x, to.y);
+      pctx.stroke();
+      lastPt.current = to;
+      return;
+    }
+
     // Use the primary event coords only. Coalesced events on iOS Safari can
     // report stale (0,0) coordinates, which caused strokes to "jump" off-canvas
     // and made drawing appear completely broken on mobile.
@@ -1272,7 +1317,31 @@ function DrawingStudio({ adminMode, onOpenMenu, onExit }: { adminMode: boolean; 
     scheduleFlush();
   };
   const end = () => {
+    if (mode === "pan") { panStart.current = null; rectCache.current = null; return; }
     if (!drawing.current) return;
+
+    if (mode === "line") {
+      const c = activeCanvas();
+      const from = lineStart.current;
+      const to = lastPt.current;
+      const pv = previewRef.current;
+      if (pv) pv.getContext("2d")?.clearRect(0, 0, pv.width, pv.height);
+      if (c && from && to) {
+        const ctx = c.getContext("2d")!;
+        snapshot();
+        applyStroke(ctx);
+        ctx.beginPath();
+        ctx.moveTo(from.x, from.y);
+        ctx.lineTo(to.x, to.y);
+        ctx.stroke();
+        persistLayer(activeLayerId);
+      }
+      drawing.current = false;
+      lineStart.current = null;
+      lastPt.current = null;
+      return;
+    }
+
     drawing.current = false;
     lastPt.current = null;
     smoothPt.current = null;
@@ -1283,6 +1352,7 @@ function DrawingStudio({ adminMode, onOpenMenu, onExit }: { adminMode: boolean; 
     window.setTimeout(() => persistLayer(activeLayerId), 0);
     rectCache.current = null;
   };
+
 
   const clearActive = () => {
     const c = activeCanvas(); if (!c) return;
