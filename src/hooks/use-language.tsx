@@ -179,6 +179,7 @@ export type Key = keyof typeof en;
 
 const DICT: Record<LangCode, Partial<Record<Key, string>>> = {
   en: {},
+  de: {
     feed: "Globaler Feed",
     notebooks: "Meine privaten Notizbücher",
     suggestions: "Vorschlagsbox",
