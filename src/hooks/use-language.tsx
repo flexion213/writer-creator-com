@@ -165,6 +165,10 @@ const en = {
   likeLabel: "Like",
   zoomIn: "Zoom in",
   zoomOut: "Zoom out",
+  back: "Back",
+  brush: "Brush",
+  eraser: "Eraser",
+  brushes: "Brushes",
 
   // Character wiki additions
   addCharacter: "Add character",
