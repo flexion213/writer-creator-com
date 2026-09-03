@@ -2066,12 +2066,12 @@ function FeedReel(props: FeedReelProps) {
   };
 
   const addComment = async (id: string) => {
-    const t = commentDraft.trim();
-    if (!t) return;
+    const bodyText = commentDraft.trim();
+    if (!bodyText) return;
     if (!currentUserId) { toast.error(t("tSignInComment")); return; }
     setCommentDraft("");
     const { error } = await supabase.from("feed_post_comments").insert({
-      post_id: id, author_id: currentUserId, author_name: currentUsername, body: t,
+      post_id: id, author_id: currentUserId, author_name: currentUsername, body: bodyText,
     });
     if (error) toast.error(error.message);
   };
