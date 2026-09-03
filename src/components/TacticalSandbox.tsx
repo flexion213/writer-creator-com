@@ -470,7 +470,7 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
           </div>
           <Button variant="destructive" size="sm" className="mt-2 w-full h-8" onClick={deleteSelected}>
             <Trash2 className="mr-1.5 h-3.5 w-3.5" />
-            {t("delete")}
+            Delete
           </Button>
         </div>
       )}
