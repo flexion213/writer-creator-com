@@ -958,6 +958,13 @@ const DICT: Record<LangCode, Partial<Record<Key, string>>> = {
     filterAll: "Todos",
     blankCardWarning: "Conclua o cart\u00e3o vazio antes de adicionar outro.",
     charNamePh: "Nome do personagem",
+
+    words: "palavras",
+    chars: "caracteres",
+    dailyGoal: "Meta diária",
+    exportTxt: "Exportar .txt",
+    exportMd: "Exportar .md",
+    exported: "Exportado",
   },
   ar: {
     feed: "الموجز العام",
@@ -1106,6 +1113,13 @@ const DICT: Record<LangCode, Partial<Record<Key, string>>> = {
     filterAll: "\u0627\u0644\u0643\u0644",
     blankCardWarning: "\u0623\u0643\u0645\u0644 \u0627\u0644\u0628\u0637\u0627\u0642\u0629 \u0627\u0644\u0641\u0627\u0631\u063a\u0629 \u0642\u0628\u0644 \u0625\u0636\u0627\u0641\u0629 \u0623\u062e\u0631\u0649.",
     charNamePh: "\u0627\u0633\u0645 \u0627\u0644\u0634\u062e\u0635\u064a\u0629",
+
+    words: "\u0643\u0644\u0645\u0627\u062a",
+    chars: "\u0623\u062d\u0631\u0641",
+    dailyGoal: "\u0647\u062f\u0641 \u064a\u0648\u0645\u064a",
+    exportTxt: "\u062a\u0635\u062f\u064a\u0631 .txt",
+    exportMd: "\u062a\u0635\u062f\u064a\u0631 .md",
+    exported: "\u062a\u0645 \u0627\u0644\u062a\u0635\u062f\u064a\u0631",
   },
   zh: {
     feed: "全球动态",
@@ -1254,6 +1268,13 @@ const DICT: Record<LangCode, Partial<Record<Key, string>>> = {
     filterAll: "\u5168\u90e8",
     blankCardWarning: "\u8bf7\u5148\u5b8c\u6210\u7a7a\u767d\u5361\u7247\u518d\u6dfb\u52a0\u65b0\u7684\u3002",
     charNamePh: "\u89d2\u8272\u540d\u79f0",
+
+    words: "\u8bcd",
+    chars: "\u5b57\u7b26",
+    dailyGoal: "\u6bcf\u65e5\u76ee\u6807",
+    exportTxt: "\u5bfc\u51fa .txt",
+    exportMd: "\u5bfc\u51fa .md",
+    exported: "\u5df2\u5bfc\u51fa",
   },
 };
 
