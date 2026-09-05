@@ -177,6 +177,14 @@ const en = {
   filterAll: "All",
   blankCardWarning: "Finish the blank card before adding another.",
   charNamePh: "Character name",
+
+  // Writer tools
+  words: "words",
+  chars: "chars",
+  dailyGoal: "Daily goal",
+  exportTxt: "Export .txt",
+  exportMd: "Export .md",
+  exported: "Exported",
 } as const;
 
 export type Key = keyof typeof en;
