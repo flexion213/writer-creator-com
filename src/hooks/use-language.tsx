@@ -338,6 +338,13 @@ const DICT: Record<LangCode, Partial<Record<Key, string>>> = {
     filterAll: "Alle",
     blankCardWarning: "Vervollst\u00e4ndige die leere Karte, bevor du eine neue hinzuf\u00fcgst.",
     charNamePh: "Charaktername",
+
+    words: "Wörter",
+    chars: "Zeichen",
+    dailyGoal: "Tagesziel",
+    exportTxt: "Als .txt exportieren",
+    exportMd: "Als .md exportieren",
+    exported: "Exportiert",
   },
   nl: {
     feed: "Globale feed",
@@ -486,6 +493,13 @@ const DICT: Record<LangCode, Partial<Record<Key, string>>> = {
     filterAll: "Alle",
     blankCardWarning: "Maak de lege kaart af voordat je een nieuwe toevoegt.",
     charNamePh: "Naam personage",
+
+    words: "woorden",
+    chars: "tekens",
+    dailyGoal: "Dagdoel",
+    exportTxt: "Exporteer .txt",
+    exportMd: "Exporteer .md",
+    exported: "Geëxporteerd",
   },
   fr: {
     feed: "Fil global",
@@ -634,6 +648,13 @@ const DICT: Record<LangCode, Partial<Record<Key, string>>> = {
     filterAll: "Tous",
     blankCardWarning: "Terminez la fiche vide avant d'en ajouter une autre.",
     charNamePh: "Nom du personnage",
+
+    words: "mots",
+    chars: "caractères",
+    dailyGoal: "Objectif quotidien",
+    exportTxt: "Exporter .txt",
+    exportMd: "Exporter .md",
+    exported: "Exporté",
   },
   es: {
     feed: "Feed global",
@@ -782,6 +803,13 @@ const DICT: Record<LangCode, Partial<Record<Key, string>>> = {
     filterAll: "Todos",
     blankCardWarning: "Completa la tarjeta vac\u00eda antes de a\u00f1adir otra.",
     charNamePh: "Nombre del personaje",
+
+    words: "palabras",
+    chars: "caracteres",
+    dailyGoal: "Meta diaria",
+    exportTxt: "Exportar .txt",
+    exportMd: "Exportar .md",
+    exported: "Exportado",
   },
   pt: {
     feed: "Feed global",
