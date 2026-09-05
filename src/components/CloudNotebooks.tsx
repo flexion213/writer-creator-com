@@ -656,6 +656,21 @@ function NotebookFullscreen({
               {t("fixGrammar")}
             </Button>
           </div>
+
+          {/* Live word + character counter */}
+          <div className="flex items-center justify-between gap-3 rounded-2xl bg-card/60 px-4 py-2 text-xs text-muted-foreground border border-border/60">
+            <div className="flex items-center gap-3">
+              <span className="tabular-nums">
+                <strong className="text-foreground">{bodyWordCount.toLocaleString()}</strong> {t("words")}
+              </span>
+              <span className="tabular-nums">
+                <strong className="text-foreground">{charCount.toLocaleString()}</strong> {t("chars")}
+              </span>
+            </div>
+            <span className="tabular-nums">
+              {t("dailyGoal")}: <strong className="text-foreground">{goalPct}%</strong>
+            </span>
+          </div>
         </TabsContent>
 
         <TabsContent value="characters" className="flex-1 min-h-0 m-0 mt-3 px-3 pb-3 overflow-y-auto space-y-3">
