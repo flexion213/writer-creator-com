@@ -355,6 +355,7 @@ function NotebookFullscreen({
   }, [wordGoal, notebook.id]);
 
   const bodyWordCount = body.trim() ? body.trim().split(/\s+/).length : 0;
+  const charCount = body.length;
   const goalPct = Math.min(100, Math.round((bodyWordCount / Math.max(1, wordGoal)) * 100));
 
   // Sync incoming changes
