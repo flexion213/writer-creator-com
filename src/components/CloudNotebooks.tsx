@@ -489,6 +489,22 @@ function NotebookFullscreen({
     await supabase.from("notebook_lore").delete().eq("id", id);
   };
 
+  const downloadDocument = (ext: "txt" | "md") => {
+    const blobText = ext === "md"
+      ? `# ${title || "Untitled"}\n\n${body}`
+      : body;
+    const blob = new Blob([blobText], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(title || "notebook").replace(/[^\w\s-]/g, "").trim() || "notebook"}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast.success(`${t("exported")} .${ext.toUpperCase()}`);
+  };
+
   return (
     <div className="fixed inset-0 z-40 bg-background flex flex-col">
       <header className="flex items-center gap-2 px-3 h-14 border-b bg-card/60 backdrop-blur shrink-0">
