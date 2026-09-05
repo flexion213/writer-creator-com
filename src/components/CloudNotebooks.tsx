@@ -21,6 +21,7 @@ import {
   NotebookPen, Plus, Trash2, Wand2, Loader2, Users, MessageCircle,
   UserPlus, Send, ShieldCheck, X, LogIn, Shield, ArrowLeft, BookOpen,
   Clock, ChevronUp, ChevronDown, Globe2, Target, StickyNote, Copy, Link2, Pencil,
+  FileDown,
 } from "lucide-react";
 
 type Notebook = {
@@ -354,6 +355,7 @@ function NotebookFullscreen({
   }, [wordGoal, notebook.id]);
 
   const bodyWordCount = body.trim() ? body.trim().split(/\s+/).length : 0;
+  const charCount = body.length;
   const goalPct = Math.min(100, Math.round((bodyWordCount / Math.max(1, wordGoal)) * 100));
 
   // Sync incoming changes
@@ -487,6 +489,22 @@ function NotebookFullscreen({
     await supabase.from("notebook_lore").delete().eq("id", id);
   };
 
+  const downloadDocument = (ext: "txt" | "md") => {
+    const blobText = ext === "md"
+      ? `# ${title || "Untitled"}\n\n${body}`
+      : body;
+    const blob = new Blob([blobText], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `${(title || "notebook").replace(/[^\w\s-]/g, "").trim() || "notebook"}.${ext}`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    toast.success(`${t("exported")} .${ext.toUpperCase()}`);
+  };
+
   return (
     <div className="fixed inset-0 z-40 bg-background flex flex-col">
       <header className="flex items-center gap-2 px-3 h-14 border-b bg-card/60 backdrop-blur shrink-0">
@@ -521,28 +539,64 @@ function NotebookFullscreen({
         </TabsList>
 
         <TabsContent value="write" className="flex-1 min-h-0 m-0 mt-3 px-3 pb-3 flex flex-col gap-2">
-          {/* Word goal progress bar */}
-          <div className="flex items-center gap-2 px-1">
-            <Target className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-            <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-              <div className="h-full bg-primary transition-all" style={{ width: `${goalPct}%` }} />
+          {/* Daily target ring + exports */}
+          <div className="flex items-center gap-3 px-1">
+            <div className="flex items-center gap-2">
+              <div className="relative h-10 w-10 shrink-0" aria-label={`${t("dailyGoal")}: ${goalPct}%`}>
+                <svg className="h-full w-full -rotate-90" viewBox="0 0 36 36">
+                  <circle cx="18" cy="18" r="15" fill="none" stroke="var(--muted)" strokeWidth="3" />
+                  <circle
+                    cx="18" cy="18" r="15" fill="none"
+                    stroke="var(--primary)"
+                    strokeWidth="3"
+                    strokeDasharray={`${goalPct * 0.94248} 94.248`}
+                    strokeLinecap="round"
+                    className="transition-all"
+                  />
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-[9px] font-semibold tabular-nums">
+                  {goalPct}%
+                </span>
+              </div>
+              <div className="flex flex-col">
+                <span className="text-[10px] font-medium leading-none">{t("dailyGoal")}</span>
+                <span className="text-[10px] text-muted-foreground tabular-nums">
+                  {bodyWordCount} / {wordGoal} {t("words")}
+                </span>
+              </div>
             </div>
-            <span className="text-[10px] text-muted-foreground tabular-nums w-20 text-right">
-              {bodyWordCount} / {wordGoal}
-            </span>
             <Input
               type="number"
               min={50}
               max={50000}
               value={wordGoal}
               onChange={(e) => setWordGoal(Math.max(50, Number(e.target.value) || 500))}
-              className="h-7 w-20 rounded-xl text-[11px]"
-              aria-label="Daily word goal"
+              className="h-8 w-20 rounded-xl text-[11px]"
+              aria-label={t("dailyGoal")}
             />
+            <div className="flex-1" />
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 rounded-xl text-[11px] gap-1"
+              disabled={!body.trim()}
+              onClick={() => downloadDocument("txt")}
+            >
+              <FileDown className="h-3.5 w-3.5" /> {t("exportTxt")}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 rounded-xl text-[11px] gap-1"
+              disabled={!body.trim()}
+              onClick={() => downloadDocument("md")}
+            >
+              <FileDown className="h-3.5 w-3.5" /> {t("exportMd")}
+            </Button>
             <Button
               size="icon"
               variant="ghost"
-              className="h-7 w-7 rounded-xl"
+              className="h-8 w-8 rounded-xl"
               onClick={() => setScratchOpen(true)}
               aria-label="Open scratchpad"
               title="Scratchpad"
@@ -601,6 +655,21 @@ function NotebookFullscreen({
               {fixing ? <Loader2 className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Wand2 className="h-3.5 w-3.5 mr-1" />}
               {t("fixGrammar")}
             </Button>
+          </div>
+
+          {/* Live word + character counter */}
+          <div className="flex items-center justify-between gap-3 rounded-2xl bg-card/60 px-4 py-2 text-xs text-muted-foreground border border-border/60">
+            <div className="flex items-center gap-3">
+              <span className="tabular-nums">
+                <strong className="text-foreground">{bodyWordCount.toLocaleString()}</strong> {t("words")}
+              </span>
+              <span className="tabular-nums">
+                <strong className="text-foreground">{charCount.toLocaleString()}</strong> {t("chars")}
+              </span>
+            </div>
+            <span className="tabular-nums">
+              {t("dailyGoal")}: <strong className="text-foreground">{goalPct}%</strong>
+            </span>
           </div>
         </TabsContent>
 
