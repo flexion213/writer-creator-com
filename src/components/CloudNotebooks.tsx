@@ -21,6 +21,7 @@ import {
   NotebookPen, Plus, Trash2, Wand2, Loader2, Users, MessageCircle,
   UserPlus, Send, ShieldCheck, X, LogIn, Shield, ArrowLeft, BookOpen,
   Clock, ChevronUp, ChevronDown, Globe2, Target, StickyNote, Copy, Link2, Pencil,
+  FileDown,
 } from "lucide-react";
 
 type Notebook = {
