@@ -16,12 +16,14 @@ import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 import { useLanguage } from "@/hooks/use-language";
 import { useDebouncedPatcher } from "@/hooks/use-debounced-patcher";
+import { useVersionHistory } from "@/hooks/use-version-history";
+import { VersionHistoryDrawer } from "@/components/VersionHistoryDrawer";
 import { LoreHighlightedText, useWikiEntries } from "@/components/WorldWiki";
 import {
   NotebookPen, Plus, Trash2, Wand2, Loader2, Users, MessageCircle,
   UserPlus, Send, ShieldCheck, X, LogIn, Shield, ArrowLeft, BookOpen,
   Clock, ChevronUp, ChevronDown, Globe2, Target, StickyNote, Copy, Link2, Pencil,
-  FileDown,
+  FileDown, History,
 } from "lucide-react";
 
 type Notebook = {
@@ -343,6 +345,9 @@ function NotebookFullscreen({
     return window.localStorage.getItem(`nb:scratch:${notebook.id}`) ?? "";
   });
   const [openSharing, setOpenSharing] = useState(false);
+  const [openHistory, setOpenHistory] = useState(false);
+  const { snapshots, capture: captureVersion, remove: removeVersion } =
+    useVersionHistory(notebook.id, title, body);
   const [openChat, setOpenChat] = useState(false);
   const isOwner = notebook.owner_id === currentUserId;
 
@@ -525,6 +530,16 @@ function NotebookFullscreen({
             <Users className="h-4 w-4" />
           </Button>
         )}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="rounded-2xl"
+          onClick={() => { captureVersion(true); setOpenHistory(true); }}
+          aria-label={t("versionHistory")}
+          title={t("versionHistory")}
+        >
+          <History className="h-4 w-4" />
+        </Button>
         <Button variant="ghost" size="icon" className="rounded-2xl" onClick={() => setOpenChat(true)} aria-label="Chat">
           <MessageCircle className="h-4 w-4" />
         </Button>
@@ -892,7 +907,18 @@ function NotebookFullscreen({
         </TabsContent>
       </Tabs>
 
+      <VersionHistoryDrawer
+        open={openHistory}
+        onOpenChange={setOpenHistory}
+        snapshots={snapshots}
+        currentTitle={title}
+        currentBody={body}
+        onRestore={(snap) => { setTitle(snap.title); setBody(snap.body); }}
+        onDelete={removeVersion}
+      />
+
       <Sheet open={openSharing} onOpenChange={setOpenSharing}>
+
         <SheetContent side="right" className="w-[92vw] sm:max-w-md overflow-y-auto">
           <SharingPanel notebookId={notebook.id} />
         </SheetContent>
