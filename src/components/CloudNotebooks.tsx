@@ -907,7 +907,18 @@ function NotebookFullscreen({
         </TabsContent>
       </Tabs>
 
+      <VersionHistoryDrawer
+        open={openHistory}
+        onOpenChange={setOpenHistory}
+        snapshots={snapshots}
+        currentTitle={title}
+        currentBody={body}
+        onRestore={(snap) => { setTitle(snap.title); setBody(snap.body); }}
+        onDelete={removeVersion}
+      />
+
       <Sheet open={openSharing} onOpenChange={setOpenSharing}>
+
         <SheetContent side="right" className="w-[92vw] sm:max-w-md overflow-y-auto">
           <SharingPanel notebookId={notebook.id} />
         </SheetContent>
