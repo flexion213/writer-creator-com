@@ -18,7 +18,6 @@ import { useLanguage } from "@/hooks/use-language";
 import { useDebouncedPatcher } from "@/hooks/use-debounced-patcher";
 import { useVersionHistory } from "@/hooks/use-version-history";
 import { VersionHistoryDrawer } from "@/components/VersionHistoryDrawer";
-import { LoreHighlightedText, useWikiEntries } from "@/components/WorldWiki";
 import {
   NotebookPen, Plus, Trash2, Wand2, Loader2, Users, MessageCircle,
   UserPlus, Send, ShieldCheck, X, LogIn, Shield, ArrowLeft, BookOpen,
@@ -322,7 +321,6 @@ function NotebookFullscreen({
   onClose: () => void;
 }) {
   const { t } = useLanguage();
-  const { entries: wikiEntries } = useWikiEntries();
   const [title, setTitle] = useState(notebook.title);
   const [body, setBody] = useState(notebook.body);
   const [saving, setSaving] = useState(false);
@@ -622,7 +620,7 @@ function NotebookFullscreen({
 
           {loreLinks ? (
             <div className="flex-1 min-h-0 overflow-y-auto rounded-2xl bg-muted/20 p-4">
-              <LoreHighlightedText text={body} entries={wikiEntries} />
+              <div className="whitespace-pre-wrap text-base leading-relaxed select-text">{body}</div>
             </div>
           ) : (
             <Textarea
