@@ -6,6 +6,9 @@ import {
   Upload, Menu, X, Trash2, Plus, Minus, Crosshair, ImageOff, MapPin,
 } from "lucide-react";
 import { useLanguage } from "@/hooks/use-language";
+import { useAuth } from "@/hooks/use-auth";
+import { supabase } from "@/integrations/supabase/client";
+import type { Json } from "@/integrations/supabase/types";
 
 /* ------------------------------------------------------------------ *
  * Azgaar-style SVG tactical map: infinite wheel-zoom, drag-to-pan,
@@ -85,39 +88,62 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
   const [ghost, setGhost] = useState<{ kind: MarkerKind; x: number; y: number } | null>(null);
   const [panning, setPanning] = useState(false);
 
-  /* ---------------- hydrate ---------------- */
-  useEffect(() => {
-    setBg(readLS<Bg | null>(LS.bg, null));
-    const loaded = readLS<Marker[]>(LS.markers, []);
-    // de-dupe by id so a double hydrate can never double the marker bank
+  /* ---------------- hydrate (database first, device copy as fallback) ---------------- */
+  const { user } = useAuth();
+  const applyState = useCallback((b: Bg | null, loaded: unknown, v: { zoom: number; x: number; y: number } | null) => {
+    setBg(b ?? null);
     const seen = new Set<string>();
     setMarkers(
-      (Array.isArray(loaded) ? loaded : []).filter((m) => {
+      (Array.isArray(loaded) ? (loaded as Marker[]) : []).filter((m) => {
         if (!m || typeof m.id !== "string" || seen.has(m.id)) return false;
         seen.add(m.id);
         return true;
       }),
     );
-    const v = readLS<{ zoom: number; x: number; y: number } | null>(LS.view, null);
     if (v && Number.isFinite(v.zoom)) {
       setZoom(clamp(v.zoom, MIN_ZOOM, MAX_ZOOM));
       setOff({ x: Number(v.x) || 0, y: Number(v.y) || 0 });
     }
-    setHydrated(true);
   }, []);
 
-  /* ---------------- persist ---------------- */
   useEffect(() => {
-    if (hydrated) writeLS(LS.markers, markers);
-  }, [markers, hydrated]);
-  useEffect(() => {
-    if (hydrated) writeLS(LS.bg, bg);
-  }, [bg, hydrated]);
+    let alive = true;
+    setHydrated(false);
+    const local = () => applyState(
+      readLS<Bg | null>(LS.bg, null),
+      readLS<Marker[]>(LS.markers, []),
+      readLS<{ zoom: number; x: number; y: number } | null>(LS.view, null),
+    );
+    if (!user) { local(); setHydrated(true); return; }
+    (async () => {
+      const { data } = await supabase.from("tactical_maps").select("*").eq("user_id", user.id).maybeSingle();
+      if (!alive) return;
+      if (data) applyState(data.bg as Bg | null, data.markers, data.view as { zoom: number; x: number; y: number } | null);
+      else local(); // first time on the database: carry over this device's map
+      setHydrated(true);
+    })();
+    return () => { alive = false; };
+  }, [user?.id, applyState]);
+
+  /* ---------------- persist (debounced) ---------------- */
   useEffect(() => {
     if (!hydrated) return;
-    const id = window.setTimeout(() => writeLS(LS.view, { zoom, x: off.x, y: off.y }), 250);
+    const id = window.setTimeout(() => {
+      const view = { zoom, x: off.x, y: off.y };
+      writeLS(LS.markers, markers);
+      writeLS(LS.bg, bg);
+      writeLS(LS.view, view);
+      if (user) {
+        void supabase.from("tactical_maps").upsert({
+          user_id: user.id,
+          markers: markers as unknown as Json,
+          bg: bg as unknown as Json,
+          view: view as unknown as Json,
+        });
+      }
+    }, 600);
     return () => window.clearTimeout(id);
-  }, [zoom, off, hydrated]);
+  }, [markers, bg, zoom, off, hydrated, user?.id]);
 
   /* ---------------- coordinate helpers ---------------- */
   const toWorld = useCallback(
