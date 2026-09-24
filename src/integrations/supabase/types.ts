@@ -437,6 +437,30 @@ export type Database = {
         }
         Relationships: []
       }
+      tactical_maps: {
+        Row: {
+          bg: Json | null
+          markers: Json
+          updated_at: string
+          user_id: string
+          view: Json | null
+        }
+        Insert: {
+          bg?: Json | null
+          markers?: Json
+          updated_at?: string
+          user_id: string
+          view?: Json | null
+        }
+        Update: {
+          bg?: Json | null
+          markers?: Json
+          updated_at?: string
+          user_id?: string
+          view?: Json | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string
