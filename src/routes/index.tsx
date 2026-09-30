@@ -443,6 +443,7 @@ function Dashboard() {
         )}
         {section === "suggestions" && <Suggestions suggestions={suggestions} setSuggestions={setSuggestions} />}
         {section === "settings" && <SettingsPanel />}
+        {section === "announcements" && <CommunityAnnouncements />}
 
         <footer className="pt-6 pb-4 text-center text-[11px] text-muted-foreground/70">
           © 2026 Writer Creators. {t("madeBy")} Abdulkader Alomar.
