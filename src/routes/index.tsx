@@ -6,6 +6,7 @@ import { Toaster } from "@/components/ui/sonner";
 import { fixGrammar } from "@/lib/grammar.functions";
 import { CloudNotebooks } from "@/components/CloudNotebooks";
 import { TacticalSandbox } from "@/components/TacticalSandbox";
+import CommunityAnnouncements from "@/components/CommunityAnnouncements";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
 import { SettingsPanel } from "@/components/SettingsPanel";
@@ -91,7 +92,7 @@ type Post = {
   hidden: boolean;
 };
 type Comment = { id: string; author: string; text: string; ts: number };
-type Section = "feed" | "notebooks" | "suggestions" | "drawing" | "sandbox" | "settings";
+type Section = "feed" | "announcements" | "notebooks" | "suggestions" | "drawing" | "sandbox" | "settings";
 type Notebook = { id: number; title: string; body: string; updated: number };
 type SuggestionDrafts = {
   bugTitle: string;
@@ -119,6 +120,7 @@ const initialPosts: Post[] = [];
 
 const NAV: { id: Section; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { id: "feed", label: "Global Feed", icon: Globe },
+  { id: "announcements", label: "Announcements", icon: Megaphone },
   { id: "notebooks", label: "My Private Notebooks", icon: NotebookPen },
   { id: "suggestions", label: "Suggestions Box", icon: MessageSquare },
   { id: "drawing", label: "Drawing Studio", icon: Pencil },
@@ -167,7 +169,8 @@ function Dashboard() {
       if (
         savedSection === "feed" || savedSection === "notebooks" ||
         savedSection === "suggestions" || savedSection === "drawing" ||
-        savedSection === "sandbox" || savedSection === "settings"
+        savedSection === "sandbox" || savedSection === "settings" ||
+        savedSection === "announcements"
       ) {
         setSection(savedSection);
       }
@@ -402,7 +405,7 @@ function Dashboard() {
         <TacticalSandbox onOpenMenu={() => setNavOpen(true)} />
       )}
 
-      {(section === "notebooks" || section === "suggestions" || section === "settings") && (
+      {(section === "notebooks" || section === "suggestions" || section === "settings" || section === "announcements") && (
       <main className="mx-auto max-w-md px-4 py-4 space-y-4">
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" aria-label={t("openMenu")} className="h-9 w-9" onClick={() => setNavOpen(true)}>
