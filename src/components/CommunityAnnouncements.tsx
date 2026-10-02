@@ -21,6 +21,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useLanguage, type Key } from "@/hooks/use-language";
+
+const CAT_KEY: Record<string, Key> = {
+  Announcement: "catAnnouncement",
+  "Patch Notes": "catPatch",
+  Update: "catUpdate",
+  Maintenance: "catMaint",
+  All: "all",
+};
 import {
   Megaphone,
   Plus,
@@ -176,6 +185,7 @@ function inline(s: string): React.ReactNode {
 }
 
 function RoleBadge({ role }: { role: AnnouncementRole }) {
+  const { t } = useLanguage();
   const Icon = role === "Admin" ? Crown : Shield;
   return (
     <Badge
@@ -187,13 +197,14 @@ function RoleBadge({ role }: { role: AnnouncementRole }) {
       }
     >
       <Icon className="h-3 w-3" />
-      {role}
+      {t(role === "Admin" ? "roleAdmin" : "roleMod")}
     </Badge>
   );
 }
 
 export default function CommunityAnnouncements() {
   const { isAdmin, isModerator, profile, user } = useAuth();
+  const { t } = useLanguage();
   const staffName =
     profile?.display_name || profile?.username || user?.email?.split("@")[0] || "Staff";
 
@@ -250,7 +261,7 @@ export default function CommunityAnnouncements() {
 
   const unlock = () => {
     if (keyInput.trim().toUpperCase() !== ADMIN_KEY) {
-      toast.error("That staff code is not right.");
+      toast.error(t("badCode"));
       return;
     }
     setKeyUnlocked(true);
@@ -259,7 +270,7 @@ export default function CommunityAnnouncements() {
     try {
       window.localStorage.setItem("wc:announce_key_ok", "1");
     } catch {}
-    toast.success("Staff posting unlocked.");
+    toast.success(t("unlocked"));
   };
 
   const resetComposer = () => {
@@ -273,8 +284,8 @@ export default function CommunityAnnouncements() {
     if (publishing.current) return;
     const t = title.trim();
     const b = body.trim();
-    if (!t) { toast.error("Add a title first."); return; }
-    if (!b) { toast.error("Add some content first."); return; }
+    if (!t) { toast.error(t("needTitle")); return; }
+    if (!b) { toast.error(t("needContent")); return; }
     publishing.current = true;
     const entry: Announcement = {
       id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -289,13 +300,13 @@ export default function CommunityAnnouncements() {
     setItems((prev) => [entry, ...prev]);
     resetComposer();
     setOpen(false);
-    toast.success("Announcement published.");
+    toast.success(t("annPublished"));
     window.setTimeout(() => { publishing.current = false; }, 400);
   };
 
   const remove = (id: string) => {
     setItems((prev) => prev.filter((a) => a.id !== id));
-    toast.success("Announcement removed.");
+    toast.success(t("annRemoved"));
   };
 
   return (
@@ -307,16 +318,16 @@ export default function CommunityAnnouncements() {
             <Megaphone className="h-5 w-5" />
           </div>
           <div>
-            <h1 className="text-lg font-semibold leading-tight">Community Announcements</h1>
+            <h1 className="text-lg font-semibold leading-tight">{t("annTitle")}</h1>
             <p className="text-xs text-muted-foreground">
-              Updates and patch notes from the team. Everyone can read.
+              {t("annSub")}
             </p>
           </div>
         </div>
 
         {canToggle ? (
           <div className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2">
-            <Label htmlFor="admin-mode" className="text-xs">Admin mode</Label>
+            <Label htmlFor="admin-mode" className="text-xs">{t("adminMode")}</Label>
             <Switch id="admin-mode" checked={adminMode} onCheckedChange={setAdminMode} />
           </div>
         ) : (
@@ -325,13 +336,13 @@ export default function CommunityAnnouncements() {
               value={keyInput}
               onChange={(e) => setKeyInput(e.target.value)}
               onKeyDown={(e) => { if (e.key === "Enter") unlock(); }}
-              placeholder="Staff code"
+              placeholder={t("staffCode")}
               className="h-9 w-32"
-              aria-label="Staff code"
+              aria-label={t("staffCode")}
             />
             <Button variant="outline" size="sm" className="h-9 gap-1" onClick={unlock}>
               <KeyRound className="h-3.5 w-3.5" />
-              Unlock
+              {t("unlock")}
             </Button>
           </div>
         )}
@@ -350,7 +361,7 @@ export default function CommunityAnnouncements() {
                 : "border-white/10 bg-white/5 text-foreground/70 hover:bg-white/10"
             }`}
           >
-            {c}
+            {t(CAT_KEY[c])}
           </button>
         ))}
         <div className="relative ml-auto min-w-[160px] flex-1">
@@ -358,7 +369,7 @@ export default function CommunityAnnouncements() {
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search announcements…"
+            placeholder={t("searchAnn")}
             className="h-9 pl-8"
           />
         </div>
@@ -367,7 +378,7 @@ export default function CommunityAnnouncements() {
       {/* Feed */}
       {!hydrated ? null : visible.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-white/15 p-10 text-center text-sm text-muted-foreground">
-          No announcements yet.
+          {t("noAnn")}
         </div>
       ) : (
         <div className="space-y-4">
@@ -379,11 +390,11 @@ export default function CommunityAnnouncements() {
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 {a.pinned && (
                   <Badge variant="secondary" className="gap-1 border-white/15 bg-white/10">
-                    <Pin className="h-3 w-3" /> Pinned
+                    <Pin className="h-3 w-3" /> {t("pinned")}
                   </Badge>
                 )}
                 <Badge variant="outline" className="border-white/15 text-[11px]">
-                  {a.category}
+                  {t(CAT_KEY[a.category])}
                 </Badge>
                 <RoleBadge role={a.role} />
                 {canPost && (
@@ -414,7 +425,7 @@ export default function CommunityAnnouncements() {
           className="fixed bottom-6 right-6 z-40 h-12 gap-2 rounded-full px-5 shadow-lg"
         >
           <Plus className="h-4 w-4" />
-          New post
+          {t("newPost")}
         </Button>
       )}
 
@@ -422,11 +433,11 @@ export default function CommunityAnnouncements() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle>New announcement</DialogTitle>
+            <DialogTitle>{t("newAnn")}</DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">
-              <Label htmlFor="a-title" className="text-xs">Title</Label>
+              <Label htmlFor="a-title" className="text-xs">{t("titleLbl")}</Label>
               <Input
                 id="a-title"
                 value={title}
@@ -436,7 +447,7 @@ export default function CommunityAnnouncements() {
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
-                <Label className="text-xs">Category</Label>
+                <Label className="text-xs">{t("category")}</Label>
                 <Select
                   value={category}
                   onValueChange={(v) => setCategory(v as AnnouncementCategory)}
@@ -444,24 +455,24 @@ export default function CommunityAnnouncements() {
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
                     {ANNOUNCEMENT_CATEGORIES.map((c) => (
-                      <SelectItem key={c} value={c}>{c}</SelectItem>
+                      <SelectItem key={c} value={c}>{t(CAT_KEY[c])}</SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-1.5">
-                <Label className="text-xs">Posting as</Label>
+                <Label className="text-xs">{t("postingAs")}</Label>
                 <Select value={role} onValueChange={(v) => setRole(v as AnnouncementRole)}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Admin">Admin</SelectItem>
-                    <SelectItem value="Mod">Mod</SelectItem>
+                    <SelectItem value="Admin">{t("roleAdmin")}</SelectItem>
+                    <SelectItem value="Mod">{t("roleMod")}</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="a-body" className="text-xs">Content</Label>
+              <Label htmlFor="a-body" className="text-xs">{t("content")}</Label>
               <Textarea
                 id="a-body"
                 value={body}
@@ -470,25 +481,25 @@ export default function CommunityAnnouncements() {
                 className="min-h-[160px] font-mono text-xs"
               />
               <p className="text-[11px] text-muted-foreground">
-                Use # for headings, - for bullets, **bold** for emphasis.
+                {t("mdHint")}
               </p>
             </div>
             {body.trim() !== "" && (
               <div className="rounded-xl border border-white/10 bg-white/[0.03] p-3">
                 <p className="mb-1 text-[11px] uppercase tracking-wide text-muted-foreground">
-                  Preview
+                  {t("preview")}
                 </p>
                 <RichBody text={body} />
               </div>
             )}
             <div className="flex items-center gap-2">
               <Switch id="a-pin" checked={pinned} onCheckedChange={setPinned} />
-              <Label htmlFor="a-pin" className="text-xs">Pin to top</Label>
+              <Label htmlFor="a-pin" className="text-xs">{t("pinTop")}</Label>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={publish}>Publish</Button>
+            <Button variant="ghost" onClick={() => setOpen(false)}>{t("cancel")}</Button>
+            <Button onClick={publish}>{t("publish")}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

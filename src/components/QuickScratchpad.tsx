@@ -2,10 +2,12 @@ import { useEffect, useRef, useState } from "react";
 import { StickyNote, X, Copy, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { useLanguage } from "@/hooks/use-language";
 
 const STORAGE_KEY = "wc:scratchpad";
 
 export default function QuickScratchpad() {
+  const { t } = useLanguage();
   const [open, setOpen] = useState(false);
   const [text, setText] = useState("");
   const [loaded, setLoaded] = useState(false);
@@ -55,9 +57,9 @@ export default function QuickScratchpad() {
     if (!text.trim()) return;
     try {
       await navigator.clipboard.writeText(text);
-      toast.success("Scratchpad copied");
+      toast.success(t("scratchCopied"));
     } catch {
-      toast.error("Couldn't copy");
+      toast.error(t("copyFailed"));
     }
   };
 
@@ -83,9 +85,9 @@ export default function QuickScratchpad() {
       >
         <header className="flex items-center gap-2 px-4 py-3 border-b">
           <StickyNote className="h-4 w-4 text-primary" />
-          <h2 className="text-sm">Scratchpad</h2>
+          <h2 className="text-sm">{t("scratchpad")}</h2>
           <span className="text-[10px] text-muted-foreground">Alt + N</span>
-          <Button size="icon" variant="ghost" className="ml-auto h-8 w-8 rounded-xl" onClick={() => setOpen(false)} aria-label="Close">
+          <Button size="icon" variant="ghost" className="ml-auto h-8 w-8 rounded-xl" onClick={() => setOpen(false)} aria-label={t("close")}>
             <X className="h-4 w-4" />
           </Button>
         </header>
@@ -94,15 +96,15 @@ export default function QuickScratchpad() {
           ref={areaRef}
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Plot notes, dialogue lines, ideas…"
+          placeholder={t("scratchPh")}
           className="flex-1 resize-none bg-transparent p-4 text-sm leading-relaxed outline-none custom-scroll"
         />
 
         <footer className="border-t px-4 py-3 flex items-center gap-2">
-          <span className="text-[11px] text-muted-foreground tabular-nums">{words} words · saved</span>
+          <span className="text-[11px] text-muted-foreground tabular-nums">{words} {t("words")} · {t("saved")}</span>
           {confirmClear ? (
             <div className="ml-auto flex items-center gap-2">
-              <span className="text-[11px] text-muted-foreground">Clear note?</span>
+              <span className="text-[11px] text-muted-foreground">{t("clearNoteQ")}</span>
               <Button
                 size="sm"
                 variant="destructive"
@@ -110,22 +112,22 @@ export default function QuickScratchpad() {
                 onClick={() => {
                   setText("");
                   setConfirmClear(false);
-                  toast.success("Scratchpad cleared");
+                  toast.success(t("scratchCleared"));
                 }}
               >
-                Clear
+                {t("clear")}
               </Button>
               <Button size="sm" variant="ghost" className="h-7 rounded-xl text-[11px]" onClick={() => setConfirmClear(false)}>
-                Cancel
+                {t("cancel")}
               </Button>
             </div>
           ) : (
             <div className="ml-auto flex items-center gap-1">
               <Button size="sm" variant="outline" className="h-7 rounded-xl text-[11px] gap-1" disabled={!text.trim()} onClick={copyAll}>
-                <Copy className="h-3.5 w-3.5" /> Copy all
+                <Copy className="h-3.5 w-3.5" /> {t("copyAll")}
               </Button>
               <Button size="sm" variant="ghost" className="h-7 rounded-xl text-[11px] gap-1" disabled={!text} onClick={() => setConfirmClear(true)}>
-                <Trash2 className="h-3.5 w-3.5" /> Clear
+                <Trash2 className="h-3.5 w-3.5" /> {t("clear")}
               </Button>
             </div>
           )}
