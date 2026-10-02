@@ -7,6 +7,7 @@ import { fixGrammar } from "@/lib/grammar.functions";
 import { CloudNotebooks } from "@/components/CloudNotebooks";
 import { TacticalSandbox } from "@/components/TacticalSandbox";
 import CommunityAnnouncements from "@/components/CommunityAnnouncements";
+import QuickScratchpad from "@/components/QuickScratchpad";
 import { useAuth } from "@/hooks/use-auth";
 import { useLanguage } from "@/hooks/use-language";
 import { SettingsPanel } from "@/components/SettingsPanel";
@@ -439,7 +440,10 @@ function Dashboard() {
         </h2>
 
         {section === "notebooks" && (
-          <CloudNotebooks runFix={runFix} />
+          <>
+            <CloudNotebooks runFix={runFix} />
+            <QuickScratchpad />
+          </>
         )}
         {section === "suggestions" && <Suggestions suggestions={suggestions} setSuggestions={setSuggestions} />}
         {section === "settings" && <SettingsPanel />}
