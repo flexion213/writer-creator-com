@@ -76,6 +76,7 @@ function MarkerGlyph({ kind }: { kind: MarkerKind }) {
 
 export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
   const { t } = useLanguage();
+  const kindLabel = (k: MarkerKind) => t(k === "castle" ? "mkCastle" : k === "army" ? "mkArmy" : "mkCity");
   const wrapRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -260,7 +261,7 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
     const id = uid();
     setMarkers((prev) => [
       ...prev,
-      { id, kind: b.kind, label: KIND_META[b.kind].label, note: "", x: w.x, y: w.y },
+      { id, kind: b.kind, label: kindLabel(b.kind), note: "", x: w.x, y: w.y },
     ]);
     setSelectedId(id);
   };
@@ -268,7 +269,7 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
     const rect = wrapRef.current?.getBoundingClientRect();
     const w = toWorld((rect?.left ?? 0) + (rect?.width ?? 0) / 2, (rect?.top ?? 0) + (rect?.height ?? 0) / 2);
     const id = uid();
-    setMarkers((prev) => [...prev, { id, kind, label: KIND_META[kind].label, note: "", x: w.x, y: w.y }]);
+    setMarkers((prev) => [...prev, { id, kind, label: kindLabel(kind), note: "", x: w.x, y: w.y }]);
     setSelectedId(id);
   };
 
@@ -394,16 +395,16 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
           <span className="pr-1 text-xs font-semibold tracking-wide">{t("sandbox")}</span>
         </div>
         <div className="pointer-events-auto flex items-center gap-1 rounded-full border border-border bg-card/85 px-1.5 py-1 backdrop-blur">
-          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Zoom out" onClick={() => zoomButton(1 / 1.4)}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={t("zoomOut")} onClick={() => zoomButton(1 / 1.4)}>
             <Minus className="h-4 w-4" />
           </Button>
           <span className="w-12 text-center text-[11px] tabular-nums text-muted-foreground">
             {Math.round(zoom * 100)}%
           </span>
-          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Zoom in" onClick={() => zoomButton(1.4)}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={t("zoomIn")} onClick={() => zoomButton(1.4)}>
             <Plus className="h-4 w-4" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Fit map" onClick={resetView}>
+          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label={t("fitMap")} onClick={resetView}>
             <Crosshair className="h-4 w-4" />
           </Button>
         </div>
@@ -425,12 +426,12 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
               }}
               onDoubleClick={() => addAtCenter(kind)}
               className="flex w-16 cursor-grab flex-col items-center gap-1 rounded-xl border border-border/70 px-1 py-1.5 text-[10px] font-medium hover:bg-accent active:cursor-grabbing"
-              title={`${KIND_META[kind].label} — drag onto the map`}
+              title={kindLabel(kind)}
             >
               <svg width={26} height={26} viewBox="-13 -13 26 26" aria-hidden="true">
                 <MarkerGlyph kind={kind} />
               </svg>
-              {KIND_META[kind].label}
+              {kindLabel(kind)}
             </button>
           ))}
           <div className="mx-1 h-10 w-px bg-border" />
@@ -446,10 +447,10 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
           />
           <Button variant="secondary" size="sm" className="h-9" onClick={() => fileRef.current?.click()}>
             <Upload className="mr-1.5 h-4 w-4" />
-            {bg ? "Replace map" : "Upload map"}
+            {bg ? t("replaceMap") : t("uploadMap")}
           </Button>
           {bg && (
-            <Button variant="ghost" size="icon" className="h-9 w-9" aria-label="Remove background" onClick={() => setBg(null)}>
+            <Button variant="ghost" size="icon" className="h-9 w-9" aria-label={t("removeBg")} onClick={() => setBg(null)}>
               <ImageOff className="h-4 w-4" />
             </Button>
           )}
@@ -462,7 +463,7 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
           <div className="mb-2 flex items-center justify-between">
             <div className="flex items-center gap-1.5 text-xs font-semibold">
               <MapPin className="h-3.5 w-3.5" style={{ color: KIND_META[selected.kind].color }} />
-              {KIND_META[selected.kind].label}
+              {kindLabel(selected.kind)}
             </div>
             <Button variant="ghost" size="icon" className="h-7 w-7" aria-label={t("close")} onClick={() => setSelectedId(null)}>
               <X className="h-4 w-4" />
@@ -470,13 +471,13 @@ export function TacticalSandbox({ onOpenMenu }: { onOpenMenu: () => void }) {
           </div>
           <Input
             value={selected.label}
-            placeholder="Name"
+            placeholder={t("nameLbl")}
             className="mb-2 h-8 text-sm"
             onChange={(e) => patchSelected({ label: e.target.value })}
           />
           <Textarea
             value={selected.note}
-            placeholder="Notes…"
+            placeholder={t("notesPh")}
             rows={5}
             className="mb-2 text-sm"
             onChange={(e) => patchSelected({ note: e.target.value })}
