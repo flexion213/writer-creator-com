@@ -282,14 +282,14 @@ export default function CommunityAnnouncements() {
 
   const publish = () => {
     if (publishing.current) return;
-    const t = title.trim();
+    const tt = title.trim();
     const b = body.trim();
-    if (!t) { toast.error(t("needTitle")); return; }
+    if (!tt) { toast.error(t("needTitle")); return; }
     if (!b) { toast.error(t("needContent")); return; }
     publishing.current = true;
     const entry: Announcement = {
       id: `a-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      title: t,
+      title: tt,
       category,
       body: b,
       author: staffName,
