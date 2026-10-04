@@ -39,6 +39,7 @@ export default function QuickScratchpad() {
     const onKey = (e: KeyboardEvent) => {
       if (e.altKey && (e.code === "KeyN" || e.key.toLowerCase() === "n")) {
         e.preventDefault();
+        if (e.repeat) return;
         setOpen((o) => !o);
       } else if (e.key === "Escape") {
         setOpen(false);
@@ -67,19 +68,20 @@ export default function QuickScratchpad() {
 
   return (
     <>
-      <button
+      <Button
         type="button"
+        size="icon"
         onClick={() => setOpen((o) => !o)}
         aria-label="Quick scratchpad (Alt + N)"
         title="Quick scratchpad (Alt + N)"
-        className="fixed bottom-20 right-4 z-40 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-premium flex items-center justify-center hover:scale-105 transition-transform"
+        className="fixed bottom-20 right-4 z-40 h-12 w-12 rounded-full shadow-premium hover:scale-105 focus-visible:scale-105 transition-transform lg:bottom-8 lg:right-8"
       >
         <StickyNote className="h-5 w-5" />
-      </button>
+      </Button>
 
       <aside
         aria-hidden={!open}
-        className={`fixed top-0 right-0 z-50 h-dvh w-full sm:w-96 glass-panel shadow-premium flex flex-col transition-transform duration-300 ${
+        className={`fixed right-0 top-0 z-50 flex h-dvh w-full flex-col glass-panel shadow-premium transition-transform duration-300 sm:w-[clamp(24rem,30vw,32rem)] lg:inset-y-6 lg:right-6 lg:h-auto lg:max-h-[calc(100dvh-3rem)] lg:rounded-lg ${
           open ? "translate-x-0" : "translate-x-full pointer-events-none"
         }`}
       >
