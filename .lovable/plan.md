@@ -1,40 +1,38 @@
-# Plan: Interactive Notebooks + AI Grammar Assistant
+# Plan: Desktop workspace optimization
 
-## Problem
-- Notebooks section currently shows 3 hardcoded static cards — you can't actually create, edit, or save anything. That's why it feels "inaccessible."
-- Visual style is plain, doesn't match the modern feel of the rest of the app.
-- No writing assistance.
+## Goal
+Make Writer Creator comfortable on laptop, 1080p, and 1440p screens without changing editor, canvas, persistence, or version-history behavior.
 
-## What I'll build
+## Changes
 
-### 1. Real Notebooks (replace static cards)
-- Stateful list of notebooks (title + body), stored in component state.
-- "New notebook" button → adds a fresh card you can type into immediately.
-- Each notebook: editable title, editable multi-line body, delete button, last-edited timestamp.
-- Empty state when no notebooks yet, with a friendly CTA.
+### 1. Widescreen containers
+- Replace the phone-width cap around Notebooks, Suggestions, Settings, and Announcements with a fluid desktop container that grows across large screens while retaining sensible side gutters.
+- Keep compact content readable by giving each section its own appropriate maximum width rather than stretching every form edge-to-edge.
+- Give the full-screen notebook editor a centered, wider writing column on desktop, while preserving the current full-height mobile layout.
+- Keep drawing and tactical canvases full-viewport and prevent document-level scrolling or clipping.
 
-### 2. Modern look
-- Gradient/glass cards with subtle border glow, rounded-2xl, soft shadow.
-- Section header with icon tile + title + subtitle (matches the menu style).
-- Smooth hover/focus states; auto-grow textareas; monospace-free clean typography.
-- Same treatment applied lightly to Suggestions and Feed headers for consistency.
+### 2. Desktop panels
+- Size Quick Scratchpad and Version History with responsive `clamp()`-style widths for laptop and 1440p displays.
+- On desktop, constrain panel height/overflow and comparison columns so controls and text remain usable without horizontal collisions.
+- Keep mobile drawers full-width and preserve all current open/close, comparison, restore, and local-save behavior.
 
-### 3. AI Grammar Assistant
-- "Fix grammar" button on each notebook (and on the Global Feed composer).
-- Detects the language automatically and corrects grammar/spelling in that same language (no translation).
-- Powered by Lovable AI Gateway (default model `google/gemini-3-flash-preview`) via a TanStack `createServerFn` — no client-side keys.
-- While running: button shows a spinner; on success, text is replaced and a small "✓ Fixed" hint appears for 2s; on rate-limit/credit errors, a toast explains it.
+### 3. Keyboard shortcuts
+- Add `Ctrl/Cmd + S` inside an open notebook to prevent the browser Save dialog, immediately save the current title/body, capture a version snapshot, and show confirmation.
+- Preserve `Alt + N` for Quick Scratchpad and ensure repeated key events do not double-toggle it.
+- Keep shortcuts scoped to the writing workspace so they do not alter unrelated screens or canvas behavior.
 
-## Technical notes
-- New file `src/lib/grammar.functions.ts` exporting `fixGrammar` server fn:
-  - Input: `{ text: string }` (Zod, 1–4000 chars).
-  - Calls AI gateway with a system prompt: "Detect the language of the user's text. Return ONLY the same text with grammar and spelling fixed, in the SAME language. No explanations, no quotes, no translation." Uses tool-calling for structured `{ corrected: string, language: string }` output.
-  - Handles 429/402 with friendly error messages.
-- Will ensure `LOVABLE_API_KEY` is provisioned (Lovable Cloud + AI gateway) before wiring the call.
-- Notebooks state lives in the existing `IndexPage` (lifted) so it survives section switches within the session.
-- No persistence to a database unless you ask — keeps it lightweight per the original brief.
+### 4. Desktop interaction polish
+- Refine the existing slim scrollbar styling for mouse-wheel use, including semantic hover colors.
+- Add consistent hover/focus-visible feedback and accessible tooltip text to icon-only notebook, Scratchpad, Version History, and drawing toolbar controls.
+- Respect reduced-motion preferences for panel and control transitions.
 
-## Out of scope (ask if you want them)
-- Saving notebooks across reloads (would need Cloud + a table).
-- Multi-user sync.
-- Rich text formatting.
+## Verification
+- Check the notebook workspace at laptop, 1080p, and 1440p widths for clipping, overlap, and usable text width.
+- Verify `Ctrl/Cmd + S` prevents the browser dialog, persists the draft, and creates a snapshot; verify `Alt + N` toggles once per press.
+- Open Scratchpad and Version History to confirm desktop sizing, scrolling, and comparison layout.
+- Confirm the drawing canvas remains full-screen and its toolbar controls show clear hover/focus feedback.
+- Run the project type check and inspect the latest preview build diagnostics.
+
+## Out of scope
+- No editor, canvas drawing, version-history, navigation, or data-model rewrites.
+- No new features beyond desktop layout, shortcuts, scrollbars, hover states, and tooltips.
