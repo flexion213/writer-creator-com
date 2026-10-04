@@ -44,14 +44,14 @@ export function VersionHistoryDrawer({
 
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="w-full sm:max-w-3xl flex flex-col p-0">
+      <SheetContent side="right" className="w-full flex flex-col p-0 sm:max-w-none md:w-[clamp(48rem,72vw,72rem)]">
         <SheetHeader className="px-4 py-3 border-b">
           <SheetTitle className="flex items-center gap-2 text-base">
             <History className="h-4 w-4" /> {t("versionHistory")}
           </SheetTitle>
         </SheetHeader>
 
-        <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[240px_1fr]">
+        <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-[clamp(13rem,18vw,17rem)_minmax(0,1fr)]">
           {/* Timeline */}
           <div className="border-b md:border-b-0 md:border-r overflow-y-auto max-h-56 md:max-h-none p-2 space-y-1">
             {snapshots.length === 0 && (
@@ -61,7 +61,7 @@ export function VersionHistoryDrawer({
               <button
                 key={s.id}
                 onClick={() => { setSelectedId(s.id); setConfirmId(null); }}
-                className={`w-full text-left rounded-xl px-3 py-2 transition-colors ${
+                className={`w-full text-left rounded-xl px-3 py-2 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
                   s.id === selectedId ? "bg-primary/10 border border-primary/40" : "hover:bg-muted/60 border border-transparent"
                 }`}
               >

@@ -407,7 +407,15 @@ function Dashboard() {
       )}
 
       {(section === "notebooks" || section === "suggestions" || section === "settings" || section === "announcements") && (
-      <main className="mx-auto max-w-md px-4 py-4 space-y-4">
+      <main className={`mx-auto w-full px-4 py-4 sm:px-6 lg:px-8 2xl:px-10 space-y-4 ${
+        section === "notebooks"
+          ? "max-w-screen-xl"
+          : section === "announcements"
+            ? "max-w-6xl"
+            : section === "settings"
+              ? "max-w-4xl"
+              : "max-w-5xl"
+      }`}>
         <div className="flex items-center gap-2">
           <Button variant="ghost" size="icon" aria-label={t("openMenu")} className="h-9 w-9" onClick={() => setNavOpen(true)}>
             <div className="flex flex-col gap-[5px]">
@@ -1484,8 +1492,9 @@ function DrawingStudio({ adminMode, onOpenMenu, onExit }: { adminMode: boolean; 
       {/* Floating back / exit button */}
       <button
         onClick={onExit}
-        className="absolute left-3 top-3 z-20 flex h-10 items-center gap-2 rounded-full border border-white/15 bg-black/45 px-3.5 text-xs font-medium text-white backdrop-blur-xl transition hover:bg-black/70"
+        className="desktop-tool-feedback absolute left-3 top-3 z-20 flex h-10 items-center gap-2 rounded-full border border-white/15 bg-black/45 px-3.5 text-xs font-medium text-white backdrop-blur-xl transition hover:bg-black/70"
         aria-label={t("back") || "Back"}
+        title={t("back") || "Back"}
       >
         <ArrowLeft className="h-4 w-4" />
         <span>{t("back") || "Back"}</span>
@@ -1495,29 +1504,33 @@ function DrawingStudio({ adminMode, onOpenMenu, onExit }: { adminMode: boolean; 
       <div className="absolute right-3 top-3 z-20 flex items-center gap-2">
         <button
           onClick={() => setZoom((z) => Math.max(0.2, Math.round((z - 0.1) * 10) / 10))}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/45 backdrop-blur-xl hover:bg-black/70"
+          className="desktop-tool-feedback flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/45 backdrop-blur-xl hover:bg-black/70"
           aria-label={t("zoomOut") || "Zoom out"}
+          title={t("zoomOut") || "Zoom out"}
         >
           <ZoomOut className="h-4 w-4" />
         </button>
         <button
           onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }); rectCache.current = null; }}
-          className="h-10 rounded-full border border-white/15 bg-black/45 px-3 text-[11px] font-mono backdrop-blur-xl hover:bg-black/70"
+          className="desktop-tool-feedback h-10 rounded-full border border-white/15 bg-black/45 px-3 text-[11px] font-mono backdrop-blur-xl hover:bg-black/70"
           aria-label="Reset view"
+          title="Reset view"
         >
           {Math.round(zoom * 100)}%
         </button>
         <button
           onClick={() => setZoom((z) => Math.min(5, Math.round((z + 0.1) * 10) / 10))}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/45 backdrop-blur-xl hover:bg-black/70"
+          className="desktop-tool-feedback flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/45 backdrop-blur-xl hover:bg-black/70"
           aria-label={t("zoomIn") || "Zoom in"}
+          title={t("zoomIn") || "Zoom in"}
         >
           <ZoomIn className="h-4 w-4" />
         </button>
         <button
           onClick={onOpenMenu}
-          className="flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/45 backdrop-blur-xl hover:bg-black/70"
+          className="desktop-tool-feedback flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/45 backdrop-blur-xl hover:bg-black/70"
           aria-label={t("openMenu")}
+          title={t("openMenu")}
         >
           <Menu className="h-4 w-4" />
         </button>
@@ -1538,7 +1551,7 @@ function DrawingStudio({ adminMode, onOpenMenu, onExit }: { adminMode: boolean; 
                     onClick={() => pickTool(tool.id)}
                     title={tool.label}
                     aria-label={tool.label}
-                    className={`flex h-9 w-9 items-center justify-center rounded-xl transition ${
+                    className={`desktop-tool-feedback flex h-9 w-9 items-center justify-center rounded-xl transition ${
                       active ? "bg-white/20 ring-1 ring-white/50 tool-glow" : "hover:bg-white/10"
                     }`}
                   >
@@ -1552,7 +1565,7 @@ function DrawingStudio({ adminMode, onOpenMenu, onExit }: { adminMode: boolean; 
             <Popover>
               <PopoverTrigger asChild>
                 <button
-                  className="h-9 w-9 shrink-0 rounded-full border-2 border-white/40 shadow-inner"
+                  className="desktop-tool-feedback h-9 w-9 shrink-0 rounded-full border-2 border-white/40 shadow-inner"
                   style={{ background: currentHex }}
                   aria-label={t("colorWheel")}
                   title={t("colorWheel")}
@@ -1583,8 +1596,9 @@ function DrawingStudio({ adminMode, onOpenMenu, onExit }: { adminMode: boolean; 
             <Popover>
               <PopoverTrigger asChild>
                 <button
-                  className="flex h-9 items-center gap-1.5 rounded-xl bg-white/5 px-2.5 text-[11px] hover:bg-white/10"
+                  className="desktop-tool-feedback flex h-9 items-center gap-1.5 rounded-xl bg-white/5 px-2.5 text-[11px] hover:bg-white/10"
                   aria-label={t("brushes") || "Brushes"}
+                  title={t("brushes") || "Brushes"}
                 >
                   <PenTool className="h-4 w-4" />
                   <span className="hidden sm:inline">{BRUSHES.find((b) => b.id === brush)?.label ?? "Brush"}</span>
@@ -1600,7 +1614,7 @@ function DrawingStudio({ adminMode, onOpenMenu, onExit }: { adminMode: boolean; 
                         key={b.id}
                         onClick={() => { setMode("brush"); selectBrush(b.id); }}
                         title={b.label}
-                        className={`flex flex-col items-center gap-1 rounded-xl px-1.5 py-2 text-[10px] transition ${
+                        className={`desktop-tool-feedback flex flex-col items-center gap-1 rounded-xl px-1.5 py-2 text-[10px] transition ${
                           active ? "bg-white/20 ring-1 ring-white/50" : "bg-white/5 hover:bg-white/10"
                         }`}
                       >
@@ -1614,23 +1628,23 @@ function DrawingStudio({ adminMode, onOpenMenu, onExit }: { adminMode: boolean; 
             </Popover>
 
             <div className="ml-auto flex items-center gap-1.5">
-              <button onClick={undo} title={t("undo")} aria-label={t("undoAria")} className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 hover:bg-white/15">
+              <button onClick={undo} title={t("undo")} aria-label={t("undoAria")} className="desktop-tool-feedback flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 hover:bg-white/15">
                 <Undo2 className="h-4 w-4" />
               </button>
-              <button onClick={redo} title={t("redo")} aria-label={t("redoAria")} className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 hover:bg-white/15">
+              <button onClick={redo} title={t("redo")} aria-label={t("redoAria")} className="desktop-tool-feedback flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 hover:bg-white/15">
                 <Redo2 className="h-4 w-4" />
               </button>
-              <button onClick={clearActive} title={t("clearCanvas")} aria-label={t("clearCanvas")} className="flex h-9 w-9 items-center justify-center rounded-xl border border-rose-400/30 bg-rose-500/15 text-rose-100 hover:bg-rose-500/30">
+              <button onClick={clearActive} title={t("clearCanvas")} aria-label={t("clearCanvas")} className="desktop-tool-feedback flex h-9 w-9 items-center justify-center rounded-xl border border-rose-400/30 bg-rose-500/15 text-rose-100 hover:bg-rose-500/30">
                 <Trash2 className="h-4 w-4" />
               </button>
-              <button onClick={save} title="Export PNG" aria-label="Export PNG" className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 hover:bg-white/15">
+              <button onClick={save} title="Export PNG" aria-label="Export PNG" className="desktop-tool-feedback flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 hover:bg-white/15">
                 <Download className="h-4 w-4" />
               </button>
 
               {/* Layers popup */}
               <Popover>
                 <PopoverTrigger asChild>
-                  <button className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 hover:bg-white/15" aria-label={t("layers")} title={t("layers")}>
+                  <button className="desktop-tool-feedback flex h-9 w-9 items-center justify-center rounded-xl bg-white/5 hover:bg-white/15" aria-label={t("layers")} title={t("layers")}>
                     <Layers className="h-4 w-4" />
                   </button>
                 </PopoverTrigger>
