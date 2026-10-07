@@ -508,6 +508,51 @@ function NotebookFullscreen({
     toast.success(`${t("exported")} .${ext.toUpperCase()}`);
   };
 
+  const exportManuscriptPdf = () => {
+    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const paras = body.split(/\n\s*\n/).map((p) => `<p>${esc(p).replace(/\n/g, "<br/>")}</p>`).join("");
+    const w = window.open("", "_blank");
+    if (!w) { toast.error("Allow pop-ups to export PDF"); return; }
+    w.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>${esc(title || "Manuscript")}</title><style>
+      @page{size:A4;margin:1in}
+      body{font-family:"Times New Roman",Georgia,serif;font-size:12pt;line-height:2;color:#000;background:#fff;margin:0}
+      .title{text-align:center;margin:3in 0 1in;page-break-after:always}
+      .title h1{font-size:20pt;font-weight:normal;margin:0 0 .5in}
+      p{text-indent:.5in;margin:0;text-align:left}
+    </style></head><body><div class="title"><h1>${esc(title || "Untitled")}</h1><div>${bodyWordCount.toLocaleString()} words</div></div>${paras}</body></html>`);
+    w.document.close();
+    w.focus();
+    setTimeout(() => w.print(), 300);
+  };
+
+  const bodyRef = useRef<HTMLTextAreaElement>(null);
+  const [mention, setMention] = useState<{ start: number; query: string } | null>(null);
+  const [mentionIdx, setMentionIdx] = useState(0);
+  const updateMention = (el: HTMLTextAreaElement) => {
+    const pos = el.selectionStart;
+    const m = /(^|\s)@([^\s@]{0,30})$/.exec(el.value.slice(0, pos));
+    if (m) { setMention({ start: pos - m[2].length - 1, query: m[2].toLowerCase() }); setMentionIdx(0); }
+    else setMention(null);
+  };
+  const mentionItems = useMemo(() => {
+    if (!mention) return [];
+    const all = [
+      ...characters.filter((c) => c.name.trim()).map((c) => ({ key: "c" + c.id, name: c.name.trim(), kind: t("characters"), hint: [c.role, c.traits].filter(Boolean).join(" · ") })),
+      ...lore.filter((l) => l.title.trim()).map((l) => ({ key: "l" + l.id, name: l.title.trim(), kind: t("lore"), hint: l.details })),
+    ];
+    return all.filter((x) => x.name.toLowerCase().includes(mention.query)).slice(0, 8);
+  }, [mention, characters, lore, t]);
+  const insertMention = (name: string) => {
+    const el = bodyRef.current;
+    if (!el || !mention) return;
+    const end = el.selectionStart;
+    const next = body.slice(0, mention.start) + name + " " + body.slice(end);
+    setBody(next);
+    setMention(null);
+    const caret = mention.start + name.length + 1;
+    requestAnimationFrame(() => { el.focus(); el.setSelectionRange(caret, caret); });
+  };
+
   return (
     <div className="fixed inset-0 z-40 bg-background flex flex-col">
       <header className="flex items-center gap-2 px-3 h-14 border-b bg-card/60 backdrop-blur shrink-0">
@@ -607,6 +652,15 @@ function NotebookFullscreen({
               <FileDown className="h-3.5 w-3.5" /> {t("exportMd")}
             </Button>
             <Button
+              size="sm"
+              variant="outline"
+              className="h-8 rounded-xl text-[11px] gap-1"
+              disabled={!body.trim()}
+              onClick={exportManuscriptPdf}
+            >
+              <FileDown className="h-3.5 w-3.5" /> PDF
+            </Button>
+            <Button
               size="icon"
               variant="ghost"
               className="h-8 w-8 rounded-xl"
@@ -623,12 +677,41 @@ function NotebookFullscreen({
               <div className="whitespace-pre-wrap text-base leading-relaxed select-text">{body}</div>
             </div>
           ) : (
+            <div className="relative flex-1 min-h-0 flex flex-col">
             <Textarea
+              ref={bodyRef}
               value={body}
-              onChange={(e) => setBody(e.target.value)}
+              onChange={(e) => { setBody(e.target.value); updateMention(e.target); }}
+              onKeyDown={(e) => {
+                if (!mention || !mentionItems.length) return;
+                if (e.key === "ArrowDown") { e.preventDefault(); setMentionIdx((i) => (i + 1) % mentionItems.length); }
+                else if (e.key === "ArrowUp") { e.preventDefault(); setMentionIdx((i) => (i - 1 + mentionItems.length) % mentionItems.length); }
+                else if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); insertMention(mentionItems[mentionIdx].name); }
+                else if (e.key === "Escape") { setMention(null); }
+              }}
+              onBlur={() => setTimeout(() => setMention(null), 150)}
               placeholder={t("startWriting")}
               className="flex-1 resize-none border-0 bg-muted/20 rounded-2xl text-base leading-relaxed focus-visible:ring-1 p-4"
             />
+            {mention && mentionItems.length > 0 && (
+              <div className="absolute left-3 bottom-3 z-10 w-72 max-h-64 overflow-y-auto rounded-2xl border bg-popover text-popover-foreground shadow-premium p-1">
+                {mentionItems.map((m, i) => (
+                  <button
+                    key={m.key}
+                    type="button"
+                    onMouseDown={(e) => { e.preventDefault(); insertMention(m.name); }}
+                    className={`w-full text-left rounded-xl px-3 py-2 ${i === mentionIdx ? "bg-accent text-accent-foreground" : "hover:bg-muted"}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-medium truncate">{m.name}</span>
+                      <span className="ml-auto text-[10px] uppercase opacity-70">{m.kind}</span>
+                    </div>
+                    {m.hint && <div className="text-[11px] opacity-70 truncate">{m.hint}</div>}
+                  </button>
+                ))}
+              </div>
+            )}
+            </div>
           )}
           <div className="flex items-center justify-end gap-2">
             <Button
