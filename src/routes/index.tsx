@@ -328,7 +328,12 @@ function Dashboard() {
     return () => { alive = false; supabase.removeChannel(ch); };
   }, [user]);
 
-  const go = (s: Section) => { setSection(s); setNavOpen(false); };
+  const prevSectionRef = useRef<Section>("notebooks");
+  const go = (s: Section) => {
+    if (s !== section) prevSectionRef.current = section;
+    setSection(s); setNavOpen(false);
+  };
+  const DOCK: Section[] = ["notebooks", "drawing", "sandbox", "feed", "announcements"];
   const currentLabel = t(section);
 
   return (
@@ -372,6 +377,28 @@ function Dashboard() {
         </SheetContent>
       </Sheet>
 
+      {/* Global quick dock: one tap between sections; each section keeps its place. */}
+      <nav aria-label={t("jumpToSection")} className="fixed left-1/2 top-2 z-[60] -translate-x-1/2 flex items-center gap-1 rounded-full glass-panel shadow-premium p-1">
+        {DOCK.map((id) => {
+          const n = NAV.find((x) => x.id === id)!;
+          const Icon = n.icon;
+          const active = section === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              title={t(id)}
+              aria-label={t(id)}
+              aria-current={active ? "page" : undefined}
+              onClick={() => go(id)}
+              className={`desktop-tool-feedback flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full ${active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-accent/30 hover:text-foreground"}`}
+            >
+              <Icon className="h-4 w-4" />
+            </button>
+          );
+        })}
+      </nav>
+
       {section === "feed" && (
         <FeedReel
           posts={posts}
@@ -399,7 +426,7 @@ function Dashboard() {
       )}
 
       {section === "drawing" && (
-        <DrawingStudio adminMode={adminMode} onOpenMenu={() => setNavOpen(true)} onExit={() => go("feed")} />
+        <DrawingStudio adminMode={adminMode} onOpenMenu={() => setNavOpen(true)} onExit={() => go(prevSectionRef.current === "drawing" ? "notebooks" : prevSectionRef.current)} />
       )}
 
       {section === "sandbox" && (
@@ -407,7 +434,7 @@ function Dashboard() {
       )}
 
       {(section === "notebooks" || section === "suggestions" || section === "settings" || section === "announcements") && (
-      <main className={`mx-auto w-full px-4 py-4 sm:px-6 lg:px-8 2xl:px-10 space-y-4 ${
+      <main className={`mx-auto w-full px-4 pt-14 pb-4 sm:px-6 lg:px-8 2xl:px-10 space-y-4 ${
         section === "notebooks"
           ? "max-w-screen-xl"
           : section === "announcements"
