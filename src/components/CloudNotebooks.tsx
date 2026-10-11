@@ -110,7 +110,14 @@ export function CloudNotebooks({ runFix }: { runFix: (text: string) => Promise<s
   const navigate = useNavigate();
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [fetching, setFetching] = useState(true);
-  const [openId, setOpenId] = useState<string | null>(null);
+  const [openId, setOpenIdRaw] = useState<string | null>(null);
+  const setOpenId = (id: string | null) => {
+    setOpenIdRaw(id);
+    try { id ? window.sessionStorage.setItem("wc:openNotebook", id) : window.sessionStorage.removeItem("wc:openNotebook"); } catch {}
+  };
+  useEffect(() => {
+    try { const id = window.sessionStorage.getItem("wc:openNotebook"); if (id) setOpenIdRaw(id); } catch {}
+  }, []);
   const migrate = useServerFn(migrateLocalNotebooks);
   const migratedRef = useRef(false);
 
@@ -728,7 +735,9 @@ function NotebookFullscreen({
           ) : (
             <div className="relative flex-1 min-h-0 flex flex-col">
             <Textarea
-              ref={bodyRef}
+              ref={(el) => { bodyRef.current = el; bodyRefLate.current = el; }}
+              onSelect={() => savePosRef.current()}
+              onScroll={() => savePosRef.current()}
               value={body}
               onChange={(e) => { setBody(e.target.value); updateMention(e.target); }}
               onKeyDown={(e) => {
