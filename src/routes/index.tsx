@@ -378,7 +378,7 @@ function Dashboard() {
       </Sheet>
 
       {/* Global quick dock: one tap between sections; each section keeps its place. */}
-      <nav aria-label={t("jumpToSection")} className="fixed left-1/2 top-2 z-[60] -translate-x-1/2 flex items-center gap-1 rounded-full glass-panel shadow-premium p-1">
+      <nav aria-label={t("jumpToSection")} className="fixed left-1 top-1/2 z-[60] -translate-y-1/2 flex flex-col items-center gap-1 rounded-full glass-panel shadow-premium p-1 opacity-80 hover:opacity-100">
         {DOCK.map((id) => {
           const n = NAV.find((x) => x.id === id)!;
           const Icon = n.icon;
@@ -434,7 +434,7 @@ function Dashboard() {
       )}
 
       {(section === "notebooks" || section === "suggestions" || section === "settings" || section === "announcements") && (
-      <main className={`mx-auto w-full px-4 pt-14 pb-4 sm:px-6 lg:px-8 2xl:px-10 space-y-4 ${
+      <main className={`mx-auto w-full px-4 pt-4 pb-4 pl-12 sm:pl-14 sm:px-6 lg:px-8 2xl:px-10 space-y-4 ${
         section === "notebooks"
           ? "max-w-screen-xl"
           : section === "announcements"
