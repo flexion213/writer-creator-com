@@ -396,6 +396,55 @@ function NotebookFullscreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, body]);
 
+  // Flush unsaved text when leaving (e.g. jumping to the canvas) so nothing is lost.
+  const latestRef = useRef({ title, body });
+  latestRef.current = { title, body };
+  useEffect(() => () => {
+    const { title: tt, body: bb } = latestRef.current;
+    if (tt !== notebook.title || bb !== notebook.body) {
+      void supabase.from("notebooks").update({ title: tt, body: bb }).eq("id", notebook.id);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notebook.id]);
+
+  // Remember tab, cursor and scroll position so returning lands in the same spot.
+  const posKey = `wc:nbpos:${notebook.id}`;
+  useEffect(() => {
+    try {
+      const raw = window.sessionStorage.getItem(posKey);
+      if (!raw) return;
+      const p = JSON.parse(raw) as { tab?: typeof tab; sel?: number; scroll?: number };
+      if (p.tab) setTab(p.tab);
+      let tries = 0;
+      const restore = () => {
+        const el = bodyRefLate.current;
+        if (!el || !el.value) { if (tries++ < 30) window.setTimeout(restore, 50); return; }
+        const s = Math.min(p.sel ?? el.value.length, el.value.length);
+        el.focus({ preventScroll: true });
+        el.setSelectionRange(s, s);
+        el.scrollTop = p.scroll ?? el.scrollHeight;
+      };
+      if (!p.tab || p.tab === "write") restore();
+    } catch {}
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [notebook.id]);
+  const bodyRefLate = useRef<HTMLTextAreaElement | null>(null);
+  const savePos = () => {
+    try {
+      const el = bodyRefLate.current;
+      const prev = JSON.parse(window.sessionStorage.getItem(posKey) || "{}");
+      window.sessionStorage.setItem(posKey, JSON.stringify({
+        ...prev,
+        tab,
+        ...(el ? { sel: el.selectionStart, scroll: el.scrollTop } : {}),
+      }));
+    } catch {}
+  };
+  const savePosRef = useRef(savePos);
+  savePosRef.current = savePos;
+  useEffect(() => { savePosRef.current(); }, [tab]);
+  useEffect(() => () => savePosRef.current(), []);
+
   // One coalesced write per character row instead of one per keystroke.
   const charPatcher = useDebouncedPatcher<Character>(
     async (id, patch) => { await supabase.from("notebook_characters").update(patch).eq("id", id); },
