@@ -21,7 +21,7 @@ import { VersionHistoryDrawer } from "@/components/VersionHistoryDrawer";
 import {
   NotebookPen, Plus, Trash2, Wand2, Loader2, Users, MessageCircle,
   UserPlus, Send, ShieldCheck, X, LogIn, Shield, ArrowLeft, BookOpen,
-  Clock, ChevronUp, ChevronDown, Globe2, Target, StickyNote, Copy, Link2, Pencil,
+  Clock, ChevronUp, ChevronDown, Globe2, Target, StickyNote, Copy, Link2, Pencil, ListTree,
   FileDown, History,
 } from "lucide-react";
 
@@ -334,6 +334,37 @@ function NotebookFullscreen({
   const [fixing, setFixing] = useState(false);
   const [tab, setTab] = useState<"write" | "characters" | "timeline" | "lore">("write");
   const [loreLinks, setLoreLinks] = useState(false);
+  const [outlineOpen, setOutlineOpen] = useState(() => {
+    try { return localStorage.getItem("wc:outlineOpen") === "1"; } catch { return false; }
+  });
+  useEffect(() => { try { localStorage.setItem("wc:outlineOpen", outlineOpen ? "1" : "0"); } catch {} }, [outlineOpen]);
+  const outline = useMemo(() => {
+    const items: { level: 1 | 2; title: string; pos: number; words: number }[] = [];
+    const re = /^(#{1,2})\s+(.+)$/gm;
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(body))) items.push({ level: m[1].length as 1 | 2, title: m[2].trim(), pos: m.index, words: 0 });
+    items.forEach((it, i) => {
+      const end = items.slice(i + 1).find((n) => n.level <= it.level)?.pos ?? body.length;
+      const text = body.slice(it.pos, end).split("\n").slice(1).join(" ").trim();
+      it.words = text ? text.split(/\s+/).length : 0;
+    });
+    return items;
+  }, [body]);
+  const jumpTo = (pos: number) => {
+    const el = bodyRefLate.current;
+    if (!el) return;
+    el.focus();
+    el.setSelectionRange(pos, pos);
+    const lineH = parseFloat(getComputedStyle(el).lineHeight) || 24;
+    el.scrollTop = Math.max(0, body.slice(0, pos).split("\n").length - 2) * lineH;
+  };
+  const addHeading = (level: 1 | 2) => {
+    const n = outline.filter((o) => o.level === level).length + 1;
+    const h = `${level === 1 ? "#" : "##"} ${level === 1 ? "Chapter" : "Scene"} ${n}`;
+    const next = (body.trimEnd() ? body.trimEnd() + "\n\n" : "") + h + "\n";
+    setBody(next);
+    setTimeout(() => { const el = bodyRefLate.current; if (el) { el.focus(); el.setSelectionRange(next.length, next.length); el.scrollTop = el.scrollHeight; } }, 0);
+  };
   const [characters, setCharacters] = useState<Character[]>([]);
   const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
   const [lore, setLore] = useState<Lore[]>([]);
@@ -718,6 +749,16 @@ function NotebookFullscreen({
             </Button>
             <Button
               size="icon"
+              variant={outlineOpen ? "default" : "ghost"}
+              className="h-8 w-8 rounded-xl"
+              onClick={() => setOutlineOpen((v) => !v)}
+              aria-label="Toggle outline"
+              title="Chapter outline"
+            >
+              <ListTree className="h-3.5 w-3.5" />
+            </Button>
+            <Button
+              size="icon"
               variant="ghost"
               className="h-8 w-8 rounded-xl"
               onClick={() => setScratchOpen(true)}
@@ -733,6 +774,33 @@ function NotebookFullscreen({
               <div className="whitespace-pre-wrap text-base leading-relaxed select-text">{body}</div>
             </div>
           ) : (
+            <div className="flex-1 min-h-0 flex gap-2">
+            {outlineOpen && (
+              <aside className="w-56 shrink-0 min-h-0 overflow-y-auto rounded-2xl bg-muted/20 p-2 flex flex-col gap-1" aria-label="Outline">
+                <div className="flex items-center justify-between px-2 py-1">
+                  <span className="text-xs font-semibold uppercase opacity-70">Outline</span>
+                  <span className="text-[10px] opacity-60">{outline.filter((o) => o.level === 1).length} ch</span>
+                </div>
+                {outline.length === 0 && (
+                  <p className="px-2 text-xs opacity-70">Start a line with "# " for a chapter or "## " for a scene.</p>
+                )}
+                {outline.map((o, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => jumpTo(o.pos)}
+                    className={`text-left rounded-xl px-2 py-1.5 hover:bg-muted transition-colors ${o.level === 1 ? "text-sm font-medium" : "pl-5 text-xs opacity-80"}`}
+                  >
+                    <div className="truncate">{o.title}</div>
+                    <div className="text-[10px] opacity-60">{o.words} words</div>
+                  </button>
+                ))}
+                <div className="mt-auto flex gap-1 pt-2">
+                  <Button size="sm" variant="outline" className="flex-1 h-7 rounded-full text-xs" onClick={() => addHeading(1)}>+ Chapter</Button>
+                  <Button size="sm" variant="outline" className="flex-1 h-7 rounded-full text-xs" onClick={() => addHeading(2)}>+ Scene</Button>
+                </div>
+              </aside>
+            )}
             <div className="relative flex-1 min-h-0 flex flex-col">
             <Textarea
               ref={(el) => { bodyRef.current = el; bodyRefLate.current = el; }}
@@ -769,6 +837,7 @@ function NotebookFullscreen({
                 ))}
               </div>
             )}
+            </div>
             </div>
           )}
           <div className="flex items-center justify-end gap-2">
