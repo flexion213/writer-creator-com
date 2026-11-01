@@ -900,6 +900,7 @@ function NotebookFullscreen({
           <Button size="sm" variant="outline" className="w-full rounded-2xl" onClick={addCharacter}>
             <Plus className="h-3.5 w-3.5 mr-1" /> {t("addCharacter")}
           </Button>
+          <RelationshipWeb notebookId={notebook.id} characters={characters} />
 
           {charTags.length > 0 && (
             <div className="flex items-center gap-1 overflow-x-auto pb-1" aria-label={t("filterByRole")}>
